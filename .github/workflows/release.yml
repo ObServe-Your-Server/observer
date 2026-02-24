@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: [self-hosted]
+    runs-on: [observer-self-hosted]
     permissions:
       contents: write   # needed to create the release and upload the binary
     steps:
