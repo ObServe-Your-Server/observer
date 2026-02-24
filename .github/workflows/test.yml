@@ -6,16 +6,10 @@ on:
 jobs:
   test:
     runs-on: [observer-self-hosted]
+    container: rust:latest  # pre-installed Rust, cargo, gcc — nothing to install
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Install build dependencies
-        # Only installs gcc/build-essential if cc is not already present on the runner
-        run: command -v cc || (sudo apt-get update && sudo apt-get install -y build-essential)
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
 
       - name: Run tests
         run: cargo test

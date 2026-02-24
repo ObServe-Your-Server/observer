@@ -8,29 +8,25 @@ on:
 jobs:
   build:
     runs-on: [observer-self-hosted]
+    container: rust:latest  # pre-installed Rust, cargo, gcc, musl-tools available via apt
     permissions:
       contents: write   # needed to create the release and upload the binary
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          # musl is an alternative C standard library that gets statically linked
-          # into the binary — meaning the binary has zero external dependencies
-          # and runs on any Linux machine regardless of distro or libc version.
-          targets: x86_64-unknown-linux-musl
+      - name: Install musl tools
+        # musl-tools is the only extra needed — everything else is in the rust:latest image.
+        # musl is an alternative C standard library that gets statically linked
+        # into the binary — meaning the binary has zero external dependencies
+        # and runs on any Linux machine regardless of distro or libc version.
+        run: apt-get update && apt-get install -y musl-tools
 
-      - name: Install build dependencies
-        # Only installs if not already present on the runner — avoids apt lock hangs.
-        # build-essential provides the cc linker, musl-tools provides the musl compiler.
-        run: |
-          command -v cc || (sudo apt-get update && sudo apt-get install -y build-essential)
-          command -v musl-gcc || sudo apt-get install -y musl-tools
+      - name: Add musl target
+        # Tells Rust to compile for the musl target (static binary, no glibc dependency)
+        run: rustup target add x86_64-unknown-linux-musl
 
       - name: Build static binary
-        # --target tells Cargo to compile for musl instead of the default glibc.
         # The resulting binary in target/x86_64-unknown-linux-musl/release/
         # is fully self-contained and can be copied and run on any Linux server.
         run: cargo build --release --target x86_64-unknown-linux-musl
