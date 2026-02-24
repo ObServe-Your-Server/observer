@@ -1,8 +1,8 @@
-use log::{info, warn};
-use std::time::Duration;
-use std::sync::mpsc;
-use sysinfo::{Components, Disks, System};
 use super::speedtest;
+use log::{info, warn};
+use std::sync::mpsc;
+use std::time::Duration;
+use sysinfo::{Components, Disks, System};
 
 #[derive(Debug)]
 pub struct CoreTemperature {
@@ -48,7 +48,6 @@ impl Metrics {
                 // thread is still running but we stop waiting for it —
                 // it will eventually finish and try to send into a dead channel, which is fine
                 warn!("metrics collection exceeded 900ms, aborting");
-                // TODO: handle unsuccessful collection — report timeout metric or trigger an alert
                 None
             }
         }
@@ -68,8 +67,15 @@ impl Metrics {
 
         // Storage - per-disk info and aggregates
         let disks = Disks::new_with_refreshed_list();
-        let storage_total_gb = disks.iter().map(|d| d.total_space()).sum::<u64>() / 1024 / 1024 / 1024;
-        let storage_used_gb = disks.iter().map(|d| d.total_space() - d.available_space()).sum::<u64>() / 1024 / 1024 / 1024;
+        let storage_total_gb =
+            disks.iter().map(|d| d.total_space()).sum::<u64>() / 1024 / 1024 / 1024;
+        let storage_used_gb = disks
+            .iter()
+            .map(|d| d.total_space() - d.available_space())
+            .sum::<u64>()
+            / 1024
+            / 1024
+            / 1024;
         let disk_infos: Vec<DiskInfo> = disks
             .iter()
             .map(|d| DiskInfo {
@@ -107,6 +113,41 @@ impl Metrics {
     }
 }
 
+pub async fn collect() {
+    let Some(metrics) = Metrics::collect() else {
+        // TODO handle unsuccessful collection - report timeout metric or trigger an alert
+        return;
+    };
+
+    info!("CPU: {:.1}%", metrics.cpu_usage_percent);
+    info!(
+        "RAM: {}MB / {}MB",
+        metrics.ram_used_mb, metrics.ram_total_mb
+    );
+    info!(
+        "Storage: {}GB / {}GB",
+        metrics.storage_used_gb, metrics.storage_total_gb
+    );
+    info!("Uptime: {}s", metrics.uptime_secs);
+    for ct in &metrics.core_temperatures {
+        info!("Temp [{}]: {:.1}°C", ct.label, ct.temp_celsius);
+    }
+    for disk in &metrics.disks {
+        info!(
+            "Disk [{}]: {}GB / {}GB",
+            disk.name, disk.used_gb, disk.total_gb
+        );
+    }
+
+    match speedtest::get_last_result() {
+        Some(s) => info!(
+            "Speedtest: down={:.2}Mbps up={:.2}Mbps ping={:.1}ms",
+            s.download_mbps, s.upload_mbps, s.ping_ms
+        ),
+        None => info!("Speedtest: no measurement yet"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -116,27 +157,38 @@ mod tests {
         let metrics = Metrics::collect().expect("collection timed out");
         assert!(
             metrics.cpu_usage_percent >= 0.0 && metrics.cpu_usage_percent <= 100.0,
-            "CPU usage out of range: {}", metrics.cpu_usage_percent
+            "CPU usage out of range: {}",
+            metrics.cpu_usage_percent
         );
     }
 
     #[test]
     fn test_ram_used_does_not_exceed_total() {
         let metrics = Metrics::collect().expect("collection timed out");
-        assert!(metrics.ram_total_mb > 0, "Total RAM should be greater than 0");
+        assert!(
+            metrics.ram_total_mb > 0,
+            "Total RAM should be greater than 0"
+        );
         assert!(
             metrics.ram_used_mb <= metrics.ram_total_mb,
-            "Used RAM {}MB exceeds total {}MB", metrics.ram_used_mb, metrics.ram_total_mb
+            "Used RAM {}MB exceeds total {}MB",
+            metrics.ram_used_mb,
+            metrics.ram_total_mb
         );
     }
 
     #[test]
     fn test_storage_used_does_not_exceed_total() {
         let metrics = Metrics::collect().expect("collection timed out");
-        assert!(metrics.storage_total_gb > 0, "Total storage should be greater than 0");
+        assert!(
+            metrics.storage_total_gb > 0,
+            "Total storage should be greater than 0"
+        );
         assert!(
             metrics.storage_used_gb <= metrics.storage_total_gb,
-            "Used storage {}GB exceeds total {}GB", metrics.storage_used_gb, metrics.storage_total_gb
+            "Used storage {}GB exceeds total {}GB",
+            metrics.storage_used_gb,
+            metrics.storage_total_gb
         );
     }
 
@@ -161,27 +213,5 @@ mod tests {
             rx.recv_timeout(Duration::from_millis(900)).is_err(),
             "should have timed out after 900ms"
         );
-    }
-}
-
-pub async fn collect() {
-    let Some(metrics) = Metrics::collect() else {
-        return;
-    };
-
-    info!("CPU: {:.1}%", metrics.cpu_usage_percent);
-    info!("RAM: {}MB / {}MB", metrics.ram_used_mb, metrics.ram_total_mb);
-    info!("Storage: {}GB / {}GB", metrics.storage_used_gb, metrics.storage_total_gb);
-    info!("Uptime: {}s", metrics.uptime_secs);
-    for ct in &metrics.core_temperatures {
-        info!("Temp [{}]: {:.1}°C", ct.label, ct.temp_celsius);
-    }
-    for disk in &metrics.disks {
-        info!("Disk [{}]: {}GB / {}GB", disk.name, disk.used_gb, disk.total_gb);
-    }
-
-    match speedtest::get_last_result() {
-        Some(s) => info!("Speedtest: down={:.2}Mbps up={:.2}Mbps ping={:.1}ms", s.download_mbps, s.upload_mbps, s.ping_ms),
-        None => info!("Speedtest: no measurement yet"),
     }
 }
