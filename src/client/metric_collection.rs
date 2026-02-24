@@ -44,6 +44,46 @@ impl Metrics {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cpu_usage_in_valid_range() {
+        let metrics = Metrics::collect();
+        assert!(
+            metrics.cpu_usage_percent >= 0.0 && metrics.cpu_usage_percent <= 100.0,
+            "CPU usage out of range: {}", metrics.cpu_usage_percent
+        );
+    }
+
+    #[test]
+    fn test_ram_used_does_not_exceed_total() {
+        let metrics = Metrics::collect();
+        assert!(metrics.ram_total_mb > 0, "Total RAM should be greater than 0");
+        assert!(
+            metrics.ram_used_mb <= metrics.ram_total_mb,
+            "Used RAM {}MB exceeds total {}MB", metrics.ram_used_mb, metrics.ram_total_mb
+        );
+    }
+
+    #[test]
+    fn test_storage_used_does_not_exceed_total() {
+        let metrics = Metrics::collect();
+        assert!(metrics.storage_total_gb > 0, "Total storage should be greater than 0");
+        assert!(
+            metrics.storage_used_gb <= metrics.storage_total_gb,
+            "Used storage {}GB exceeds total {}GB", metrics.storage_used_gb, metrics.storage_total_gb
+        );
+    }
+
+    #[test]
+    fn test_uptime_is_positive() {
+        let metrics = Metrics::collect();
+        assert!(metrics.uptime_secs > 0, "Uptime should be greater than 0");
+    }
+}
+
 pub async fn collect() {
     let metrics = Metrics::collect();
 
