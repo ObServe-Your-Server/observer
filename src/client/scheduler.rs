@@ -5,6 +5,7 @@ use tokio::time;
 pub enum SchedulerKind {
     MetricCollection,
     CommandPolling,
+    Speedtest,
 }
 
 impl SchedulerKind {
@@ -12,17 +13,18 @@ impl SchedulerKind {
         match self {
             SchedulerKind::MetricCollection => "metric-collection",
             SchedulerKind::CommandPolling => "command-polling",
+            SchedulerKind::Speedtest => "speedtest",
         }
     }
 }
 
 pub struct Scheduler {
     kind: SchedulerKind,
-    interval_secs: u16,
+    interval_secs: u32,
 }
 
 impl Scheduler {
-    pub fn new(kind: SchedulerKind, interval_secs: u16) -> Self {
+    pub fn new(kind: SchedulerKind, interval_secs: u32) -> Self {
         Self { kind, interval_secs }
     }
 

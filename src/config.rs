@@ -21,6 +21,7 @@ pub struct ClientConfig {
     pub active_streaming_interval_secs: u16,
     pub inactive_streaming_interval_secs: u16,
     pub command_poll_interval_secs: u16,
+    pub speedtest_interval_secs: u32,
 }
 
 #[derive(Debug)]
@@ -107,8 +108,22 @@ fn load_config() -> Result<Config, String> {
                 ));
             }
 
-            debug!("Client config: base_metrics_url={} base_commands_url={} active_interval={}s inactive_interval={}s command_poll={}s",
-                base_metrics_url, base_commands_url, active_streaming_interval_secs, inactive_streaming_interval_secs, command_poll_interval_secs);
+            // Valid range: 60-86400 seconds (1 minute to 24 hours). Change the constants below to adjust.
+            const SPEEDTEST_MIN: u32 = 60;
+            const SPEEDTEST_MAX: u32 = 86400;
+            let speedtest_interval_secs = env::var("OBSERVER_SPEEDTEST_INTERVAL_SECS")
+                .map_err(|_| "OBSERVER_SPEEDTEST_INTERVAL_SECS is required".to_string())?
+                .parse::<u32>()
+                .map_err(|_| "OBSERVER_SPEEDTEST_INTERVAL_SECS must be a valid number".to_string())?;
+            if speedtest_interval_secs < SPEEDTEST_MIN || speedtest_interval_secs > SPEEDTEST_MAX {
+                return Err(format!(
+                    "OBSERVER_SPEEDTEST_INTERVAL_SECS must be between {} and {} seconds, got {}",
+                    SPEEDTEST_MIN, SPEEDTEST_MAX, speedtest_interval_secs
+                ));
+            }
+
+            debug!("Client config: base_metrics_url={} base_commands_url={} active_interval={}s inactive_interval={}s command_poll={}s speedtest={}s",
+                base_metrics_url, base_commands_url, active_streaming_interval_secs, inactive_streaming_interval_secs, command_poll_interval_secs, speedtest_interval_secs);
 
             Ok(Config {
                 version,
@@ -120,6 +135,7 @@ fn load_config() -> Result<Config, String> {
                     active_streaming_interval_secs,
                     inactive_streaming_interval_secs,
                     command_poll_interval_secs,
+                    speedtest_interval_secs,
                 }),
                 all_in_one_config: None,
             })
