@@ -30,7 +30,7 @@ jobs:
 
       - name: Install musl tools
         # musl links the C library statically so the binary runs on any Linux without dependencies
-        run: apt-get update && apt-get install -y musl-tools
+        run: apt-get update && apt-get install -y musl-tools pkg-config
 
       - name: Add musl target
         # adds the musl compile target to rustup
