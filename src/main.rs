@@ -6,7 +6,7 @@ use env_logger;
 use std::env;
 use config::{init_config, Mode};
 use client::scheduler::{Scheduler, SchedulerKind};
-use client::{metric_collection, command_polling};
+use client::{metric_collection, command_polling, speedtest};
 
 fn init_logging() {
     let level_str = env::var("OBSERVER_LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
@@ -38,12 +38,14 @@ async fn main() {
             info!("Running in client mode with config: {:?}", c);
             info!("Application ready");
 
-            let metric_scheduler = Scheduler::new(SchedulerKind::MetricCollection, c.inactive_streaming_interval_secs);
-            let command_scheduler = Scheduler::new(SchedulerKind::CommandPolling, c.command_poll_interval_secs);
+            let metric_scheduler = Scheduler::new(SchedulerKind::MetricCollection, c.inactive_streaming_interval_secs as u32);
+            let command_scheduler = Scheduler::new(SchedulerKind::CommandPolling, c.command_poll_interval_secs as u32);
+            let speedtest_scheduler = Scheduler::new(SchedulerKind::Speedtest, c.speedtest_interval_secs);
 
             tokio::join!(
                 metric_scheduler.run(|| metric_collection::collect()),
                 command_scheduler.run(|| command_polling::poll()),
+                speedtest_scheduler.run(|| speedtest::run()),
             );
         }
         Mode::AllInOne => {

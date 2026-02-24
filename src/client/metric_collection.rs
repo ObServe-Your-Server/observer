@@ -1,28 +1,59 @@
 use log::info;
-use sysinfo::{Networks, System};
+use sysinfo::{Disks, System};
+use super::speedtest;
+
+#[derive(Debug)]
+pub struct Metrics {
+    pub cpu_usage_percent: f32,
+    pub ram_used_mb: u64,
+    pub ram_total_mb: u64,
+    pub storage_used_gb: u64,
+    pub storage_total_gb: u64,
+    pub uptime_secs: u64,
+}
+
+impl Metrics {
+    pub fn collect() -> Self {
+        let mut sys = System::new_all();
+        sys.refresh_all();
+
+        // CPU - average usage across all cores
+        let cpu_count = sys.cpus().len();
+        let cpu_usage = sys.cpus().iter().map(|c| c.cpu_usage()).sum::<f32>() / cpu_count as f32;
+
+        // RAM
+        let ram_used_mb = sys.used_memory() / 1024 / 1024;
+        let ram_total_mb = sys.total_memory() / 1024 / 1024;
+
+        // Storage - sum across all disks
+        let disks = Disks::new_with_refreshed_list();
+        let storage_total_gb = disks.iter().map(|d| d.total_space()).sum::<u64>() / 1024 / 1024 / 1024;
+        let storage_used_gb = disks.iter().map(|d| d.total_space() - d.available_space()).sum::<u64>() / 1024 / 1024 / 1024;
+
+        // Uptime
+        let uptime_secs = System::uptime();
+
+        Self {
+            cpu_usage_percent: cpu_usage,
+            ram_used_mb,
+            ram_total_mb,
+            storage_used_gb,
+            storage_total_gb,
+            uptime_secs,
+        }
+    }
+}
 
 pub async fn collect() {
-    let mut sys = System::new_all();
-    sys.refresh_all();
+    let metrics = Metrics::collect();
 
-    // --- CPU ---
-    let cpu_count = sys.cpus().len();
-    let cpu_usage: f32 = sys.cpus().iter().map(|c| c.cpu_usage()).sum::<f32>() / cpu_count as f32;
-    info!("CPU: {:.1}% across {} cores", cpu_usage, cpu_count);
+    info!("CPU: {:.1}%", metrics.cpu_usage_percent);
+    info!("RAM: {}MB / {}MB", metrics.ram_used_mb, metrics.ram_total_mb);
+    info!("Storage: {}GB / {}GB", metrics.storage_used_gb, metrics.storage_total_gb);
+    info!("Uptime: {}s", metrics.uptime_secs);
 
-    // --- Memory ---
-    let total_mb = sys.total_memory() / 1024 / 1024;
-    let used_mb = sys.used_memory() / 1024 / 1024;
-    info!("RAM: {}MB used / {}MB total", used_mb, total_mb);
-
-    // --- Network ---
-    let networks = Networks::new_with_refreshed_list();
-    for (interface, data) in &networks {
-        info!(
-            "NET [{}]: down={}B up={}B",
-            interface,
-            data.total_received(),
-            data.total_transmitted(),
-        );
+    match speedtest::get_last_result() {
+        Some(s) => info!("Speedtest: down={:.2}Mbps up={:.2}Mbps ping={:.1}ms", s.download_mbps, s.upload_mbps, s.ping_ms),
+        None => info!("Speedtest: no measurement yet"),
     }
 }
