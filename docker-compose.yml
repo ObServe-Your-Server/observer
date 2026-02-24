@@ -1,0 +1,10 @@
+# Default compose file - Linux
+# Uses host network and PID namespace so sysinfo reads real system metrics
+services:
+  observer:
+    build: .
+    restart: unless-stopped
+    network_mode: host
+    pid: host
+    env_file:
+      - .env
