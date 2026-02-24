@@ -40,7 +40,7 @@ pub struct Config {
 static CONFIG: OnceLock<Config> = OnceLock::new();
 
 pub fn get_config() -> &'static Config {
-    CONFIG.get().expect("Config not initialized — call init_config() first")
+    CONFIG.get().expect("Config not initialized - call init_config() first")
 }
 
 pub fn init_config() -> Result<&'static Config, String> {

@@ -1,0 +1,22 @@
+[Unit]
+Description=Observer metrics agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=observer
+Group=observer
+ExecStart=/usr/local/bin/observer
+EnvironmentFile=/etc/observer/.env
+Restart=on-failure
+RestartSec=5s
+
+# basic hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
