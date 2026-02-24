@@ -22,10 +22,11 @@ jobs:
           # and runs on any Linux machine regardless of distro or libc version.
           targets: x86_64-unknown-linux-musl
 
-      - name: Install musl tools
-        # The musl-tools package provides the musl C compiler and linker
-        # that Rust needs when cross-compiling to the musl target.
-        run: sudo apt-get install -y musl-tools
+      - name: Install build dependencies
+        # Installs gcc, the standard C build toolchain, and musl-tools in one step.
+        # build-essential provides the cc linker Rust needs, musl-tools provides
+        # the musl-specific compiler for the static target.
+        run: sudo apt-get update && sudo apt-get install -y build-essential musl-tools
 
       - name: Build static binary
         # --target tells Cargo to compile for musl instead of the default glibc.

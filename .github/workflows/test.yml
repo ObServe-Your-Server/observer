@@ -10,6 +10,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install build dependencies
+        # Installs gcc and the standard C build toolchain required by the Rust linker
+        run: sudo apt-get update && sudo apt-get install -y build-essential
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
