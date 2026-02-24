@@ -5,10 +5,11 @@ on:
 
 jobs:
   test:
+    name: Run tests
     runs-on: [observer-self-hosted]
-    container: rust:latest  # pre-installed Rust, cargo, gcc — nothing to install
+    container: rust:latest
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Run tests
