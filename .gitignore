@@ -26,4 +26,5 @@ target
 /target
 
 *.env
+!.env.example
 .idea
