@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: [self-hosted]
+    permissions:
+      contents: write   # needed to create the release and upload the binary
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # musl is an alternative C standard library that gets statically linked
+          # into the binary — meaning the binary has zero external dependencies
+          # and runs on any Linux machine regardless of distro or libc version.
+          targets: x86_64-unknown-linux-musl
+
+      - name: Install musl tools
+        # The musl-tools package provides the musl C compiler and linker
+        # that Rust needs when cross-compiling to the musl target.
+        run: sudo apt-get install -y musl-tools
+
+      - name: Build static binary
+        # --target tells Cargo to compile for musl instead of the default glibc.
+        # The resulting binary in target/x86_64-unknown-linux-musl/release/
+        # is fully self-contained and can be copied and run on any Linux server.
+        run: cargo build --release --target x86_64-unknown-linux-musl
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/x86_64-unknown-linux-musl/release/observer
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
