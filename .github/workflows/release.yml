@@ -23,10 +23,11 @@ jobs:
           targets: x86_64-unknown-linux-musl
 
       - name: Install build dependencies
-        # Installs gcc, the standard C build toolchain, and musl-tools in one step.
-        # build-essential provides the cc linker Rust needs, musl-tools provides
-        # the musl-specific compiler for the static target.
-        run: sudo apt-get update && sudo apt-get install -y build-essential musl-tools
+        # Only installs if not already present on the runner — avoids apt lock hangs.
+        # build-essential provides the cc linker, musl-tools provides the musl compiler.
+        run: |
+          command -v cc || (sudo apt-get update && sudo apt-get install -y build-essential)
+          command -v musl-gcc || sudo apt-get install -y musl-tools
 
       - name: Build static binary
         # --target tells Cargo to compile for musl instead of the default glibc.
