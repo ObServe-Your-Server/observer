@@ -27,4 +27,6 @@ target
 
 *.env
 !.env.example
+observer.toml
+!observer.toml.example
 .idea
