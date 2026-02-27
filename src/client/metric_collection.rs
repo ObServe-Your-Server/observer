@@ -56,11 +56,15 @@ impl Metrics {
 
     fn do_collect() -> Self {
         let mut sys = System::new_all();
-        sys.refresh_all();
+        sys.refresh_cpu_usage();
+        std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
+        sys.refresh_cpu_usage();
 
         // CPU - average usage across all cores
         let cpu_count = sys.cpus().len();
         let cpu_usage = sys.cpus().iter().map(|c| c.cpu_usage()).sum::<f32>() / cpu_count as f32;
+
+        sys.refresh_memory();
 
         // RAM
         let ram_used_bytes = sys.used_memory();
