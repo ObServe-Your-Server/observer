@@ -5,18 +5,21 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=observer
-Group=observer
 ExecStart=/usr/local/bin/observer
-EnvironmentFile=/etc/observer/.env
+Environment=OBSERVER_CONFIG=/etc/observer/observer.toml
+# To adjust log verbosity, add: Environment=OBSERVER_LOG_LEVEL=debug
 Restart=on-failure
 RestartSec=5s
+
+# cap journal storage for this service
+SystemMaxUse=50M
 
 # basic hardening
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
+ReadOnlyPaths=/etc/observer/observer.toml
 
 [Install]
 WantedBy=multi-user.target
