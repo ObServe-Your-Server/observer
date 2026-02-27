@@ -23,8 +23,6 @@ pub struct Metrics {
     pub cpu_usage_percent: f32,
     pub ram_used_bytes: u64,
     pub ram_total_bytes: u64,
-    pub storage_used_gb: u64,
-    pub storage_total_gb: u64,
     pub uptime_secs: u64,
     pub core_temperatures: Vec<CoreTemperature>,
     pub disks: Vec<DiskInfo>,
@@ -70,17 +68,8 @@ impl Metrics {
         let ram_used_bytes = sys.used_memory();
         let ram_total_bytes = sys.total_memory();
 
-        // Storage - per-disk info and aggregates
+        // Storage - per-disk info
         let disks = Disks::new_with_refreshed_list();
-        let storage_total_gb =
-            disks.iter().map(|d| d.total_space()).sum::<u64>() / 1024 / 1024 / 1024;
-        let storage_used_gb = disks
-            .iter()
-            .map(|d| d.total_space() - d.available_space())
-            .sum::<u64>()
-            / 1024
-            / 1024
-            / 1024;
         let disk_infos: Vec<DiskInfo> = disks
             .iter()
             .map(|d| DiskInfo {
@@ -109,8 +98,6 @@ impl Metrics {
             cpu_usage_percent: cpu_usage,
             ram_used_bytes,
             ram_total_bytes,
-            storage_used_gb,
-            storage_total_gb,
             uptime_secs,
             core_temperatures,
             disks: disk_infos,
@@ -129,10 +116,6 @@ pub async fn collect(client: &Client) {
         "RAM: {}MB / {}MB",
         metrics.ram_used_bytes / 1024 / 1024,
         metrics.ram_total_bytes / 1024 / 1024
-    );
-    debug!(
-        "Storage: {}GB / {}GB",
-        metrics.storage_used_gb, metrics.storage_total_gb
     );
     debug!("Uptime: {}s", metrics.uptime_secs);
     for ct in &metrics.core_temperatures {
@@ -181,7 +164,7 @@ mod tests {
         );
         assert!(
             metrics.ram_used_bytes <= metrics.ram_total_bytes,
-            "Used RAM {}MB exceeds total {}MB",
+            "Used RAM {}B exceeds total {}B",
             metrics.ram_used_bytes,
             metrics.ram_total_bytes
         );
@@ -190,16 +173,20 @@ mod tests {
     #[test]
     fn test_storage_used_does_not_exceed_total() {
         let metrics = Metrics::collect().expect("collection timed out");
-        assert!(
-            metrics.storage_total_gb > 0,
-            "Total storage should be greater than 0"
-        );
-        assert!(
-            metrics.storage_used_gb <= metrics.storage_total_gb,
-            "Used storage {}GB exceeds total {}GB",
-            metrics.storage_used_gb,
-            metrics.storage_total_gb
-        );
+        for disk in &metrics.disks {
+            assert!(
+                disk.total_bytes > 0,
+                "Disk [{}] total should be greater than 0",
+                disk.name
+            );
+            assert!(
+                disk.used_bytes <= disk.total_bytes,
+                "Disk [{}] used {}B exceeds total {}B",
+                disk.name,
+                disk.used_bytes,
+                disk.total_bytes
+            );
+        }
     }
 
     #[test]
