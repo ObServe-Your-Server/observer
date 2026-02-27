@@ -51,8 +51,8 @@ impl MetricPayload {
         Self {
             cpu_usage: Some(metrics.cpu_usage_percent as f64),
             cpu_temperature: avg_temp,
-            mem_used: Some(metrics.ram_used_mb as i64),
-            mem_total: Some(metrics.ram_total_mb as i64),
+            mem_used: Some(metrics.ram_used_bytes as i64),
+            mem_total: Some(metrics.ram_total_bytes as i64),
             disks,
             net_bytes_in: None,
             net_bytes_out: None,
