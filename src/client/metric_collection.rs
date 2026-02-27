@@ -21,8 +21,8 @@ pub struct DiskInfo {
 #[derive(Debug)]
 pub struct Metrics {
     pub cpu_usage_percent: f32,
-    pub ram_used_mb: u64,
-    pub ram_total_mb: u64,
+    pub ram_used_bytes: u64,
+    pub ram_total_bytes: u64,
     pub storage_used_gb: u64,
     pub storage_total_gb: u64,
     pub uptime_secs: u64,
@@ -63,8 +63,8 @@ impl Metrics {
         let cpu_usage = sys.cpus().iter().map(|c| c.cpu_usage()).sum::<f32>() / cpu_count as f32;
 
         // RAM
-        let ram_used_mb = sys.used_memory() / 1024 / 1024;
-        let ram_total_mb = sys.total_memory() / 1024 / 1024;
+        let ram_used_bytes = sys.used_memory();
+        let ram_total_bytes = sys.total_memory();
 
         // Storage - per-disk info and aggregates
         let disks = Disks::new_with_refreshed_list();
@@ -103,8 +103,8 @@ impl Metrics {
 
         Self {
             cpu_usage_percent: cpu_usage,
-            ram_used_mb,
-            ram_total_mb,
+            ram_used_bytes,
+            ram_total_bytes,
             storage_used_gb,
             storage_total_gb,
             uptime_secs,
@@ -123,7 +123,8 @@ pub async fn collect(client: &Client) {
     debug!("CPU: {:.1}%", metrics.cpu_usage_percent);
     debug!(
         "RAM: {}MB / {}MB",
-        metrics.ram_used_mb, metrics.ram_total_mb
+        metrics.ram_used_bytes / 1024 / 1024,
+        metrics.ram_total_bytes / 1024 / 1024
     );
     debug!(
         "Storage: {}GB / {}GB",
@@ -171,14 +172,14 @@ mod tests {
     fn test_ram_used_does_not_exceed_total() {
         let metrics = Metrics::collect().expect("collection timed out");
         assert!(
-            metrics.ram_total_mb > 0,
+            metrics.ram_total_bytes > 0,
             "Total RAM should be greater than 0"
         );
         assert!(
-            metrics.ram_used_mb <= metrics.ram_total_mb,
+            metrics.ram_used_bytes <= metrics.ram_total_bytes,
             "Used RAM {}MB exceeds total {}MB",
-            metrics.ram_used_mb,
-            metrics.ram_total_mb
+            metrics.ram_used_bytes,
+            metrics.ram_total_bytes
         );
     }
 
