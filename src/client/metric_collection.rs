@@ -14,8 +14,8 @@ pub struct CoreTemperature {
 #[derive(Debug)]
 pub struct DiskInfo {
     pub name: String,
-    pub total_gb: u64,
-    pub used_gb: u64,
+    pub total_bytes: u64,
+    pub used_bytes: u64,
 }
 
 #[derive(Debug)]
@@ -81,8 +81,8 @@ impl Metrics {
             .iter()
             .map(|d| DiskInfo {
                 name: d.name().to_string_lossy().to_string(),
-                total_gb: d.total_space() / 1024 / 1024 / 1024,
-                used_gb: (d.total_space() - d.available_space()) / 1024 / 1024 / 1024,
+                total_bytes: d.total_space(),
+                used_bytes: d.total_space() - d.available_space(),
             })
             .collect();
 
@@ -136,7 +136,9 @@ pub async fn collect(client: &Client) {
     for disk in &metrics.disks {
         debug!(
             "Disk [{}]: {}GB / {}GB",
-            disk.name, disk.used_gb, disk.total_gb
+            disk.name,
+            disk.used_bytes / 1024 / 1024 / 1024,
+            disk.total_bytes / 1024 / 1024 / 1024
         );
     }
 
