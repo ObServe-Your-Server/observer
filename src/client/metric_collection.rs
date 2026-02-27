@@ -1,5 +1,6 @@
-use super::speedtest;
-use log::{info, warn};
+use super::{sender, speedtest};
+use log::{debug, info, warn};
+use reqwest::Client;
 use std::sync::mpsc;
 use std::time::Duration;
 use sysinfo::{Components, Disks, System};
@@ -113,39 +114,41 @@ impl Metrics {
     }
 }
 
-pub async fn collect() {
+pub async fn collect(client: &Client) {
     let Some(metrics) = Metrics::collect() else {
         // TODO handle unsuccessful collection - report timeout metric or trigger an alert
         return;
     };
 
-    info!("CPU: {:.1}%", metrics.cpu_usage_percent);
-    info!(
+    debug!("CPU: {:.1}%", metrics.cpu_usage_percent);
+    debug!(
         "RAM: {}MB / {}MB",
         metrics.ram_used_mb, metrics.ram_total_mb
     );
-    info!(
+    debug!(
         "Storage: {}GB / {}GB",
         metrics.storage_used_gb, metrics.storage_total_gb
     );
-    info!("Uptime: {}s", metrics.uptime_secs);
+    debug!("Uptime: {}s", metrics.uptime_secs);
     for ct in &metrics.core_temperatures {
-        info!("Temp [{}]: {:.1}°C", ct.label, ct.temp_celsius);
+        debug!("Temp [{}]: {:.1}°C", ct.label, ct.temp_celsius);
     }
     for disk in &metrics.disks {
-        info!(
+        debug!(
             "Disk [{}]: {}GB / {}GB",
             disk.name, disk.used_gb, disk.total_gb
         );
     }
 
     match speedtest::get_last_result() {
-        Some(s) => info!(
+        Some(s) => debug!(
             "Speedtest: down={:.2}Mbps up={:.2}Mbps ping={:.1}ms",
             s.download_mbps, s.upload_mbps, s.ping_ms
         ),
-        None => info!("Speedtest: no measurement yet"),
+        None => debug!("Speedtest: no measurement yet"),
     }
+
+    sender::send(client, &metrics).await;
 }
 
 #[cfg(test)]

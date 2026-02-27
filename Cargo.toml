@@ -13,10 +13,12 @@ name = "metrics"
 harness = false
 
 [dependencies]
-dotenvy = "0.15"          # loads .env file into environment variables
+toml = "0.8"              # TOML parser
+serde = { version = "1", features = ["derive"] }  # serialization framework
+serde_json = "1"          # JSON serialization for HTTP payloads
 log = "0.4"               # logging facade
 env_logger = "0.11"       # logger backend, reads RUST_LOG env var
 tokio = { version = "1", features = ["rt-multi-thread", "time", "macros"] }  # async runtime
 sysinfo = "0.38.2"        # cpu, ram, disk, temperature metrics
-reqwest = { version = "0.12", features = ["stream", "rustls-tls"], default-features = false }  # http client, rustls-tls avoids needing openssl
+reqwest = { version = "0.12", features = ["stream", "rustls-tls", "json"], default-features = false }  # http client, rustls-tls avoids needing openssl
 futures-util = "0.3.32"   # stream helpers for reqwest responses

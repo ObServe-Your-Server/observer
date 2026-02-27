@@ -1,4 +1,4 @@
-use log::{info, warn};
+use log::{debug, error, info, warn};
 use reqwest::Client;
 use std::sync::RwLock;
 use std::time::Instant;
@@ -84,17 +84,17 @@ pub async fn run() {
     let client = Client::new();
 
     let ping = match measure_ping(&client).await {
-        Ok(v) => { info!("Ping: {:.1}ms (avg over {} rounds)", v, PING_ROUNDS); Some(v) }
+        Ok(v) => { debug!("Ping: {:.1}ms (avg over {} rounds)", v, PING_ROUNDS); Some(v) }
         Err(e) => { warn!("Ping failed: {}", e); None }
     };
 
     let download = match measure_download(&client).await {
-        Ok(v) => { info!("Download: {:.2} Mbps", v); Some(v) }
+        Ok(v) => { debug!("Download: {:.2} Mbps", v); Some(v) }
         Err(e) => { warn!("Download failed: {}", e); None }
     };
 
     let upload = match measure_upload(&client).await {
-        Ok(v) => { info!("Upload: {:.2} Mbps", v); Some(v) }
+        Ok(v) => { debug!("Upload: {:.2} Mbps", v); Some(v) }
         Err(e) => { warn!("Upload failed: {}", e); None }
     };
 
