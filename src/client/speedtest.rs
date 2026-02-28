@@ -1,5 +1,6 @@
 use log::{debug, error, info, warn};
 use reqwest::Client;
+use serde::Serialize;
 use std::sync::RwLock;
 use std::time::Instant;
 use futures_util::StreamExt;
@@ -10,7 +11,8 @@ const PING_URL: &str = "https://speed.cloudflare.com/__ping";
 const PING_ROUNDS: u32 = 5;
 const UPLOAD_SIZE: usize = 10_000_000; // 10MB
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SpeedtestResult {
     pub download_mbps: f64,
     pub upload_mbps: f64,

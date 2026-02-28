@@ -4,6 +4,7 @@ use serde::Serialize;
 
 use crate::config::get_config;
 use super::metric_collection::Metrics;
+use super::speedtest::SpeedtestResult;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -23,6 +24,7 @@ pub struct MetricPayload {
     pub disks: Vec<DiskPayload>,
     pub net_bytes_in: Option<i64>,
     pub net_bytes_out: Option<i64>,
+    pub speedtest: Option<SpeedtestResult>,
     pub uptime: Option<i64>,
 }
 
@@ -56,6 +58,7 @@ impl MetricPayload {
             disks,
             net_bytes_in: None,
             net_bytes_out: None,
+            speedtest: metrics.speedtest_result.clone(),
             uptime: Some(metrics.uptime_secs as i64),
         }
     }
