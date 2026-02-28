@@ -1,4 +1,5 @@
 use super::{sender, speedtest};
+use crate::client::speedtest::SpeedtestResult;
 use log::{debug, info, warn};
 use reqwest::Client;
 use std::sync::mpsc;
@@ -26,6 +27,7 @@ pub struct Metrics {
     pub uptime_secs: u64,
     pub core_temperatures: Vec<CoreTemperature>,
     pub disks: Vec<DiskInfo>,
+    pub speedtest_result: Option<SpeedtestResult>,
 }
 
 impl Metrics {
@@ -41,12 +43,12 @@ impl Metrics {
         });
 
         // block here until we get a result or 900ms passes — whichever comes first
-        match rx.recv_timeout(Duration::from_millis(900)) {
+        match rx.recv_timeout(Duration::from_millis(1800)) {
             Ok(metrics) => Some(metrics),
             Err(_) => {
                 // thread is still running but we stop waiting for it —
                 // it will eventually finish and try to send into a dead channel, which is fine
-                warn!("metrics collection exceeded 900ms, aborting");
+                warn!("metrics collection exceeded 1800ms, aborting");
                 None
             }
         }
@@ -55,7 +57,8 @@ impl Metrics {
     fn do_collect() -> Self {
         let mut sys = System::new_all();
         sys.refresh_cpu_usage();
-        std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
+        //plus small increase because sometimes there is 0.0 for cpu
+        std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL + Duration::from_millis(300));
         sys.refresh_cpu_usage();
 
         // CPU - average usage across all cores
@@ -101,12 +104,13 @@ impl Metrics {
             uptime_secs,
             core_temperatures,
             disks: disk_infos,
+            speedtest_result: None,
         }
     }
 }
 
 pub async fn collect(client: &Client) {
-    let Some(metrics) = Metrics::collect() else {
+    let Some(mut metrics) = Metrics::collect() else {
         // TODO handle unsuccessful collection - report timeout metric or trigger an alert
         return;
     };
@@ -131,10 +135,13 @@ pub async fn collect(client: &Client) {
     }
 
     match speedtest::get_last_result() {
-        Some(s) => debug!(
-            "Speedtest: down={:.2}Mbps up={:.2}Mbps ping={:.1}ms",
-            s.download_mbps, s.upload_mbps, s.ping_ms
-        ),
+        Some(s) => {
+            metrics.speedtest_result.replace(s.clone());
+            debug!(
+                "Speedtest: down={:.2}Mbps up={:.2}Mbps ping={:.1}ms",
+                s.download_mbps, s.upload_mbps, s.ping_ms
+            )
+        }
         None => debug!("Speedtest: no measurement yet"),
     }
 
