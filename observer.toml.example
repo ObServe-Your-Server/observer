@@ -4,6 +4,6 @@ base_commands_url = "https://example.com/api/commands"
 api_key           = "your-api-key-here"
 
 [intervals]
-metric_secs       = 10   # 1–60 seconds
-command_poll_secs = 10   # 1–60 seconds
-speedtest_secs    = 3600 # 60–86400 seconds (1 hour)
+metric_secs       = 5    # 2–60 seconds
+command_poll_secs = 5    # 2–60 seconds
+speedtest_secs    = 300  # 60–86400 seconds (5 minutes)
