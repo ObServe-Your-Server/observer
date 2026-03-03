@@ -26,6 +26,8 @@ pub struct MetricPayload {
     pub net_bytes_out: Option<i64>,
     pub speedtest: Option<SpeedtestResult>,
     pub uptime: Option<i64>,
+    pub os_name: Option<String>,
+    pub kernel_version: Option<String>,
 }
 
 impl MetricPayload {
@@ -51,10 +53,12 @@ impl MetricPayload {
             mem_used: Some(metrics.ram_used_bytes as i64),
             mem_total: Some(metrics.ram_total_bytes as i64),
             disks,
-            net_bytes_in: None,
-            net_bytes_out: None,
+            net_bytes_in: Some(metrics.net_bytes_received as i64),
+            net_bytes_out: Some(metrics.net_bytes_transmitted as i64),
             speedtest: metrics.speedtest_result.clone(),
             uptime: Some(metrics.uptime_secs as i64),
+            os_name: metrics.os_name.clone(),
+            kernel_version: metrics.kernel_version.clone(),
         }
     }
 }
