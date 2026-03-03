@@ -2,9 +2,9 @@ use log::{error, info};
 use reqwest::Client;
 use serde::Serialize;
 
-use crate::config::get_config;
 use super::metric_collection::Metrics;
 use super::speedtest::SpeedtestResult;
+use crate::config::get_config;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -30,12 +30,7 @@ pub struct MetricPayload {
 
 impl MetricPayload {
     pub fn from_metrics(metrics: &Metrics) -> Self {
-        let avg_temp = if metrics.core_temperatures.is_empty() {
-            None
-        } else {
-            let sum: f32 = metrics.core_temperatures.iter().map(|t| t.temp_celsius).sum();
-            Some((sum / metrics.core_temperatures.len() as f32) as f64)
-        };
+        let avg_temp = metrics.cpu_temp_celsius.map(|t| t as f64);
 
         // Deduplicate by name — keep only the first occurrence of each disk name
         let mut seen_names = std::collections::HashSet::new();

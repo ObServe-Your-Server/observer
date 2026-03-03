@@ -7,12 +7,6 @@ use std::time::Duration;
 use sysinfo::{Components, Disks, System};
 
 #[derive(Debug)]
-pub struct CoreTemperature {
-    pub label: String,
-    pub temp_celsius: f32,
-}
-
-#[derive(Debug)]
 pub struct DiskInfo {
     pub name: String,
     pub total_bytes: u64,
@@ -22,12 +16,35 @@ pub struct DiskInfo {
 #[derive(Debug)]
 pub struct Metrics {
     pub cpu_usage_percent: f32,
+    pub cpu_count: usize,
+    pub cpu_name: String,
     pub ram_used_bytes: u64,
     pub ram_total_bytes: u64,
     pub uptime_secs: u64,
-    pub core_temperatures: Vec<CoreTemperature>,
+    pub cpu_temp_celsius: Option<f32>,
     pub disks: Vec<DiskInfo>,
     pub speedtest_result: Option<SpeedtestResult>,
+}
+
+/// Maps a partition device name to its parent disk.
+/// e.g. "nvme0n1p2" → "nvme0n1", "sda1" → "sda", "mmcblk0p1" → "mmcblk0"
+fn parent_disk_name(dev: &str) -> String {
+    if dev.starts_with("nvme") || dev.starts_with("mmcblk") {
+        // partition suffix is "p<digits>": find last 'p' followed only by digits
+        if let Some(pos) = dev.rfind('p') {
+            let suffix = &dev[pos + 1..];
+            if !suffix.is_empty() && suffix.chars().all(|c| c.is_ascii_digit()) {
+                return dev[..pos].to_string();
+            }
+        }
+    } else {
+        // traditional disks: sda1 → sda
+        let stripped = dev.trim_end_matches(|c: char| c.is_ascii_digit());
+        if stripped.len() < dev.len() {
+            return stripped.to_string();
+        }
+    }
+    dev.to_string()
 }
 
 impl Metrics {
@@ -61,6 +78,8 @@ impl Metrics {
         std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL + Duration::from_millis(300));
         sys.refresh_cpu_usage();
 
+        //info!("{:?}", sys);
+
         // CPU - average usage across all cores
         let cpu_count = sys.cpus().len();
         let cpu_usage = sys.cpus().iter().map(|c| c.cpu_usage()).sum::<f32>() / cpu_count as f32;
@@ -71,38 +90,57 @@ impl Metrics {
         let ram_used_bytes = sys.used_memory();
         let ram_total_bytes = sys.total_memory();
 
-        // Storage - per-disk info
-        let disks = Disks::new_with_refreshed_list();
-        let disk_infos: Vec<DiskInfo> = disks
-            .iter()
-            .map(|d| DiskInfo {
-                name: d.name().to_string_lossy().to_string(),
-                total_bytes: d.total_space(),
-                used_bytes: d.total_space() - d.available_space(),
+        // Storage: group mounted partitions by physical disk, use the largest per disk
+        let sysinfo_disks = Disks::new_with_refreshed_list();
+        let mut best: std::collections::HashMap<String, (u64, u64)> =
+            std::collections::HashMap::new();
+        for d in sysinfo_disks.iter() {
+            let full = d.name().to_string_lossy();
+            let dev = full.rsplit('/').next().unwrap_or(full.as_ref());
+            let parent = parent_disk_name(dev);
+            let used = d.total_space() - d.available_space();
+            best.entry(parent)
+                .and_modify(|(tot, use_)| {
+                    if d.total_space() > *tot {
+                        *tot = d.total_space();
+                        *use_ = used;
+                    }
+                })
+                .or_insert((d.total_space(), used));
+        }
+        let mut disk_infos: Vec<DiskInfo> = best
+            .into_iter()
+            .filter(|(_, (total, _))| *total > 0)
+            .map(|(name, (total_bytes, used_bytes))| DiskInfo {
+                name,
+                total_bytes,
+                used_bytes,
             })
             .collect();
+        disk_infos.sort_by(|a, b| a.name.cmp(&b.name));
 
         // Uptime
         let uptime_secs = System::uptime();
 
-        // Core temperatures
+        // CPU temperature — AMD: "k10temp Tctl", Intel: "coretemp Package id 0"
         let components = Components::new_with_refreshed_list();
-        let core_temperatures = components
+        let cpu_temp_celsius = components
             .iter()
-            .filter_map(|c| {
-                c.temperature().map(|t| CoreTemperature {
-                    label: c.label().to_string(),
-                    temp_celsius: t,
-                })
+            .find(|c| {
+                let label = c.label();
+                label.contains("Tctl")
+                    || (label.starts_with("coretemp") && label.contains("Package id 0"))
             })
-            .collect();
+            .and_then(|c| c.temperature());
 
         Self {
             cpu_usage_percent: cpu_usage,
+            cpu_count,
+            cpu_name: sys.cpus().first().map(|c| c.brand()).unwrap_or_default().to_string(),
             ram_used_bytes,
             ram_total_bytes,
             uptime_secs,
-            core_temperatures,
+            cpu_temp_celsius,
             disks: disk_infos,
             speedtest_result: None,
         }
@@ -114,6 +152,8 @@ pub async fn collect(client: &Client) {
         // TODO handle unsuccessful collection - report timeout metric or trigger an alert
         return;
     };
+    
+    debug!("Whole struct {:?}", metrics);
 
     debug!("CPU: {:.1}%", metrics.cpu_usage_percent);
     debug!(
@@ -122,8 +162,8 @@ pub async fn collect(client: &Client) {
         metrics.ram_total_bytes / 1024 / 1024
     );
     debug!("Uptime: {}s", metrics.uptime_secs);
-    for ct in &metrics.core_temperatures {
-        debug!("Temp [{}]: {:.1}°C", ct.label, ct.temp_celsius);
+    if let Some(t) = metrics.cpu_temp_celsius {
+        debug!("CPU temp: {:.1}°C", t);
     }
     for disk in &metrics.disks {
         debug!(

@@ -1,5 +1,5 @@
-pub mod scheduler;
-pub mod metric_collection;
 pub mod command_polling;
-pub mod speedtest;
+pub mod metric_collection;
+pub mod scheduler;
 mod sender;
+pub mod speedtest;

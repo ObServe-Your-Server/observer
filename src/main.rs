@@ -1,17 +1,19 @@
-mod config;
 mod client;
+mod config;
 
-use log::{error, info};
-use env_logger;
-use std::env;
-use reqwest::Client;
-use config::init_config;
 use client::scheduler::{Scheduler, SchedulerKind};
-use client::{metric_collection, command_polling, speedtest};
+use client::{metric_collection, speedtest};
+use config::init_config;
+use env_logger;
+use log::{error, info};
+use reqwest::Client;
+use std::env;
 
 fn init_logging() {
     let level_str = env::var("OBSERVER_LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
-    let level = level_str.parse::<log::LevelFilter>().unwrap_or(log::LevelFilter::Info);
+    let level = level_str
+        .parse::<log::LevelFilter>()
+        .unwrap_or(log::LevelFilter::Info);
 
     env_logger::Builder::new()
         .filter(Some("observer"), level)
@@ -35,15 +37,22 @@ async fn main() {
     };
 
     info!("Observer v{} started", config.version);
-    info!("Server: {} / {}", config.server.base_metrics_url, config.server.base_commands_url);
+    info!(
+        "Server: {} / {}",
+        config.server.base_metrics_url, config.server.base_commands_url
+    );
     info!("Application ready");
 
     let http_client = Client::new();
 
-    let metric_scheduler = Scheduler::new(SchedulerKind::MetricCollection, config.intervals.metric_secs as u32);
+    let metric_scheduler = Scheduler::new(
+        SchedulerKind::MetricCollection,
+        config.intervals.metric_secs as u32,
+    );
     // Done later
     //let command_scheduler = Scheduler::new(SchedulerKind::CommandPolling, config.intervals.command_poll_secs as u32);
-    let speedtest_scheduler = Scheduler::new(SchedulerKind::Speedtest, config.intervals.speedtest_secs);
+    let speedtest_scheduler =
+        Scheduler::new(SchedulerKind::Speedtest, config.intervals.speedtest_secs);
 
     tokio::join!(
         metric_scheduler.run(|| metric_collection::collect(&http_client)),

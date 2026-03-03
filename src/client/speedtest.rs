@@ -1,9 +1,9 @@
+use futures_util::StreamExt;
 use log::{debug, error, info, warn};
 use reqwest::Client;
 use serde::Serialize;
 use std::sync::RwLock;
 use std::time::Instant;
-use futures_util::StreamExt;
 
 const DOWNLOAD_URL: &str = "https://speed.cloudflare.com/__down?bytes=10000000"; // 10MB
 const UPLOAD_URL: &str = "https://speed.cloudflare.com/__up";
@@ -86,18 +86,36 @@ pub async fn run() {
     let client = Client::new();
 
     let ping = match measure_ping(&client).await {
-        Ok(v) => { debug!("Ping: {:.1}ms (avg over {} rounds)", v, PING_ROUNDS); Some(v) }
-        Err(e) => { warn!("Ping failed: {}", e); None }
+        Ok(v) => {
+            debug!("Ping: {:.1}ms (avg over {} rounds)", v, PING_ROUNDS);
+            Some(v)
+        }
+        Err(e) => {
+            warn!("Ping failed: {}", e);
+            None
+        }
     };
 
     let download = match measure_download(&client).await {
-        Ok(v) => { debug!("Download: {:.2} Mbps", v); Some(v) }
-        Err(e) => { warn!("Download failed: {}", e); None }
+        Ok(v) => {
+            debug!("Download: {:.2} Mbps", v);
+            Some(v)
+        }
+        Err(e) => {
+            warn!("Download failed: {}", e);
+            None
+        }
     };
 
     let upload = match measure_upload(&client).await {
-        Ok(v) => { debug!("Upload: {:.2} Mbps", v); Some(v) }
-        Err(e) => { warn!("Upload failed: {}", e); None }
+        Ok(v) => {
+            debug!("Upload: {:.2} Mbps", v);
+            Some(v)
+        }
+        Err(e) => {
+            warn!("Upload failed: {}", e);
+            None
+        }
     };
 
     // only store if all three measurements succeeded
