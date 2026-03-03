@@ -74,7 +74,7 @@ fn validate(c: &Config) -> Result<(), String> {
     }
     if !(2..=60).contains(&i.command_poll_secs) {
         return Err(format!(
-            "intervals.command_poll_secs must be 1–60, got {}",
+            "intervals.command_poll_secs must be 2–60, got {}",
             i.command_poll_secs
         ));
     }

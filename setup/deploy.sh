@@ -42,9 +42,9 @@ echo "" >&2
 # Load existing config values as defaults if already installed
 DEFAULT_METRICS_URL=""
 DEFAULT_COMMANDS_URL=""
-DEFAULT_METRIC_SECS="10"
-DEFAULT_COMMAND_POLL_SECS="10"
-DEFAULT_SPEEDTEST_SECS="3600"
+DEFAULT_METRIC_SECS="5"
+DEFAULT_COMMAND_POLL_SECS="5"
+DEFAULT_SPEEDTEST_SECS="300"
 
 if [ -f "$CONFIG_PATH" ]; then
     echo "Observer is already installed. This will overwrite the existing config at $CONFIG_PATH." >&2
@@ -76,10 +76,10 @@ COMMANDS_URL="$REPLY"
 ask_required "API key" ""
 API_KEY="$REPLY"
 
-ask_optional "Metric send interval in seconds (1-60)" "$DEFAULT_METRIC_SECS"
+ask_optional "Metric send interval in seconds (2-60)" "$DEFAULT_METRIC_SECS"
 METRIC_SECS="$REPLY"
 
-ask_optional "Command poll interval in seconds (1-60)" "$DEFAULT_COMMAND_POLL_SECS"
+ask_optional "Command poll interval in seconds (2-60)" "$DEFAULT_COMMAND_POLL_SECS"
 COMMAND_POLL_SECS="$REPLY"
 
 ask_optional "Speedtest interval in seconds (60-86400)" "$DEFAULT_SPEEDTEST_SECS"
