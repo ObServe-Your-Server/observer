@@ -4,7 +4,7 @@ use log::{debug, info, warn};
 use reqwest::Client;
 use std::sync::mpsc;
 use std::time::Duration;
-use sysinfo::{Components, Disks, System};
+use sysinfo::{Components, Disks, Networks, System};
 
 #[derive(Debug)]
 pub struct DiskInfo {
@@ -22,6 +22,10 @@ pub struct Metrics {
     pub ram_total_bytes: u64,
     pub uptime_secs: u64,
     pub cpu_temp_celsius: Option<f32>,
+    pub os_name: Option<String>,
+    pub kernel_version: Option<String>,
+    pub net_bytes_received: u64,
+    pub net_bytes_transmitted: u64,
     pub disks: Vec<DiskInfo>,
     pub speedtest_result: Option<SpeedtestResult>,
 }
@@ -133,6 +137,19 @@ impl Metrics {
             })
             .and_then(|c| c.temperature());
 
+        // Network — sum totals across all non-loopback interfaces
+        let networks = Networks::new_with_refreshed_list();
+        let net_bytes_received = networks
+            .iter()
+            .filter(|(name, _)| *name != "lo")
+            .map(|(_, n)| n.total_received())
+            .sum();
+        let net_bytes_transmitted = networks
+            .iter()
+            .filter(|(name, _)| *name != "lo")
+            .map(|(_, n)| n.total_transmitted())
+            .sum();
+
         Self {
             cpu_usage_percent: cpu_usage,
             cpu_count,
@@ -141,6 +158,10 @@ impl Metrics {
             ram_total_bytes,
             uptime_secs,
             cpu_temp_celsius,
+            os_name: System::long_os_version(),
+            kernel_version: System::kernel_version(),
+            net_bytes_received,
+            net_bytes_transmitted,
             disks: disk_infos,
             speedtest_result: None,
         }
