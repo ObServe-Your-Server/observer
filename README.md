@@ -19,31 +19,15 @@ Not yet implemented:
 
 ## Deploy
 
-**1. Download the deploy files onto your server:**
+**One-liner install (recommended):**
 
 ```sh
-curl -L https://github.com/ObServe-Your-Server/observer/raw/main/setup/observer.service -o observer.service
-curl -L https://github.com/ObServe-Your-Server/observer/raw/main/setup/deploy.sh -o deploy.sh
+curl -fsSL https://raw.githubusercontent.com/ObServe-Your-Server/observer/main/setup/deploy.sh | sudo bash
 ```
 
-**2. Create and adjust the config:**
+The script will interactively ask for your server URLs and API key, then download the binary, install the systemd service, and write the config to `/etc/observer/observer.toml`.
 
-```sh
-mkdir -p /etc/observer
-curl -L https://github.com/ObServe-Your-Server/observer/raw/main/.env.example -o /etc/observer/.env
-nano /etc/observer/.env
-```
-
-All available options and allowed values are documented in `.env.example`.
-
-**3. Run the deploy script:**
-
-```sh
-chmod +x deploy.sh
-sudo bash deploy.sh
-```
-
-**Updating:** just run `sudo bash deploy.sh` again - it pulls the latest binary and restarts the service.
+**Updating:** run the same one-liner again — it will ask if you want to overwrite the existing config, pre-fill current values as defaults, and restart the service.
 
 **Useful commands:**
 
@@ -55,7 +39,7 @@ journalctl -u observer -f     # follow logs
 
 ## Manual deployment
 
-Use this if you want to deploy without the deploy script, or on a system where the script does not work.
+Use this if you want to deploy without the install script, or on a system where it does not work.
 
 **1. Build the binary:**
 
@@ -70,13 +54,15 @@ sudo cp target/release/observer /usr/local/bin/observer
 sudo chmod +x /usr/local/bin/observer
 ```
 
-**3. Create the config directory and place your config:**
+**3. Create the config:**
 
 ```sh
 sudo mkdir -p /etc/observer
 sudo cp observer.toml.example /etc/observer/observer.toml
-sudo nano /etc/observer/observer.toml   # fill in your server URL and API key
+sudo nano /etc/observer/observer.toml   # fill in your server URLs and API key
 ```
+
+The config is read from `/etc/observer/observer.toml`. All available options are documented in `observer.toml.example`.
 
 **4. Install and enable the systemd service:**
 
