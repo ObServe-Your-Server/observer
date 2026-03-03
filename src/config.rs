@@ -72,7 +72,7 @@ fn validate(c: &Config) -> Result<(), String> {
             i.metric_secs
         ));
     }
-    if !(1..=60).contains(&i.command_poll_secs) {
+    if !(2..=60).contains(&i.command_poll_secs) {
         return Err(format!(
             "intervals.command_poll_secs must be 1–60, got {}",
             i.command_poll_secs
