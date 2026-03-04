@@ -1,4 +1,4 @@
-use log::{error, info};
+use log::{debug, error, info};
 use reqwest::Client;
 use serde::Serialize;
 
@@ -19,6 +19,8 @@ pub struct DiskPayload {
 pub struct MetricPayload {
     pub cpu_usage: Option<f64>,
     pub cpu_temperature: Option<f64>,
+    pub cpu_name: Option<String>,
+    pub cpu_count: Option<i64>,
     pub mem_used: Option<i64>,
     pub mem_total: Option<i64>,
     pub disks: Vec<DiskPayload>,
@@ -47,6 +49,8 @@ impl MetricPayload {
         Self {
             cpu_usage: Some(metrics.cpu_usage_percent as f64),
             cpu_temperature: avg_temp,
+            cpu_name: Some(metrics.cpu_name.clone()),
+            cpu_count: Some(metrics.cpu_count as i64),
             mem_used: Some(metrics.ram_used_bytes as i64),
             mem_total: Some(metrics.ram_total_bytes as i64),
             disks,
@@ -63,6 +67,8 @@ impl MetricPayload {
 pub async fn send(client: &Client, metrics: &Metrics) {
     let config = get_config();
     let payload = MetricPayload::from_metrics(metrics);
+
+    debug!("Payload to send: {:?}", payload);
 
     let result = client
         .post(&config.server.base_metrics_url)
