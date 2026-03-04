@@ -93,6 +93,11 @@ if systemctl is-active --quiet observer; then
     systemctl stop observer
 fi
 
+echo "Fetching latest release info..." >&2
+LATEST_TAG=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" \
+    | grep '"tag_name"' | sed 's/.*"tag_name": "\(.*\)".*/\1/')
+echo "Installing version: $LATEST_TAG" >&2
+
 echo "Downloading observer binary..." >&2
 curl -fsSL "https://github.com/$REPO/releases/latest/download/observer" -o /tmp/observer
 mv /tmp/observer /usr/local/bin/observer
@@ -124,5 +129,5 @@ systemctl enable observer
 systemctl restart observer 2>/dev/null || systemctl start observer
 
 echo "" >&2
-echo "Observer installed successfully!" >&2
+echo "Observer $LATEST_TAG installed successfully!" >&2
 systemctl status observer
