@@ -34,12 +34,9 @@ impl MetricPayload {
     pub fn from_metrics(metrics: &Metrics) -> Self {
         let avg_temp = metrics.cpu_temp_celsius.map(|t| t as f64);
 
-        // Deduplicate by name — keep only the first occurrence of each disk name
-        let mut seen_names = std::collections::HashSet::new();
         let disks = metrics
             .disks
             .iter()
-            .filter(|d| seen_names.insert(d.name.clone()))
             .map(|d| DiskPayload {
                 name: d.name.clone(),
                 total: d.total_bytes as i64,
