@@ -2,7 +2,7 @@ use super::{sender, speedtest};
 use crate::client::collectors::{cpu, disk, network};
 use crate::client::collectors::disk::DiskInfo;
 use crate::client::speedtest::SpeedtestResult;
-use log::{debug, warn};
+use log::{debug, info, warn};
 use reqwest::Client;
 use std::sync::mpsc;
 use std::time::Duration;
