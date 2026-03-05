@@ -1,20 +1,49 @@
 use super::{sender, speedtest};
-use crate::client::collectors::{cpu, disk, network};
+use crate::client::collectors::{cpu, disk, memory, network};
 use crate::client::collectors::disk::DiskInfo;
 use crate::client::speedtest::SpeedtestResult;
-use log::{debug, info, warn};
+use log::{debug, warn};
 use reqwest::Client;
+use serde::Serialize;
 use std::sync::mpsc;
 use std::time::Duration;
 use sysinfo::System;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RamModule {
+    pub size_mb: u64,
+    pub memory_type: String,
+    pub speed_mhz: u32,
+    pub manufacturer: Option<String>,
+    pub part_number: Option<String>,
+    pub slot: Option<String>,
+    pub voltage: Option<f32>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RamInfo {
+    pub total_mb: u64,
+    pub used_mb: u64,
+    pub available_mb: u64,
+    pub usage_percent: f32,
+    pub speed_mhz: u32,
+    pub channels: u32,
+    pub ecc_support: bool,
+    pub bandwidth_gb_s: Option<f32>,
+    pub swap_total_mb: u64,
+    pub swap_used_mb: u64,
+    pub modules: Vec<RamModule>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Metrics {
     pub cpu_usage_percent: f32,
     pub cpu_count: usize,
     pub cpu_name: String,
-    pub ram_used_bytes: u64,
-    pub ram_total_bytes: u64,
+    pub ram: RamInfo,
     pub uptime_secs: u64,
     pub cpu_temp_celsius: Option<f32>,
     pub os_name: Option<String>,
@@ -47,19 +76,54 @@ impl Metrics {
     fn do_collect() -> Self {
         let sys = cpu::new_sys_with_cpu();
         let cpu_info = cpu::collect(&sys);
-
-        let ram_used_bytes = sys.used_memory();
-        let ram_total_bytes = sys.total_memory();
-
         let disks = disk::collect();
         let net = network::collect();
+
+        let ram = memory::ram_information()
+            .map(|m| RamInfo {
+                total_mb: m.total_mb,
+                used_mb: m.used_mb,
+                available_mb: m.available_mb,
+                usage_percent: m.usage_percent,
+                speed_mhz: m.speed_mhz,
+                channels: m.channels,
+                ecc_support: m.ecc_support,
+                bandwidth_gb_s: m.bandwidth_gb_s,
+                swap_total_mb: m.swap_total_mb,
+                swap_used_mb: m.swap_used_mb,
+                modules: m.modules.into_iter().map(|mod_| RamModule {
+                    size_mb: mod_.size_mb,
+                    memory_type: format!("{:?}", mod_.memory_type),
+                    speed_mhz: mod_.speed_mhz,
+                    manufacturer: mod_.manufacturer,
+                    part_number: mod_.part_number,
+                    slot: mod_.slot,
+                    voltage: mod_.voltage,
+                }).collect(),
+            })
+            .unwrap_or_else(|| {
+                let used = sys.used_memory() / 1024 / 1024;
+                let total = sys.total_memory() / 1024 / 1024;
+                RamInfo {
+                    total_mb: total,
+                    used_mb: used,
+                    available_mb: total.saturating_sub(used),
+                    usage_percent: if total > 0 { used as f32 / total as f32 * 100.0 } else { 0.0 },
+                    speed_mhz: 0,
+                    channels: 0,
+                    ecc_support: false,
+                    bandwidth_gb_s: None,
+                    swap_total_mb: 0,
+                    swap_used_mb: 0,
+                    modules: vec![],
+                }
+            });
 
         Self {
             cpu_usage_percent: cpu_info.usage_percent,
             cpu_count: cpu_info.count,
             cpu_name: cpu_info.name,
-            ram_used_bytes,
-            ram_total_bytes,
+            ram,
             uptime_secs: System::uptime(),
             cpu_temp_celsius: cpu_info.temp_celsius,
             os_name: System::long_os_version(),
@@ -81,9 +145,10 @@ pub async fn collect(client: &Client) {
     debug!("Whole struct {:?}", metrics);
     debug!("CPU: {:.1}%", metrics.cpu_usage_percent);
     debug!(
-        "RAM: {}MB / {}MB",
-        metrics.ram_used_bytes / 1024 / 1024,
-        metrics.ram_total_bytes / 1024 / 1024
+        "RAM: {}MB / {}MB ({:.1}%)",
+        metrics.ram.used_mb,
+        metrics.ram.total_mb,
+        metrics.ram.usage_percent
     );
     debug!("Uptime: {}s", metrics.uptime_secs);
     if let Some(t) = metrics.cpu_temp_celsius {
@@ -131,12 +196,12 @@ mod tests {
     #[test]
     fn test_ram_used_does_not_exceed_total() {
         let metrics = Metrics::collect().expect("collection timed out");
-        assert!(metrics.ram_total_bytes > 0, "Total RAM should be greater than 0");
+        assert!(metrics.ram.total_mb > 0, "Total RAM should be greater than 0");
         assert!(
-            metrics.ram_used_bytes <= metrics.ram_total_bytes,
-            "Used RAM {}B exceeds total {}B",
-            metrics.ram_used_bytes,
-            metrics.ram_total_bytes
+            metrics.ram.used_mb <= metrics.ram.total_mb,
+            "Used RAM {}MB exceeds total {}MB",
+            metrics.ram.used_mb,
+            metrics.ram.total_mb
         );
     }
 
