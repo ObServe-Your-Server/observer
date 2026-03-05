@@ -42,9 +42,9 @@ echo "" >&2
 # Load existing config values as defaults if already installed
 DEFAULT_METRICS_URL="https://watch-tower.marco-brandt.com"
 DEFAULT_COMMANDS_URL="https://example.com/api/commands"
-DEFAULT_METRIC_SECS="2"
+DEFAULT_METRIC_SECS="5"
 DEFAULT_COMMAND_POLL_SECS="10"
-DEFAULT_SPEEDTEST_SECS="3600"
+DEFAULT_SPEEDTEST_SECS="600"
 
 if [ -f "$CONFIG_PATH" ]; then
     echo "Observer is already installed. This will overwrite the existing config at $CONFIG_PATH." >&2
