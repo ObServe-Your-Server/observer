@@ -109,6 +109,8 @@ pub async fn collect(client: &Client) {
         None => debug!("Speedtest: no measurement yet"),
     }
 
+    debug!("Whole metric struct: {:?}", metrics);
+
     sender::send(client, &metrics).await;
 }
 
