@@ -40,7 +40,7 @@ echo "=== Observer Installer ===" >&2
 echo "" >&2
 
 # Load existing config values as defaults if already installed
-DEFAULT_METRICS_URL="http://localhost:8080/v1/ingest"
+DEFAULT_METRICS_URL="https://watch-tower.marco-brandt.com"
 DEFAULT_COMMANDS_URL="https://example.com/api/commands"
 DEFAULT_METRIC_SECS="2"
 DEFAULT_COMMAND_POLL_SECS="10"
