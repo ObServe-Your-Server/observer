@@ -2,7 +2,8 @@ use log::info;
 #[cfg(not(target_os = "linux"))]
 use sysinfo::Disks;
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DiskInfo {
     pub name: String,
     pub total_bytes: u64,

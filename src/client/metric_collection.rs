@@ -8,7 +8,8 @@ use std::sync::mpsc;
 use std::time::Duration;
 use sysinfo::System;
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Metrics {
     pub cpu_usage_percent: f32,
     pub cpu_count: usize,
@@ -24,6 +25,7 @@ pub struct Metrics {
     pub local_ip: Option<String>,
     pub disks: Vec<DiskInfo>,
     pub speedtest_result: Option<SpeedtestResult>,
+    pub hostname: Option<String>,
 }
 
 impl Metrics {
@@ -69,6 +71,7 @@ impl Metrics {
             local_ip: net.local_ip,
             disks,
             speedtest_result: None,
+            hostname: System::host_name(),
         }
     }
 }
