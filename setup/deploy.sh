@@ -40,11 +40,11 @@ echo "=== Observer Installer ===" >&2
 echo "" >&2
 
 # Load existing config values as defaults if already installed
-DEFAULT_METRICS_URL=""
-DEFAULT_COMMANDS_URL=""
-DEFAULT_METRIC_SECS="5"
-DEFAULT_COMMAND_POLL_SECS="5"
-DEFAULT_SPEEDTEST_SECS="300"
+DEFAULT_METRICS_URL="http://localhost:8080/v1/ingest"
+DEFAULT_COMMANDS_URL="https://example.com/api/commands"
+DEFAULT_METRIC_SECS="2"
+DEFAULT_COMMAND_POLL_SECS="10"
+DEFAULT_SPEEDTEST_SECS="3600"
 
 if [ -f "$CONFIG_PATH" ]; then
     echo "Observer is already installed. This will overwrite the existing config at $CONFIG_PATH." >&2
