@@ -21,6 +21,7 @@ pub struct Metrics {
     pub kernel_version: Option<String>,
     pub net_bytes_received: u64,
     pub net_bytes_transmitted: u64,
+    pub local_ip: Option<String>,
     pub disks: Vec<DiskInfo>,
     pub speedtest_result: Option<SpeedtestResult>,
 }
@@ -65,6 +66,7 @@ impl Metrics {
             kernel_version: System::kernel_version(),
             net_bytes_received: net.bytes_received,
             net_bytes_transmitted: net.bytes_transmitted,
+            local_ip: net.local_ip,
             disks,
             speedtest_result: None,
         }
