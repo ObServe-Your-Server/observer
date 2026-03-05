@@ -11,9 +11,6 @@ Environment=OBSERVER_CONFIG=/etc/observer/observer.toml
 Restart=on-failure
 RestartSec=5s
 
-# cap journal storage for this service
-SystemMaxUse=50M
-
 # basic hardening
 NoNewPrivileges=true
 ProtectSystem=strict
