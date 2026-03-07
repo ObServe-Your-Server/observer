@@ -16,14 +16,20 @@ impl NetworkInfo {
 
 pub fn collect() -> NetworkInfo {
     let networks = Networks::new_with_refreshed_list();
+    let is_physical = |name: &String| {
+        name.starts_with("eth")
+            || name.starts_with("en")
+            || name.starts_with("wl")
+    };
+
     let bytes_received = networks
         .iter()
-        .filter(|(name, _)| *name != "lo")
+        .filter(|(name, _)| is_physical(name))
         .map(|(_, n)| n.total_received())
         .sum();
     let bytes_transmitted = networks
         .iter()
-        .filter(|(name, _)| *name != "lo")
+        .filter(|(name, _)| is_physical(name))
         .map(|(_, n)| n.total_transmitted())
         .sum();
 

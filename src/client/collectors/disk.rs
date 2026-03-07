@@ -145,7 +145,7 @@ mod linux {
                     .unwrap_or("Unknown")
                     .to_string();
 
-                info!(
+                debug!(
                     "lsblk disk: dev={} name={} total={}B used={}B",
                     dev.name, name, total_bytes, used_bytes,
                 );
