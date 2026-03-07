@@ -1,4 +1,4 @@
-use log::{error, info, debug};
+use log::{debug, error, info};
 use reqwest::Client;
 
 use super::metric_collection::Metrics;
