@@ -1,4 +1,3 @@
-use log::info;
 #[cfg(not(target_os = "linux"))]
 use sysinfo::Disks;
 
@@ -15,7 +14,7 @@ pub struct DiskInfo {
 #[cfg(target_os = "linux")]
 mod linux {
     use super::DiskInfo;
-    use log::{info, warn};
+    use log::{debug, warn};
     use serde::Deserialize;
     use std::process::Command;
 
