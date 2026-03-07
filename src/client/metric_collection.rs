@@ -1,12 +1,21 @@
 use super::{sender, speedtest};
-use crate::client::collectors::{cpu, disk, network};
 use crate::client::collectors::disk::DiskInfo;
+use crate::client::collectors::{cpu, disk, network};
 use crate::client::speedtest::SpeedtestResult;
 use log::{debug, info, warn};
 use reqwest::Client;
-use std::sync::mpsc;
+use std::sync::{Arc, RwLock, mpsc};
 use std::time::Duration;
 use sysinfo::System;
+
+#[derive(Clone)]
+struct NetworkBytesDelta {
+    pub time_of_recording: std::time::Instant,
+    pub bytes_received: u64,
+    pub bytes_transmitted: u64,
+}
+
+static NETWORK_DELTA: RwLock<Option<NetworkBytesDelta>> = RwLock::new(None);
 
 #[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -22,6 +31,8 @@ pub struct Metrics {
     pub kernel_version: Option<String>,
     pub net_bytes_received: u64,
     pub net_bytes_transmitted: u64,
+    pub net_bytes_received_per_second: u64,
+    pub net_bytes_transmitted_per_second: u64,
     pub local_ip: Option<String>,
     pub disks: Vec<DiskInfo>,
     pub speedtest_result: Option<SpeedtestResult>,
@@ -55,6 +66,26 @@ impl Metrics {
 
         let disks = disk::collect();
         let net = network::collect();
+        
+        let now = std::time::Instant::now();
+        let (net_bytes_received_per_second, net_bytes_transmitted_per_second) = {
+            let prev = NETWORK_DELTA.read().unwrap();
+            match prev.as_ref() {
+                Some(snapshot) => {
+                    let elapsed_secs = (now - snapshot.time_of_recording).as_secs_f64();
+                    let delta_received = ((net.bytes_received.saturating_sub(snapshot.bytes_received)) as f64 / elapsed_secs) as u64;
+                    let delta_transmitted = ((net.bytes_transmitted.saturating_sub(snapshot.bytes_transmitted)) as f64 / elapsed_secs) as u64;
+                    (delta_received, delta_transmitted)
+                }
+                None => (0, 0),
+            }
+        };
+
+        *NETWORK_DELTA.write().unwrap() = Some(NetworkBytesDelta {
+            time_of_recording: now,
+            bytes_received: net.bytes_received,
+            bytes_transmitted: net.bytes_transmitted,
+        });
 
         Self {
             cpu_usage_percent: cpu_info.usage_percent,
@@ -68,6 +99,8 @@ impl Metrics {
             kernel_version: System::kernel_version(),
             net_bytes_received: net.bytes_received,
             net_bytes_transmitted: net.bytes_transmitted,
+            net_bytes_received_per_second,
+            net_bytes_transmitted_per_second,
             local_ip: net.local_ip,
             disks,
             speedtest_result: None,
@@ -100,6 +133,10 @@ pub async fn collect(client: &Client) {
             disk.total_bytes / 1024 / 1024 / 1024
         );
     }
+    
+    debug!("Network bytes recieved per second: {}", metrics.net_bytes_received_per_second);
+    debug!("Network bytes transmitted per second: {}", metrics.net_bytes_transmitted_per_second);
+
 
     match speedtest::get_last_result() {
         Some(s) => {
@@ -134,7 +171,10 @@ mod tests {
     #[test]
     fn test_ram_used_does_not_exceed_total() {
         let metrics = Metrics::collect().expect("collection timed out");
-        assert!(metrics.ram_total_bytes > 0, "Total RAM should be greater than 0");
+        assert!(
+            metrics.ram_total_bytes > 0,
+            "Total RAM should be greater than 0"
+        );
         assert!(
             metrics.ram_used_bytes <= metrics.ram_total_bytes,
             "Used RAM {}B exceeds total {}B",

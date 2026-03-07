@@ -11,8 +11,7 @@ pub struct CpuInfo {
 
 pub fn collect(sys: &System) -> CpuInfo {
     let count = sys.cpus().len();
-    let usage_percent =
-        sys.cpus().iter().map(|c| c.cpu_usage()).sum::<f32>() / count as f32;
+    let usage_percent = sys.cpus().iter().map(|c| c.cpu_usage()).sum::<f32>() / count as f32;
     let name = sys
         .cpus()
         .first()
