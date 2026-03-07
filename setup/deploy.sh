@@ -40,8 +40,9 @@ echo "=== Observer Installer ===" >&2
 echo "" >&2
 
 # Load existing config values as defaults if already installed
-DEFAULT_METRICS_URL="https://watch-tower.marco-brandt.com"
-DEFAULT_COMMANDS_URL="https://example.com/api/commands"
+DEFAULT_METRICS_URL="https://watch-tower.marco-brandt.com/v1/ingest"
+DEFAULT_COMMANDS_URL="https://watch-tower.marco-brandt.com/v1/commands"
+DEFAULT_API_KEY=""
 DEFAULT_METRIC_SECS="5"
 DEFAULT_COMMAND_POLL_SECS="10"
 DEFAULT_SPEEDTEST_SECS="600"
@@ -56,9 +57,9 @@ if [ -f "$CONFIG_PATH" ]; then
     esac
     echo "" >&2
 
-    # Pre-fill defaults from the existing config (except api_key)
-    DEFAULT_METRICS_URL=$(grep 'base_metrics_url' "$CONFIG_PATH" | sed 's/.*= "\(.*\)"/\1/')
-    DEFAULT_COMMANDS_URL=$(grep 'base_commands_url' "$CONFIG_PATH" | sed 's/.*= "\(.*\)"/\1/')
+    # Pre-fill defaults from the existing config
+
+    DEFAULT_API_KEY=$(grep 'api_key' "$CONFIG_PATH" | sed 's/.*= "\(.*\)"/\1/')
     DEFAULT_METRIC_SECS=$(grep 'metric_secs' "$CONFIG_PATH" | sed 's/[^0-9]*\([0-9]*\).*/\1/')
     DEFAULT_COMMAND_POLL_SECS=$(grep 'command_poll_secs' "$CONFIG_PATH" | sed 's/[^0-9]*\([0-9]*\).*/\1/')
     DEFAULT_SPEEDTEST_SECS=$(grep 'speedtest_secs' "$CONFIG_PATH" | sed 's/[^0-9]*\([0-9]*\).*/\1/')
@@ -67,13 +68,10 @@ fi
 echo "Press Enter to accept the default shown in brackets." >&2
 echo "" >&2
 
-ask_required "Metrics ingestion URL" "$DEFAULT_METRICS_URL"
-METRICS_URL="$REPLY"
+METRICS_URL="$DEFAULT_METRICS_URL"
+COMMANDS_URL="$DEFAULT_COMMANDS_URL"
 
-ask_required "Commands polling URL" "$DEFAULT_COMMANDS_URL"
-COMMANDS_URL="$REPLY"
-
-ask_required "API key" ""
+ask_required "API key" "$DEFAULT_API_KEY"
 API_KEY="$REPLY"
 
 ask_optional "Metric send interval in seconds (2-60)" "$DEFAULT_METRIC_SECS"

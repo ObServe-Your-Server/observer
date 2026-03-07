@@ -2,11 +2,9 @@ mod client;
 mod config;
 
 use client::scheduler::{Scheduler, SchedulerKind};
-use client::{metric_collection, speedtest};
+use client::{command_polling, metric_collection, speedtest};
 use config::init_config;
-use env_logger;
 use log::{error, info};
-use reqwest::Client;
 use std::env;
 
 fn init_logging() {
@@ -43,20 +41,13 @@ async fn main() {
     );
     info!("Application ready");
 
-    let http_client = Client::new();
-
-    let metric_scheduler = Scheduler::new(
-        SchedulerKind::MetricCollection,
-        config.intervals.metric_secs as u32,
-    );
-    // Done later
-    //let command_scheduler = Scheduler::new(SchedulerKind::CommandPolling, config.intervals.command_poll_secs as u32);
-    let speedtest_scheduler =
-        Scheduler::new(SchedulerKind::Speedtest, config.intervals.speedtest_secs);
+    let metric_scheduler = Scheduler::new(SchedulerKind::MetricCollection, config.intervals.metric_secs as u32);
+    let command_scheduler = Scheduler::new(SchedulerKind::CommandPolling, config.intervals.command_poll_secs as u32);
+    let speedtest_scheduler = Scheduler::new(SchedulerKind::Speedtest, config.intervals.speedtest_secs);
 
     tokio::join!(
-        metric_scheduler.run(|| metric_collection::collect(&http_client)),
-        //command_scheduler.run(|| command_polling::poll()),
+        metric_scheduler.run(|| metric_collection::collect()),
+        command_scheduler.run(|| command_polling::poll()),
         speedtest_scheduler.run(|| speedtest::run()),
     );
 }

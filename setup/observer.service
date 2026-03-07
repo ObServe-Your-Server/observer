@@ -9,7 +9,7 @@ ExecStart=/usr/local/bin/observer
 Environment=OBSERVER_CONFIG=/etc/observer/observer.toml
 # To adjust log verbosity, add: Environment=OBSERVER_LOG_LEVEL=debug
 Restart=on-failure
-RestartSec=5s
+RestartSec=60s
 
 # basic hardening
 NoNewPrivileges=true

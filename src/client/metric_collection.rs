@@ -2,9 +2,9 @@ use super::{sender, speedtest};
 use crate::client::collectors::disk::DiskInfo;
 use crate::client::collectors::{cpu, disk, network};
 use crate::client::speedtest::SpeedtestResult;
-use log::{debug, info, warn};
+use log::{debug, warn};
 use reqwest::Client;
-use std::sync::{Arc, RwLock, mpsc};
+use std::sync::{RwLock, mpsc};
 use std::time::Duration;
 use sysinfo::System;
 
@@ -109,7 +109,8 @@ impl Metrics {
     }
 }
 
-pub async fn collect(client: &Client) {
+pub async fn collect() {
+    let client = Client::new();
     let Some(mut metrics) = Metrics::collect() else {
         return;
     };
@@ -151,7 +152,7 @@ pub async fn collect(client: &Client) {
 
     debug!("Whole metric struct: {:?}", metrics);
 
-    sender::send(client, &metrics).await;
+    sender::send(&client, &metrics).await;
 }
 
 #[cfg(test)]

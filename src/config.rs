@@ -1,29 +1,34 @@
 use log::debug;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::sync::OnceLock;
 
 #[derive(Debug)]
+#[derive(Serialize)]
+#[serde(rename_all = "snake_case")]
 pub struct Config {
     pub version: &'static str,
     pub server: ServerConfig,
     pub intervals: IntervalsConfig,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
 struct TomlConfig {
     server: ServerConfig,
     intervals: IntervalsConfig,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub struct ServerConfig {
     pub base_metrics_url: String,
     pub base_commands_url: String,
     pub api_key: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub struct IntervalsConfig {
     pub metric_secs: u16,
     pub command_poll_secs: u16,

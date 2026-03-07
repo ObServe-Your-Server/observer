@@ -1,6 +1,24 @@
+use chrono::{DateTime, Utc};
 use log::info;
+use std::sync::{OnceLock, RwLock};
 use std::time::Duration;
 use tokio::time;
+
+pub struct AppState {
+    pub metrics_enabled: RwLock<bool>,
+    pub speedtest_enabled: RwLock<bool>,
+    pub started_at: DateTime<Utc>,
+}
+
+static STATE: OnceLock<AppState> = OnceLock::new();
+
+pub fn get_state() -> &'static AppState {
+    STATE.get_or_init(|| AppState {
+        metrics_enabled: RwLock::new(true),
+        speedtest_enabled: RwLock::new(true),
+        started_at: Utc::now(),
+    })
+}
 
 pub enum SchedulerKind {
     MetricCollection,
@@ -16,6 +34,15 @@ impl SchedulerKind {
             SchedulerKind::Speedtest => "speedtest",
         }
     }
+
+    fn is_enabled(&self) -> bool {
+        let state = get_state();
+        match self {
+            SchedulerKind::MetricCollection => *state.metrics_enabled.read().unwrap(),
+            SchedulerKind::CommandPolling => true,
+            SchedulerKind::Speedtest => *state.speedtest_enabled.read().unwrap(),
+        }
+    }
 }
 
 pub struct Scheduler {
@@ -25,10 +52,7 @@ pub struct Scheduler {
 
 impl Scheduler {
     pub fn new(kind: SchedulerKind, interval_secs: u32) -> Self {
-        Self {
-            kind,
-            interval_secs,
-        }
+        Self { kind, interval_secs }
     }
 
     pub async fn run<F, Fut>(&self, job: F)
@@ -47,6 +71,12 @@ impl Scheduler {
 
         loop {
             interval.tick().await;
+
+            if !self.kind.is_enabled() {
+                info!("Scheduler [{}] paused, skipping tick", self.kind.as_str());
+                continue;
+            }
+
             job().await;
         }
     }
