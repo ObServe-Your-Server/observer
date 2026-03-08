@@ -59,13 +59,24 @@ if [ -f "$CONFIG_PATH" ]; then
     esac
     echo "" >&2
 
-    # Pre-fill defaults from the existing config
+    # Pre-fill defaults from the existing config (only override if the field exists)
+    prefill_str() {
+        local val
+        val=$(grep "$1" "$CONFIG_PATH" | sed 's/.*= "\(.*\)"/\1/')
+        [ -n "$val" ] && echo "$val" || echo "$2"
+    }
+    prefill_num() {
+        local val
+        val=$(grep "$1" "$CONFIG_PATH" | sed 's/[^0-9]*\([0-9]*\).*/\1/')
+        [ -n "$val" ] && echo "$val" || echo "$2"
+    }
 
-    DEFAULT_API_KEY=$(grep 'api_key' "$CONFIG_PATH" | sed 's/.*= "\(.*\)"/\1/')
-    DEFAULT_METRIC_SECS=$(grep 'metric_secs' "$CONFIG_PATH" | sed 's/[^0-9]*\([0-9]*\).*/\1/')
-    DEFAULT_COMMAND_POLL_SECS=$(grep 'command_poll_secs' "$CONFIG_PATH" | sed 's/[^0-9]*\([0-9]*\).*/\1/')
-    DEFAULT_SPEEDTEST_SECS=$(grep 'speedtest_secs' "$CONFIG_PATH" | sed 's/[^0-9]*\([0-9]*\).*/\1/')
-    DEFAULT_DOCKER_SECS=$(grep 'docker_secs' "$CONFIG_PATH" | sed 's/[^0-9]*\([0-9]*\).*/\1/')
+    DEFAULT_API_KEY=$(prefill_str 'api_key' "$DEFAULT_API_KEY")
+    DEFAULT_DOCKER_URL=$(prefill_str 'base_docker_url' "$DEFAULT_DOCKER_URL")
+    DEFAULT_METRIC_SECS=$(prefill_num 'metric_secs' "$DEFAULT_METRIC_SECS")
+    DEFAULT_COMMAND_POLL_SECS=$(prefill_num 'command_poll_secs' "$DEFAULT_COMMAND_POLL_SECS")
+    DEFAULT_SPEEDTEST_SECS=$(prefill_num 'speedtest_secs' "$DEFAULT_SPEEDTEST_SECS")
+    DEFAULT_DOCKER_SECS=$(prefill_num 'docker_secs' "$DEFAULT_DOCKER_SECS")
 fi
 
 echo "Press Enter to accept the default shown in brackets." >&2
