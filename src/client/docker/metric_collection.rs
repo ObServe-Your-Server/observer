@@ -5,7 +5,10 @@ use super::collector::list_containers;
 use super::docker_metric_sender::send;
 
 pub async fn collect() {
-    let containers = list_containers().await;
+    let containers = match list_containers().await {
+        Some(c) => c,
+        None => return,
+    };
     debug!("Collected {} docker containers", containers.len());
 
     let client = Client::new();
@@ -18,7 +21,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_collect_once() {
-        let containers = list_containers().await;
+        let containers = list_containers().await.unwrap();
         println!("collected {} containers", containers.len());
         for c in &containers {
             println!("---");

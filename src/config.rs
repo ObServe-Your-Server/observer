@@ -24,6 +24,7 @@ pub struct ServerConfig {
     pub base_metrics_url: String,
     pub base_commands_url: String,
     pub base_docker_url: String,
+    pub base_notifier_url: String,
     pub api_key: String,
 }
 

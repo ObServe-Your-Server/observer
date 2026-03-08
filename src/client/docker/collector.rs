@@ -58,14 +58,20 @@ fn parse_cpu_percent(stats: serde_json::Value) -> f64 {
     (cpu_delta as f64 / system_delta as f64) * num_cpus as f64 * 100.0
 }
 
-pub async fn list_containers() -> Vec<ContainerStats> {
+pub async fn list_containers() -> Option<Vec<ContainerStats>> {
     let docker = match docker_api::Docker::new("unix:///var/run/docker.sock") {
         Ok(d) => d,
         Err(e) => {
             log::warn!("Docker socket unavailable: {}", e);
-            return vec![];
+            return None;
         }
     };
+
+    if docker.ping().await.is_err() {
+        log::warn!("Docker socket unavailable: ping failed");
+        return None;
+    }
+
     let containers_api = docker.containers();
     let summaries = match containers_api
         .list(&ContainerListOpts::builder().all(true).build())
@@ -74,7 +80,7 @@ pub async fn list_containers() -> Vec<ContainerStats> {
         Ok(s) => s,
         Err(e) => {
             log::warn!("Failed to list containers: {}", e);
-            return vec![];
+            return None;
         }
     };
 
@@ -139,7 +145,7 @@ pub async fn list_containers() -> Vec<ContainerStats> {
         });
     }
 
-    results
+    Some(results)
 }
 
 #[cfg(test)]
@@ -148,7 +154,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_containers() {
-        let containers = list_containers().await;
+        let containers = list_containers().await.unwrap();
         for c in &containers {
             println!("---");
             println!("  id:              {}", c.id);

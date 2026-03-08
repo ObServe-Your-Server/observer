@@ -3,6 +3,7 @@ use log::info;
 use std::sync::{OnceLock, RwLock};
 use std::time::Duration;
 use tokio::time;
+use tokio::time::MissedTickBehavior;
 
 pub struct AppState {
     pub metrics_enabled: RwLock<bool>,
@@ -70,6 +71,7 @@ impl Scheduler {
     {
         let duration = Duration::from_secs(self.interval_secs as u64);
         let mut interval = time::interval(duration);
+        interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
         info!(
             "Scheduler [{}] started, running every {}s",
@@ -85,7 +87,17 @@ impl Scheduler {
                 continue;
             }
 
-            job().await;
+            let name = self.kind.as_str();
+            match time::timeout(duration, job()).await {
+                Ok(()) => {}
+                Err(_) => {
+                    log::error!(
+                        "Scheduler [{}] job exceeded interval ({}s), cancelled",
+                        name,
+                        self.interval_secs
+                    );
+                }
+            }
         }
     }
 }
