@@ -8,3 +8,8 @@ name = "docker_socket"
 path = "src/lib.rs"
 
 [dependencies]
+docker-api = "0.14"
+tokio = { version = "1.50.0", features = ["full"] }
+futures-util = "0.3"
+serde_json = "1"
+

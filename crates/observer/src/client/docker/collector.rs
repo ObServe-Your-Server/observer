@@ -9,7 +9,8 @@ pub async fn detect_docker_socket() -> bool {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ContainerStats {
     pub id: String,
     pub host_name: String,
