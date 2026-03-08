@@ -1,0 +1,25 @@
+[package]
+name = "observer"
+version = "1.1.10"
+edition = "2024"
+
+[[bin]]
+name = "observer"
+path = "src/main.rs"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+tempfile = "3"
+
+[dependencies]
+toml = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"
+env_logger = "0.11"
+tokio = { version = "1", features = ["rt-multi-thread", "time", "macros"] }
+sysinfo = "0.38.2"
+reqwest = { version = "0.12", features = ["stream", "rustls-tls", "json", "http2"], default-features = false }
+futures-util = "0.3.32"
+local-ip-address = "0.6"
+chrono = { version = "0.4.44", features = ["serde"] }
