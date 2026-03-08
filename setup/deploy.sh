@@ -42,10 +42,12 @@ echo "" >&2
 # Load existing config values as defaults if already installed
 DEFAULT_METRICS_URL="https://watch-tower.marco-brandt.com/v1/ingest"
 DEFAULT_COMMANDS_URL="https://watch-tower.marco-brandt.com/v1/commands"
+DEFAULT_DOCKER_URL="https://watch-tower.marco-brandt.com/v1/ingest/docker"
 DEFAULT_API_KEY=""
 DEFAULT_METRIC_SECS="5"
 DEFAULT_COMMAND_POLL_SECS="10"
 DEFAULT_SPEEDTEST_SECS="600"
+DEFAULT_DOCKER_SECS="10"
 
 if [ -f "$CONFIG_PATH" ]; then
     echo "Observer is already installed. This will overwrite the existing config at $CONFIG_PATH." >&2
@@ -63,6 +65,7 @@ if [ -f "$CONFIG_PATH" ]; then
     DEFAULT_METRIC_SECS=$(grep 'metric_secs' "$CONFIG_PATH" | sed 's/[^0-9]*\([0-9]*\).*/\1/')
     DEFAULT_COMMAND_POLL_SECS=$(grep 'command_poll_secs' "$CONFIG_PATH" | sed 's/[^0-9]*\([0-9]*\).*/\1/')
     DEFAULT_SPEEDTEST_SECS=$(grep 'speedtest_secs' "$CONFIG_PATH" | sed 's/[^0-9]*\([0-9]*\).*/\1/')
+    DEFAULT_DOCKER_SECS=$(grep 'docker_secs' "$CONFIG_PATH" | sed 's/[^0-9]*\([0-9]*\).*/\1/')
 fi
 
 echo "Press Enter to accept the default shown in brackets." >&2
@@ -82,6 +85,9 @@ COMMAND_POLL_SECS="$REPLY"
 
 ask_optional "Speedtest interval in seconds (60-86400)" "$DEFAULT_SPEEDTEST_SECS"
 SPEEDTEST_SECS="$REPLY"
+
+ask_optional "Docker metric interval in seconds (10-60)" "$DEFAULT_DOCKER_SECS"
+DOCKER_SECS="$REPLY"
 
 echo "" >&2
 
@@ -111,12 +117,14 @@ cat > "$CONFIG_PATH" <<EOF
 [server]
 base_metrics_url  = "$METRICS_URL"
 base_commands_url = "$COMMANDS_URL"
+base_docker_url   = "$DEFAULT_DOCKER_URL"
 api_key           = "$API_KEY"
 
 [intervals]
 metric_secs       = $METRIC_SECS
 command_poll_secs = $COMMAND_POLL_SECS
 speedtest_secs    = $SPEEDTEST_SECS
+docker_secs       = $DOCKER_SECS
 EOF
 
 chmod 600 "$CONFIG_PATH"

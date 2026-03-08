@@ -24,6 +24,7 @@ struct TomlConfig {
 pub struct ServerConfig {
     pub base_metrics_url: String,
     pub base_commands_url: String,
+    pub base_docker_url: String,
     pub api_key: String,
 }
 
@@ -33,6 +34,7 @@ pub struct IntervalsConfig {
     pub metric_secs: u16,
     pub command_poll_secs: u16,
     pub speedtest_secs: u32,
+    pub docker_secs: u16,
 }
 
 static CONFIG: OnceLock<Config> = OnceLock::new();
@@ -89,6 +91,12 @@ fn validate(c: &Config) -> Result<(), String> {
             i.speedtest_secs
         ));
     }
+    if !(10..=60).contains(&i.docker_secs) {
+        return Err(format!(
+            "intervals.docker_secs must be 10–60, got {}",
+            i.docker_secs
+        ));
+    }
 
     Ok(())
 }
@@ -103,12 +111,14 @@ mod tests {
 [server]
 base_metrics_url  = "http://localhost:8080/v1/ingest"
 base_commands_url = "http://localhost:8080/api/commands"
+base_docker_url   = "http://localhost:8080/v1/docker"
 api_key           = "test-key"
 
 [intervals]
 metric_secs       = 5
 command_poll_secs = 10
 speedtest_secs    = 3600
+docker_secs       = 10
 "#
     }
 
