@@ -3,7 +3,7 @@ use log::info;
 use reqwest::Client;
 use serde::Deserialize;
 
-use crate::client::scheduler::get_state;
+use crate::client::host::scheduler::get_state;
 use crate::config::get_config;
 
 #[derive(Deserialize, Debug)]
@@ -14,6 +14,8 @@ enum Command {
     StartMetricCollection,
     StopSpeedtest,
     StartSpeedtest,
+    StopDockerMetricCollection,
+    StartDockerMetricCollection,
 }
 
 #[derive(Deserialize, Debug)]
@@ -77,6 +79,8 @@ pub async fn poll() {
             Command::StartMetricCollection => *state.metrics_enabled.write().unwrap() = true,
             Command::StopSpeedtest => *state.speedtest_enabled.write().unwrap() = false,
             Command::StartSpeedtest => *state.speedtest_enabled.write().unwrap() = true,
+            Command::StopDockerMetricCollection => *state.docker_metrics_enabled.write().unwrap() = false,
+            Command::StartDockerMetricCollection => *state.docker_metrics_enabled.write().unwrap() = true,
         }
     }
 }

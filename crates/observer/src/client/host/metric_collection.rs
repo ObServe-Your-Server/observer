@@ -1,12 +1,13 @@
-use super::{sender, speedtest};
-use crate::client::collectors::disk::DiskInfo;
-use crate::client::collectors::{cpu, disk, network};
-use crate::client::speedtest::SpeedtestResult;
 use log::{debug, warn};
 use reqwest::Client;
 use std::sync::{RwLock, mpsc};
 use std::time::Duration;
 use sysinfo::System;
+
+use crate::client::host::collectors::{cpu, disk, network};
+use crate::client::host::collectors::disk::DiskInfo;
+use crate::client::host::speedtest::{self, SpeedtestResult};
+use crate::client::host::sender;
 
 #[derive(Clone)]
 struct NetworkBytesDelta {

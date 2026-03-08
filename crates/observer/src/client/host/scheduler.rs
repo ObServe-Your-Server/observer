@@ -7,6 +7,7 @@ use tokio::time;
 pub struct AppState {
     pub metrics_enabled: RwLock<bool>,
     pub speedtest_enabled: RwLock<bool>,
+    pub docker_metrics_enabled: RwLock<bool>,
     pub started_at: DateTime<Utc>,
 }
 
@@ -16,6 +17,7 @@ pub fn get_state() -> &'static AppState {
     STATE.get_or_init(|| AppState {
         metrics_enabled: RwLock::new(true),
         speedtest_enabled: RwLock::new(true),
+        docker_metrics_enabled: RwLock::new(true),
         started_at: Utc::now(),
     })
 }
@@ -24,6 +26,7 @@ pub enum SchedulerKind {
     MetricCollection,
     CommandPolling,
     Speedtest,
+    DockerMetricCollection,
 }
 
 impl SchedulerKind {
@@ -32,6 +35,7 @@ impl SchedulerKind {
             SchedulerKind::MetricCollection => "metric-collection",
             SchedulerKind::CommandPolling => "command-polling",
             SchedulerKind::Speedtest => "speedtest",
+            SchedulerKind::DockerMetricCollection => "docker-metric-collection",
         }
     }
 
@@ -41,6 +45,7 @@ impl SchedulerKind {
             SchedulerKind::MetricCollection => *state.metrics_enabled.read().unwrap(),
             SchedulerKind::CommandPolling => true,
             SchedulerKind::Speedtest => *state.speedtest_enabled.read().unwrap(),
+            SchedulerKind::DockerMetricCollection => *state.docker_metrics_enabled.read().unwrap(),
         }
     }
 }
