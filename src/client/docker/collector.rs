@@ -102,12 +102,24 @@ fn parse_cpu_percent(stats: serde_json::Value) -> f64 {
 }
 
 pub async fn list_containers() -> Vec<ContainerStats> {
-    let docker = docker_api::Docker::new("unix:///var/run/docker.sock").unwrap();
+    let docker = match docker_api::Docker::new("unix:///var/run/docker.sock") {
+        Ok(d) => d,
+        Err(e) => {
+            log::warn!("Docker socket unavailable: {}", e);
+            return vec![];
+        }
+    };
     let containers_api = docker.containers();
-    let summaries = containers_api
+    let summaries = match containers_api
         .list(&ContainerListOpts::builder().all(true).build())
         .await
-        .unwrap();
+    {
+        Ok(s) => s,
+        Err(e) => {
+            log::warn!("Failed to list containers: {}", e);
+            return vec![];
+        }
+    };
 
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
