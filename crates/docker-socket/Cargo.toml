@@ -1,0 +1,10 @@
+[package]
+name = "docker-socket"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "docker_socket"
+path = "src/lib.rs"
+
+[dependencies]

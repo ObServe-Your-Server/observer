@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run tests
-        run: cargo test
+        run: cargo test --workspace
 
   build:
     name: Build and publish release
@@ -37,7 +37,7 @@ jobs:
         run: rustup target add x86_64-unknown-linux-musl
 
       - name: Build static binary
-        run: cargo build --release --target x86_64-unknown-linux-musl
+        run: cargo build --release --bin observer --target x86_64-unknown-linux-musl
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
