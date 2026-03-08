@@ -112,6 +112,7 @@ mod tests {
 base_metrics_url  = "http://localhost:8080/v1/ingest"
 base_commands_url = "http://localhost:8080/api/commands"
 base_docker_url   = "http://localhost:8080/v1/docker"
+base_notifier_url = "http://localhost:8080/v1/ingest/notifier"
 api_key           = "test-key"
 
 [intervals]
