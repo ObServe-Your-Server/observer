@@ -1,8 +1,8 @@
 use log::{debug, error, info};
 use reqwest::Client;
 
-use crate::config::get_config;
 use super::collector::ContainerStats;
+use crate::config::get_config;
 
 pub async fn send(client: &Client, containers: &[ContainerStats]) {
     let config = get_config();

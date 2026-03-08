@@ -16,11 +16,8 @@ impl NetworkInfo {
 
 pub fn collect() -> NetworkInfo {
     let networks = Networks::new_with_refreshed_list();
-    let is_physical = |name: &String| {
-        name.starts_with("eth")
-            || name.starts_with("en")
-            || name.starts_with("wl")
-    };
+    let is_physical =
+        |name: &String| name.starts_with("eth") || name.starts_with("en") || name.starts_with("wl");
 
     let bytes_received = networks
         .iter()

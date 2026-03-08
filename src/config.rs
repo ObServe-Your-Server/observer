@@ -3,8 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::sync::OnceLock;
 
-#[derive(Debug)]
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct Config {
     pub version: &'static str,
