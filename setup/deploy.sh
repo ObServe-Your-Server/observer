@@ -43,6 +43,7 @@ echo "" >&2
 DEFAULT_METRICS_URL="https://watch-tower.marco-brandt.com/v1/ingest"
 DEFAULT_COMMANDS_URL="https://watch-tower.marco-brandt.com/v1/commands"
 DEFAULT_DOCKER_URL="https://watch-tower.marco-brandt.com/v1/ingest/docker"
+DEFAULT_NOTIFIER_URL="https://watch-tower.marco-brandt.com/v1/ingest/notifier"
 DEFAULT_API_KEY=""
 DEFAULT_METRIC_SECS="5"
 DEFAULT_COMMAND_POLL_SECS="10"
@@ -73,6 +74,7 @@ if [ -f "$CONFIG_PATH" ]; then
 
     DEFAULT_API_KEY=$(prefill_str 'api_key' "$DEFAULT_API_KEY")
     DEFAULT_DOCKER_URL=$(prefill_str 'base_docker_url' "$DEFAULT_DOCKER_URL")
+    DEFAULT_NOTIFIER_URL=$(prefill_str 'base_notifier_url' "$DEFAULT_NOTIFIER_URL")
     DEFAULT_METRIC_SECS=$(prefill_num 'metric_secs' "$DEFAULT_METRIC_SECS")
     DEFAULT_COMMAND_POLL_SECS=$(prefill_num 'command_poll_secs' "$DEFAULT_COMMAND_POLL_SECS")
     DEFAULT_SPEEDTEST_SECS=$(prefill_num 'speedtest_secs' "$DEFAULT_SPEEDTEST_SECS")
@@ -129,6 +131,7 @@ cat > "$CONFIG_PATH" <<EOF
 base_metrics_url  = "$METRICS_URL"
 base_commands_url = "$COMMANDS_URL"
 base_docker_url   = "$DEFAULT_DOCKER_URL"
+base_notifier_url = "$DEFAULT_NOTIFIER_URL"
 api_key           = "$API_KEY"
 
 [intervals]
