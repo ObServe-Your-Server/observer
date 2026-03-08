@@ -4,10 +4,10 @@ use std::sync::{RwLock, mpsc};
 use std::time::Duration;
 use sysinfo::System;
 
-use crate::client::host::collectors::{cpu, disk, network};
 use crate::client::host::collectors::disk::DiskInfo;
-use crate::client::host::speedtest::{self, SpeedtestResult};
+use crate::client::host::collectors::{cpu, disk, network};
 use crate::client::host::sender;
+use crate::client::host::speedtest::{self, SpeedtestResult};
 
 #[derive(Clone)]
 struct NetworkBytesDelta {
@@ -67,15 +67,21 @@ impl Metrics {
 
         let disks = disk::collect();
         let net = network::collect();
-        
+
         let now = std::time::Instant::now();
         let (net_bytes_received_per_second, net_bytes_transmitted_per_second) = {
             let prev = NETWORK_DELTA.read().unwrap();
             match prev.as_ref() {
                 Some(snapshot) => {
                     let elapsed_secs = (now - snapshot.time_of_recording).as_secs_f64();
-                    let delta_received = ((net.bytes_received.saturating_sub(snapshot.bytes_received)) as f64 / elapsed_secs) as u64;
-                    let delta_transmitted = ((net.bytes_transmitted.saturating_sub(snapshot.bytes_transmitted)) as f64 / elapsed_secs) as u64;
+                    let delta_received =
+                        ((net.bytes_received.saturating_sub(snapshot.bytes_received)) as f64
+                            / elapsed_secs) as u64;
+                    let delta_transmitted = ((net
+                        .bytes_transmitted
+                        .saturating_sub(snapshot.bytes_transmitted))
+                        as f64
+                        / elapsed_secs) as u64;
                     (delta_received, delta_transmitted)
                 }
                 None => (0, 0),
@@ -135,10 +141,15 @@ pub async fn collect() {
             disk.total_bytes / 1024 / 1024 / 1024
         );
     }
-    
-    debug!("Network bytes recieved per second: {}", metrics.net_bytes_received_per_second);
-    debug!("Network bytes transmitted per second: {}", metrics.net_bytes_transmitted_per_second);
 
+    debug!(
+        "Network bytes recieved per second: {}",
+        metrics.net_bytes_received_per_second
+    );
+    debug!(
+        "Network bytes transmitted per second: {}",
+        metrics.net_bytes_transmitted_per_second
+    );
 
     match speedtest::get_last_result() {
         Some(s) => {

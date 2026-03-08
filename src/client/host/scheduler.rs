@@ -57,7 +57,10 @@ pub struct Scheduler {
 
 impl Scheduler {
     pub fn new(kind: SchedulerKind, interval_secs: u32) -> Self {
-        Self { kind, interval_secs }
+        Self {
+            kind,
+            interval_secs,
+        }
     }
 
     pub async fn run<F, Fut>(&self, job: F)

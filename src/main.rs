@@ -1,7 +1,6 @@
 mod client;
 mod config;
 
-
 use client::docker::metric_collection as docker_metric_collection;
 use client::host::command_polling;
 use client::host::metric_collection;
@@ -45,10 +44,20 @@ async fn main() {
     );
     info!("Application ready");
 
-    let metric_scheduler = Scheduler::new(SchedulerKind::MetricCollection, config.intervals.metric_secs as u32);
-    let command_scheduler = Scheduler::new(SchedulerKind::CommandPolling, config.intervals.command_poll_secs as u32);
-    let speedtest_scheduler = Scheduler::new(SchedulerKind::Speedtest, config.intervals.speedtest_secs);
-    let docker_scheduler = Scheduler::new(SchedulerKind::DockerMetricCollection, config.intervals.docker_secs as u32);
+    let metric_scheduler = Scheduler::new(
+        SchedulerKind::MetricCollection,
+        config.intervals.metric_secs as u32,
+    );
+    let command_scheduler = Scheduler::new(
+        SchedulerKind::CommandPolling,
+        config.intervals.command_poll_secs as u32,
+    );
+    let speedtest_scheduler =
+        Scheduler::new(SchedulerKind::Speedtest, config.intervals.speedtest_secs);
+    let docker_scheduler = Scheduler::new(
+        SchedulerKind::DockerMetricCollection,
+        config.intervals.docker_secs as u32,
+    );
 
     tokio::join!(
         metric_scheduler.run(|| metric_collection::collect()),

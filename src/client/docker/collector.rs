@@ -24,49 +24,6 @@ pub struct ContainerStats {
     pub memory_usage_bytes: u64,
 }
 
-impl ContainerStats {
-    pub fn id(&self) -> &str {
-        &self.id
-    }
-
-    pub fn host_name(&self) -> &str {
-        &self.host_name
-    }
-
-    pub fn created_at(&self) -> i64 {
-        self.created_at
-    }
-
-    pub fn status(&self) -> &str {
-        &self.status
-    }
-
-    pub fn running(&self) -> bool {
-        self.running
-    }
-
-    pub fn running_for_seconds(&self) -> u64 {
-        self.running_for_seconds
-    }
-
-    pub fn image_name(&self) -> &str {
-        &self.image_name
-    }
-
-    pub fn networks(&self) -> &[String] {
-        &self.networks
-    }
-
-    pub fn cpu_usage_percent(&self) -> f64 {
-        self.cpu_usage_percent
-    }
-
-    pub fn memory_usage_bytes(&self) -> u64 {
-        self.memory_usage_bytes
-    }
-
-}
-
 /// Calculates CPU usage % from a Docker stats JSON snapshot.
 /// Docker requires two samples to compute a delta; the stats stream emits
 /// the previous sample in `precpu_stats` alongside the current `cpu_stats`.
@@ -194,16 +151,16 @@ mod tests {
         let containers = list_containers().await;
         for c in &containers {
             println!("---");
-            println!("  id:              {}", c.id());
-            println!("  name:            {}", c.host_name());
-            println!("  image:           {}", c.image_name());
-            println!("  status:          {}", c.status());
-            println!("  running:         {}", c.running());
-            println!("  uptime (s):      {}", c.running_for_seconds());
-            println!("  created_at:      {}", c.created_at());
-            println!("  networks:        {}", c.networks().join(", "));
-            println!("  cpu %:           {:.2}", c.cpu_usage_percent());
-            println!("  memory (bytes):  {}", c.memory_usage_bytes());
+            println!("  id:              {}", c.id);
+            println!("  name:            {}", c.host_name);
+            println!("  image:           {}", c.image_name);
+            println!("  status:          {}", c.status);
+            println!("  running:         {}", c.running);
+            println!("  uptime (s):      {}", c.running_for_seconds);
+            println!("  created_at:      {}", c.created_at);
+            println!("  networks:        {}", c.networks.join(", "));
+            println!("  cpu %:           {:.2}", c.cpu_usage_percent);
+            println!("  memory (bytes):  {}", c.memory_usage_bytes);
         }
     }
 }

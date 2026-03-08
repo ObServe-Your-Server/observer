@@ -79,8 +79,12 @@ pub async fn poll() {
             Command::StartMetricCollection => *state.metrics_enabled.write().unwrap() = true,
             Command::StopSpeedtest => *state.speedtest_enabled.write().unwrap() = false,
             Command::StartSpeedtest => *state.speedtest_enabled.write().unwrap() = true,
-            Command::StopDockerMetricCollection => *state.docker_metrics_enabled.write().unwrap() = false,
-            Command::StartDockerMetricCollection => *state.docker_metrics_enabled.write().unwrap() = true,
+            Command::StopDockerMetricCollection => {
+                *state.docker_metrics_enabled.write().unwrap() = false
+            }
+            Command::StartDockerMetricCollection => {
+                *state.docker_metrics_enabled.write().unwrap() = true
+            }
         }
     }
 }

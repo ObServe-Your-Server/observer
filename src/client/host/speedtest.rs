@@ -1,5 +1,5 @@
 use futures_util::StreamExt;
-use log::{debug, error, info, warn};
+use log::{debug, info, warn};
 use reqwest::Client;
 use serde::Serialize;
 use std::sync::RwLock;
@@ -100,7 +100,10 @@ async fn measure_upload(client: &Client) -> Result<f64, String> {
 }
 
 pub async fn run() {
-    info!("Starting speedtest against Cloudflare ({} download rounds)...", DOWNLOAD_ROUNDS);
+    info!(
+        "Starting speedtest against Cloudflare ({} download rounds)...",
+        DOWNLOAD_ROUNDS
+    );
 
     let client = Client::new();
 
