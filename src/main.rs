@@ -1,7 +1,7 @@
 mod client;
 mod config;
 
-use client::docker::metric_collection as docker_metric_collection;
+
 use client::host::command_polling;
 use client::host::metric_collection;
 use client::host::scheduler::{Scheduler, SchedulerKind};
@@ -9,6 +9,8 @@ use client::host::speedtest;
 use config::init_config;
 use log::{error, info};
 use std::env;
+
+use crate::client::docker::docker_job;
 
 fn init_logging() {
     let level_str = env::var("OBSERVER_LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
@@ -63,6 +65,6 @@ async fn main() {
         metric_scheduler.run(|| metric_collection::collect()),
         command_scheduler.run(|| command_polling::poll()),
         speedtest_scheduler.run(|| speedtest::run()),
-        docker_scheduler.run(|| docker_metric_collection::collect()),
+        docker_scheduler.run(|| docker_job::collect()),
     );
 }

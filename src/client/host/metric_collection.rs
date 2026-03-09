@@ -1,4 +1,4 @@
-use log::{debug, warn};
+use log::{debug, error, warn};
 use reqwest::Client;
 use std::sync::{RwLock, mpsc};
 use std::time::Duration;
@@ -8,6 +8,7 @@ use crate::client::host::collectors::disk::DiskInfo;
 use crate::client::host::collectors::{cpu, disk, network};
 use crate::client::host::sender;
 use crate::client::host::speedtest::{self, SpeedtestResult};
+use crate::client::notification::notifier::send_metric_notification;
 
 #[derive(Clone)]
 struct NetworkBytesDelta {
@@ -18,7 +19,7 @@ struct NetworkBytesDelta {
 
 static NETWORK_DELTA: RwLock<Option<NetworkBytesDelta>> = RwLock::new(None);
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Metrics {
     pub cpu_usage_percent: f32,
@@ -163,6 +164,18 @@ pub async fn collect() {
     }
 
     debug!("Whole metric struct: {:?}", metrics);
+    
+    // before sending send message for critical usages
+    let metrics_clone = metrics.clone();
+    tokio::spawn(async move {
+        let result = send_metric_notification(metrics_clone).await;
+        match result {
+            Ok(_) => {}
+            Err(e) => {
+                error!("Failed to send metric notification: {}", e);
+            }
+        }
+    });
 
     sender::send(&client, &metrics).await;
 }

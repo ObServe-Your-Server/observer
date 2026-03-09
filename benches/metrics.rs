@@ -1,7 +1,7 @@
 use criterion::{Criterion, criterion_group, criterion_main};
-use observer::client::metric_collection::Metrics;
 use std::hint::black_box;
 use std::time::Duration;
+use observer::client::host::metric_collection::Metrics;
 
 fn bench_metrics_collect(c: &mut Criterion) {
     c.bench_function("metrics_collect", |b| {
