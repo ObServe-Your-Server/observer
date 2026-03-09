@@ -2,13 +2,6 @@ use docker_api::opts::ContainerListOpts;
 use futures_util::StreamExt;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub async fn detect_docker_socket() -> bool {
-    match docker_api::Docker::new("unix:///var/run/docker.sock") {
-        Ok(docker) => docker.ping().await.is_ok(),
-        Err(_) => false,
-    }
-}
-
 #[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ContainerStats {
@@ -62,6 +55,7 @@ pub async fn list_containers() -> Option<Vec<ContainerStats>> {
     let docker = match docker_api::Docker::new("unix:///var/run/docker.sock") {
         Ok(d) => d,
         Err(e) => {
+            // The docker socket is not available so no docker installed or unavailable
             log::warn!("Docker socket unavailable: {}", e);
             return None;
         }

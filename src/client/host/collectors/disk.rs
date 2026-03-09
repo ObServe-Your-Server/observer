@@ -1,7 +1,7 @@
 #[cfg(not(target_os = "linux"))]
 use sysinfo::Disks;
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiskInfo {
     pub name: String,
