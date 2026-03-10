@@ -4,6 +4,9 @@ use std::sync::{RwLock, mpsc, Arc, LazyLock};
 use std::time::Duration;
 use sysinfo::System;
 
+
+
+use crate::app_health::AppHealth;
 use crate::client::host::collectors::disk::DiskInfo;
 use crate::client::host::collectors::{cpu, disk, network};
 use crate::client::host::system_metric_sender;
@@ -157,7 +160,7 @@ impl Metrics {
     }
 }
 
-pub async fn collection_job() {
+pub async fn collection_job(app_health: AppHealth) {
     let client = Client::new();
     let Some(mut metrics) = Metrics::collect() else {
         return;
@@ -206,12 +209,14 @@ pub async fn collection_job() {
 
     // sending messages
     let metrics_clone = metrics.clone();
+    let app_health_clone = app_health.clone();
     tokio::spawn(async move {
         let result = send_metric_notification(metrics_clone).await;
         match result {
             Ok(_) => {}
             Err(e) => {
                 error!("Failed to send metric notification: {}", e);
+                
             }
         }
     });
