@@ -1,16 +1,15 @@
 mod client;
 mod config;
-
+pub mod scheduler;
 
 use client::host::command_polling;
-use client::host::metric_collection;
-use client::host::scheduler::{Scheduler, SchedulerKind};
+use client::host::system_metric_collection;
 use client::host::speedtest;
 use config::init_config;
 use log::{error, info};
 use std::env;
-
 use crate::client::docker::docker_job;
+use crate::scheduler::{Scheduler, SchedulerKind};
 
 fn init_logging() {
     let level_str = env::var("OBSERVER_LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
@@ -62,7 +61,7 @@ async fn main() {
     );
 
     tokio::join!(
-        metric_scheduler.run(|| metric_collection::collect()),
+        metric_scheduler.run(|| system_metric_collection::collection_job()),
         command_scheduler.run(|| command_polling::poll()),
         speedtest_scheduler.run(|| speedtest::run()),
         docker_scheduler.run(|| docker_job::collect()),

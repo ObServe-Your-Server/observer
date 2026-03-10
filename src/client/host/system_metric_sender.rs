@@ -1,7 +1,7 @@
 use log::{debug, error, info};
 use reqwest::Client;
 
-use super::metric_collection::Metrics;
+use super::system_metric_collection::Metrics;
 use crate::config::get_config;
 
 pub async fn send(client: &Client, metrics: &Metrics) {

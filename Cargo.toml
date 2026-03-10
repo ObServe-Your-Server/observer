@@ -17,6 +17,9 @@ tempfile = "3"
 name = "metrics"
 harness = false
 
+[profile.bench]
+debug = true
+
 [dependencies]
 toml = "0.8"
 serde = { version = "1", features = ["derive"] }

@@ -1,2 +1,1 @@
-pub mod notifier;
-mod notification;
+pub mod notification;

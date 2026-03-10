@@ -1,6 +1,6 @@
-use docker_api::opts::ContainerListOpts;
 use futures_util::StreamExt;
 use std::time::{SystemTime, UNIX_EPOCH};
+use docker_api::opts::ContainerListOpts;
 
 #[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
