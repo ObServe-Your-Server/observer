@@ -1,15 +1,15 @@
-mod client;
-mod config;
-pub mod scheduler;
-
-use client::host::command_polling;
-use client::host::system_metric_collection;
-use client::host::speedtest;
-use config::init_config;
+use observer::client::docker::docker_job;
+use observer::client::host::command_polling;
+use observer::client::host::system_metric_collection;
+use observer::client::host::speedtest;
+use observer::config::init_config;
 use log::{error, info};
+use observer::app_health::AppHealth;
+use observer::scheduler::Scheduler;
+use observer::scheduler::SchedulerKind;
 use std::env;
-use crate::client::docker::docker_job;
-use crate::scheduler::{Scheduler, SchedulerKind};
+
+
 
 fn init_logging() {
     let level_str = env::var("OBSERVER_LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
@@ -59,9 +59,11 @@ async fn main() {
         SchedulerKind::DockerMetricCollection,
         config.intervals.docker_secs as u32,
     );
+    
+    let app_health = AppHealth::new();
 
     tokio::join!(
-        metric_scheduler.run(|| system_metric_collection::collection_job()),
+        metric_scheduler.run(|| system_metric_collection::collection_job(app_health.clone())),
         command_scheduler.run(|| command_polling::poll()),
         speedtest_scheduler.run(|| speedtest::run()),
         docker_scheduler.run(|| docker_job::collect()),

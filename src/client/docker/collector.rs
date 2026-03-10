@@ -57,6 +57,8 @@ pub async fn list_containers() -> Option<Vec<ContainerStats>> {
         Err(e) => {
             // The docker socket is not available so no docker installed or unavailable
             log::warn!("Docker socket unavailable: {}", e);
+            
+            
             return None;
         }
     };

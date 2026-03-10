@@ -2,6 +2,7 @@
 // without this, only main.rs can access the code and `use observer::...` won't work
 
 pub mod client;
-mod config;
+pub mod config;
 pub mod scheduler;
+pub mod app_health;
 
