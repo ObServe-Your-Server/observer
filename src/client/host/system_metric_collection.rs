@@ -1,14 +1,16 @@
 use log::{debug, error, warn};
 use reqwest::Client;
-use std::sync::{RwLock, mpsc};
+use std::sync::{RwLock, mpsc, Arc, LazyLock};
 use std::time::Duration;
 use sysinfo::System;
 
 use crate::client::host::collectors::disk::DiskInfo;
 use crate::client::host::collectors::{cpu, disk, network};
-use crate::client::host::sender;
+use crate::client::host::system_metric_sender;
 use crate::client::host::speedtest::{self, SpeedtestResult};
-use crate::client::notification::notifier::send_metric_notification;
+use crate::client::notification::notification::Notification;
+use crate::client::notification::notification::NotificationType::{CpuNotification, RamNotification, StorageNotification};
+use crate::client::notification::notification::Status::{Critical, Healthy, Warning};
 
 #[derive(Clone)]
 struct NetworkBytesDelta {
@@ -117,13 +119,13 @@ impl Metrics {
     }
 }
 
-pub async fn collect() {
+pub async fn collection_job() {
     let client = Client::new();
     let Some(mut metrics) = Metrics::collect() else {
         return;
     };
 
-    debug!("Whole struct {:?}", metrics);
+    //debug!("Whole struct {:?}", metrics);
     debug!("CPU: {:.1}%", metrics.cpu_usage_percent);
     debug!(
         "RAM: {}MB / {}MB",
@@ -163,9 +165,8 @@ pub async fn collect() {
         None => debug!("Speedtest: no measurement yet"),
     }
 
-    debug!("Whole metric struct: {:?}", metrics);
-    
-    // before sending send message for critical usages
+
+    // sending messages
     let metrics_clone = metrics.clone();
     tokio::spawn(async move {
         let result = send_metric_notification(metrics_clone).await;
@@ -177,7 +178,155 @@ pub async fn collect() {
         }
     });
 
-    sender::send(&client, &metrics).await;
+    system_metric_sender::send(&client, &metrics).await;
+}
+
+#[allow(dead_code)]
+struct State {
+    cpu_health: crate::client::notification::notification::Status,
+    memory_health: crate::client::notification::notification::Status,
+    storage_health: crate::client::notification::notification::Status,
+    packet_sender_health: crate::client::notification::notification::Status,
+    network_health: crate::client::notification::notification::Status,
+    docker_health: crate::client::notification::notification::Status,
+}
+
+#[allow(dead_code)]
+static STATE: LazyLock<Arc<tokio::sync::RwLock<State>>> = LazyLock::new(|| {
+    Arc::new(tokio::sync::RwLock::new(State {
+        cpu_health: Healthy,
+        memory_health: Healthy,
+        storage_health: Healthy,
+        packet_sender_health: Healthy,
+        network_health: Healthy,
+        docker_health: Healthy,
+    }))
+});
+
+async fn send_metric_notification(metrics: Metrics) -> Result<(), std::io::Error> {
+    // go through each metric and send notifications
+
+    // -------------- cpu --------------
+    let cpu_notification = build_cpu_message(metrics.cpu_usage_percent as f64);
+    if cpu_notification.machine_status != STATE.read().await.cpu_health {
+        debug!("Going to send notification for CPU health change: {:?}", cpu_notification);
+        let mut state = STATE.write().await;
+        state.cpu_health = cpu_notification.machine_status.clone();
+        tokio::spawn(async move {
+            cpu_notification.send().await;
+        });
+    }
+
+    // -------------- ram --------------
+    let ram_notification = build_ram_message((metrics.ram_used_bytes as f64 / metrics.ram_total_bytes as f64) * 100.0);
+    if ram_notification.machine_status != STATE.read().await.memory_health {
+        debug!("Going to send notification for RAM health change: {:?}", ram_notification);
+        let mut state = STATE.write().await;
+        state.memory_health = ram_notification.machine_status.clone();
+        tokio::spawn(async move {
+            ram_notification.send().await;
+        });
+    }
+
+    // -------------- disk --------------
+    let complete_disk_usage = metrics
+        .disks
+        .iter()
+        .map(|d| (d.used_bytes as f64 / d.total_bytes as f64) * 100.0)
+        .fold(0.0, |a, b| a + b)
+        / metrics.disks.len() as f64;
+    let disk_notification = build_storage_message(complete_disk_usage);
+    if disk_notification.machine_status != STATE.read().await.storage_health {
+        debug!("Going to send notification for Storage health change: {:?}", disk_notification);
+        let mut state = STATE.write().await;
+        state.storage_health = disk_notification.machine_status.clone();
+        tokio::spawn(async move {
+            disk_notification.send().await;
+        });
+    }
+
+    // -------------- packet sender --------------
+    // TODO
+
+    // -------------- network health --------------
+    // TODO
+
+    Ok(())
+}
+
+fn build_cpu_message(cpu_usage: f64) -> Notification {
+    match cpu_usage {
+        cpu_usage if cpu_usage > 90.0 => Notification::new(
+            CpuNotification,
+            format!("CPU usage is extremely high at {}%", cpu_usage),
+            Critical,
+        ),
+        cpu_usage if cpu_usage > 80.0 => Notification::new(
+            CpuNotification,
+            format!("CPU usage is high at {}%", cpu_usage),
+            Warning,
+        ),
+        cpu_usage if cpu_usage <= 50.0 => Notification::new(
+            CpuNotification,
+            format!("CPU usage is okay at {}%", cpu_usage),
+            Healthy,
+        ),
+        _ => Notification::new(
+            CpuNotification,
+            format!("CPU usage is unknown: {}", cpu_usage),
+            Healthy,
+        ),
+    }
+}
+
+fn build_ram_message(ram_usage: f64) -> Notification {
+    match ram_usage {
+        ram_usage if ram_usage > 90.0 => Notification::new(
+            RamNotification,
+            format!("RAM usage is extremely high at {}%", ram_usage),
+            Critical,
+        ),
+        ram_usage if ram_usage > 80.0 => Notification::new(
+            RamNotification,
+            format!("RAM usage is high at {}%", ram_usage),
+            Warning,
+        ),
+        ram_usage if ram_usage <= 80.0 => Notification::new(
+            RamNotification,
+            format!("RAM usage is low at {}%", ram_usage),
+            Healthy,
+        ),
+        _ => Notification::new(
+            RamNotification,
+            format!("RAM usage is unknown: {}", ram_usage),
+            Healthy,
+        ),
+    }
+}
+
+fn build_storage_message(storage_usage: f64) -> Notification {
+    match storage_usage {
+        storage_usage if storage_usage > 90.0 => Notification::new(
+            StorageNotification,
+            format!("Storage usage is extremely high at {}%", storage_usage),
+            Critical,
+        ),
+        storage_usage if storage_usage > 80.0 => Notification::new(
+            StorageNotification,
+            format!("Storage usage is high at {}%", storage_usage),
+            Warning,
+        ),
+        storage_usage if storage_usage <= 80.0 => Notification::new(
+            StorageNotification,
+            format!("Storage usage is low at {}%", storage_usage),
+            Healthy,
+        ),
+        _ => Notification::new(
+            StorageNotification,
+            format!("Storage usage is unknown: {}", storage_usage),
+            Healthy,
+        ),
+    }
 }
 
 #[cfg(test)]

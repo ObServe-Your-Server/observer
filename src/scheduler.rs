@@ -82,6 +82,7 @@ impl Scheduler {
         loop {
             interval.tick().await;
 
+            // check over the polled state if the job should be running
             if !self.kind.is_enabled() {
                 info!("Scheduler [{}] paused, skipping tick", self.kind.as_str());
                 continue;

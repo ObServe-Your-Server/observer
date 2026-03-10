@@ -43,7 +43,7 @@ echo "" >&2
 DEFAULT_METRICS_URL="https://watch-tower.marco-brandt.com/v1/ingest"
 DEFAULT_COMMANDS_URL="https://watch-tower.marco-brandt.com/v1/commands"
 DEFAULT_DOCKER_URL="https://watch-tower.marco-brandt.com/v1/ingest/docker"
-DEFAULT_NOTIFIER_URL="https://watch-tower.marco-brandt.com/v1/ingest/notifier"
+DEFAULT_NOTIFIER_URL="https://watch-tower.marco-brandt.com/v1/ingest/notification"
 DEFAULT_API_KEY=""
 DEFAULT_METRIC_SECS="5"
 DEFAULT_COMMAND_POLL_SECS="10"

@@ -3,8 +3,8 @@ use log::info;
 use reqwest::Client;
 use serde::Deserialize;
 
-use crate::client::host::scheduler::get_state;
 use crate::config::get_config;
+use crate::scheduler::get_state;
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
@@ -56,6 +56,7 @@ pub async fn poll() {
         }
     };
 
+    // parse commands and save them to state
     let state = get_state();
     for item in commands {
         if item.issued_at < state.started_at {
@@ -68,6 +69,7 @@ pub async fn poll() {
 
         info!("Received command: {:?}", item.command);
         match item.command {
+            // application should terminate
             Command::StopApplication => {
                 log::error!(
                     "StopApplication received — {}. Shutting down.",
