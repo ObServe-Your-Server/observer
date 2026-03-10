@@ -12,6 +12,7 @@ use crate::client::notification::notification::Notification;
 use crate::client::notification::notification::NotificationType::{CpuNotification, RamNotification, StorageNotification};
 use crate::client::notification::notification::Status::{Critical, Healthy, Warning};
 
+// --- network delta config ---
 #[derive(Clone)]
 struct NetworkBytesDelta {
     pub time_of_recording: std::time::Instant,
@@ -20,6 +21,17 @@ struct NetworkBytesDelta {
 }
 
 static NETWORK_DELTA: RwLock<Option<NetworkBytesDelta>> = RwLock::new(None);
+
+// --- disk cache config ---
+const DISK_CACHE_ENABLED: bool = true;
+const DISK_CACHE_DURATION: Duration = Duration::from_secs(120);
+
+struct DiskCache {
+    last_collected: std::time::Instant,
+    disks: Vec<DiskInfo>,
+}
+
+static DISK_CACHE: RwLock<Option<DiskCache>> = RwLock::new(None);
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -49,9 +61,11 @@ impl Metrics {
 
         std::thread::spawn(move || {
             let result = Self::do_collect();
+            // sends the result from within the thread
             let _ = tx.send(result);
         });
 
+        // receive the result from the thread
         match rx.recv_timeout(Duration::from_millis(1800)) {
             Ok(metrics) => Some(metrics),
             Err(_) => {
@@ -68,7 +82,31 @@ impl Metrics {
         let ram_used_bytes = sys.used_memory();
         let ram_total_bytes = sys.total_memory();
 
-        let disks = disk::collect();
+        let disks = {
+            let cache = DISK_CACHE.read().unwrap();
+            if DISK_CACHE_ENABLED && let Some(c) = cache.as_ref() {
+                if c.last_collected.elapsed() < DISK_CACHE_DURATION {
+                    debug!("disk: using cached result ({}s old)", c.last_collected.elapsed().as_secs());
+                    c.disks.clone()
+                } else {
+                    drop(cache);
+                    let fresh = disk::collect();
+                    *DISK_CACHE.write().unwrap() = Some(DiskCache {
+                        last_collected: std::time::Instant::now(),
+                        disks: fresh.clone(),
+                    });
+                    fresh
+                }
+            } else {
+                drop(cache);
+                let fresh = disk::collect();
+                *DISK_CACHE.write().unwrap() = Some(DiskCache {
+                    last_collected: std::time::Instant::now(),
+                    disks: fresh.clone(),
+                });
+                fresh
+            }
+        };
         let net = network::collect();
 
         let now = std::time::Instant::now();
