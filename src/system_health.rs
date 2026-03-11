@@ -1,11 +1,10 @@
 use std::sync::Arc;
 
-use docker_api::models::ContainerSummaryNetworkSettingsInlineItem;
 use log::{debug, error, info};
 use serde::Serialize;
 use tokio::sync::RwLock;
 
-use crate::{config::{Config, get_config}, logging::LogTarget};
+use crate::config::{Config, get_config};
 
 // this struct handles all the logic for changing values for the individual component states
 #[derive(Debug, Clone)]
@@ -21,11 +20,29 @@ impl Serialize for HostSytemHealth {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeStruct;
         let mut s = serializer.serialize_struct("HostSytemHealth", 5)?;
-        s.serialize_field("cpu", &*self.cpu.try_read().map_err(serde::ser::Error::custom)?)?;
-        s.serialize_field("memory", &*self.memory.try_read().map_err(serde::ser::Error::custom)?)?;
-        s.serialize_field("disk", &*self.disk.try_read().map_err(serde::ser::Error::custom)?)?;
-        s.serialize_field("network_stats", &*self.network_stats.try_read().map_err(serde::ser::Error::custom)?)?;
-        s.serialize_field("docker", &*self.docker.try_read().map_err(serde::ser::Error::custom)?)?;
+        s.serialize_field(
+            "cpu",
+            &*self.cpu.try_read().map_err(serde::ser::Error::custom)?,
+        )?;
+        s.serialize_field(
+            "memory",
+            &*self.memory.try_read().map_err(serde::ser::Error::custom)?,
+        )?;
+        s.serialize_field(
+            "disk",
+            &*self.disk.try_read().map_err(serde::ser::Error::custom)?,
+        )?;
+        s.serialize_field(
+            "network_stats",
+            &*self
+                .network_stats
+                .try_read()
+                .map_err(serde::ser::Error::custom)?,
+        )?;
+        s.serialize_field(
+            "docker",
+            &*self.docker.try_read().map_err(serde::ser::Error::custom)?,
+        )?;
         s.end()
     }
 }
@@ -110,7 +127,7 @@ impl HostSytemHealth {
             self.handle_notification(new_state).await;
         }
     }
-    
+
     async fn handle_notification(&self, state: State) {
         debug!("State change to send: {:?}", state);
         let config: &Config = get_config();

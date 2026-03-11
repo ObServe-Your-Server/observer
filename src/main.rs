@@ -4,10 +4,10 @@ use observer::client::host::command_polling;
 use observer::client::host::speedtest;
 use observer::client::host::system_metric_collection;
 use observer::config::init_config;
-use observer::system_health::HostSytemHealth;
 use observer::logging::init_logging;
 use observer::scheduler::Scheduler;
 use observer::scheduler::SchedulerKind;
+use observer::system_health::HostSytemHealth;
 use std::env;
 
 #[tokio::main]
@@ -47,12 +47,19 @@ async fn main() {
     );
 
     let host_system_health = HostSytemHealth::new();
+    let health_for_metrics = host_system_health.clone();
+    let health_for_docker = host_system_health.clone();
 
     tokio::join!(
-        metric_scheduler
-            .run(|| system_metric_collection::collection_job(host_system_health.clone())),
+        metric_scheduler.run(move || {
+            let h = health_for_metrics.clone();
+            system_metric_collection::collection_job(h)
+        }),
         command_scheduler.run(|| command_polling::poll()),
         speedtest_scheduler.run(|| speedtest::run()),
-        docker_scheduler.run(|| docker_job::collect()),
+        docker_scheduler.run(move || {
+            let h = health_for_docker.clone();
+            docker_job::collect(h)
+        }),
     );
 }

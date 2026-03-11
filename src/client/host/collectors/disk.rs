@@ -30,6 +30,7 @@ mod linux {
         size: Option<String>,
         #[serde(default)]
         fsused: Option<String>,
+        #[allow(dead_code)]
         #[serde(default)]
         fsavail: Option<String>,
         #[serde(default)]

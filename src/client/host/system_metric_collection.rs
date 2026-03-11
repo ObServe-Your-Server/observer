@@ -213,35 +213,97 @@ pub async fn collection_job(host_sytem_health: HostSytemHealth) {
     system_metric_sender::send(&client, &metrics).await;
 }
 
-async fn check_system_metrics_and_change_host_health(host_sytem_health: HostSytemHealth, metrics: &Metrics) {
+async fn check_system_metrics_and_change_host_health(
+    host_sytem_health: HostSytemHealth,
+    metrics: &Metrics,
+) {
     // --- cpu usage ---
     let cpu_usage = metrics.cpu_usage_percent;
     if cpu_usage > 90.0 {
-        host_sytem_health.set_cpu_state(State::new(Severity::Critical, HostComponent::Cpu, "cpu usage critical".to_string())).await;
+        host_sytem_health
+            .set_cpu_state(State::new(
+                Severity::Critical,
+                HostComponent::Cpu,
+                "cpu usage critical".to_string(),
+            ))
+            .await;
     } else if cpu_usage > 80.0 {
-        host_sytem_health.set_cpu_state(State::new(Severity::Warning, HostComponent::Cpu, "cpu usage high".to_string())).await;
+        host_sytem_health
+            .set_cpu_state(State::new(
+                Severity::Warning,
+                HostComponent::Cpu,
+                "cpu usage high".to_string(),
+            ))
+            .await;
     } else {
-        host_sytem_health.set_cpu_state(State::new(Severity::Healthy, HostComponent::Cpu, "cpu usage normal".to_string())).await;
+        host_sytem_health
+            .set_cpu_state(State::new(
+                Severity::Healthy,
+                HostComponent::Cpu,
+                "cpu usage normal".to_string(),
+            ))
+            .await;
     }
-    
+
     // --- ram usage ---
     let ram_usage = metrics.ram_used_bytes as f32 / metrics.ram_total_bytes as f32 * 100.0;
     if ram_usage > 90.0 {
-        host_sytem_health.set_memory_state(State::new(Severity::Critical, HostComponent::Memory, "ram usage critical".to_string())).await;
+        host_sytem_health
+            .set_memory_state(State::new(
+                Severity::Critical,
+                HostComponent::Memory,
+                "ram usage critical".to_string(),
+            ))
+            .await;
     } else if ram_usage > 80.0 {
-        host_sytem_health.set_memory_state(State::new(Severity::Warning, HostComponent::Memory, "ram usage high".to_string())).await;
+        host_sytem_health
+            .set_memory_state(State::new(
+                Severity::Warning,
+                HostComponent::Memory,
+                "ram usage high".to_string(),
+            ))
+            .await;
     } else {
-        host_sytem_health.set_memory_state(State::new(Severity::Healthy, HostComponent::Memory, "ram usage normal".to_string())).await;
+        host_sytem_health
+            .set_memory_state(State::new(
+                Severity::Healthy,
+                HostComponent::Memory,
+                "ram usage normal".to_string(),
+            ))
+            .await;
     }
-    
+
     // --- disk usage ---
-    let avg_disk_usage = metrics.disks.iter().map(|disk| disk.used_bytes as f32 / disk.total_bytes as f32 * 100.0).sum::<f32>() / metrics.disks.len() as f32;
+    let avg_disk_usage = metrics
+        .disks
+        .iter()
+        .map(|disk| disk.used_bytes as f32 / disk.total_bytes as f32 * 100.0)
+        .sum::<f32>()
+        / metrics.disks.len() as f32;
     if avg_disk_usage > 90.0 {
-        host_sytem_health.set_disk_state(State::new(Severity::Critical, HostComponent::Disk, "disk usage critical".to_string())).await;
+        host_sytem_health
+            .set_disk_state(State::new(
+                Severity::Critical,
+                HostComponent::Disk,
+                "disk usage critical".to_string(),
+            ))
+            .await;
     } else if avg_disk_usage > 80.0 {
-        host_sytem_health.set_disk_state(State::new(Severity::Warning, HostComponent::Disk, "disk usage high".to_string())).await;
+        host_sytem_health
+            .set_disk_state(State::new(
+                Severity::Warning,
+                HostComponent::Disk,
+                "disk usage high".to_string(),
+            ))
+            .await;
     } else {
-        host_sytem_health.set_disk_state(State::new(Severity::Healthy, HostComponent::Disk, "disk usage normal".to_string())).await;
+        host_sytem_health
+            .set_disk_state(State::new(
+                Severity::Healthy,
+                HostComponent::Disk,
+                "disk usage normal".to_string(),
+            ))
+            .await;
     }
 }
 
