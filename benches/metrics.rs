@@ -1,6 +1,6 @@
 use criterion::{Criterion, criterion_group, criterion_main};
-use std::time::Duration;
 use observer::client::host::system_metric_collection::{Metrics, collection_job};
+use std::time::Duration;
 
 fn bench_metrics_collect(c: &mut Criterion) {
     c.bench_function("metrics_collect", |b| {

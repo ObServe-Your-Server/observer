@@ -3,8 +3,6 @@
 
 pub mod client;
 pub mod config;
+pub mod system_health;
+pub mod logging;
 pub mod scheduler;
-pub mod application_health;
-pub mod host_system_health;
-mod notification;
-
