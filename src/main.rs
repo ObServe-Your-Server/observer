@@ -1,28 +1,14 @@
+use log::{error, info};
 use observer::client::docker::docker_job;
 use observer::client::host::command_polling;
-use observer::client::host::system_metric_collection;
 use observer::client::host::speedtest;
+use observer::client::host::system_metric_collection;
 use observer::config::init_config;
-use log::{error, info};
-use observer::application_health::AppHealth;
+use observer::system_health::HostSytemHealth;
+use observer::logging::init_logging;
 use observer::scheduler::Scheduler;
 use observer::scheduler::SchedulerKind;
 use std::env;
-
-
-
-fn init_logging() {
-    let level_str = env::var("OBSERVER_LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
-    let level = level_str
-        .parse::<log::LevelFilter>()
-        .unwrap_or(log::LevelFilter::Info);
-
-    env_logger::Builder::new()
-        .filter(Some("observer"), level)
-        .init();
-
-    log::debug!("Logging initialized at level: {}", level);
-}
 
 #[tokio::main]
 async fn main() {
@@ -59,11 +45,12 @@ async fn main() {
         SchedulerKind::DockerMetricCollection,
         config.intervals.docker_secs as u32,
     );
-    
-    let app_health = AppHealth::new();
+
+    let host_system_health = HostSytemHealth::new();
 
     tokio::join!(
-        metric_scheduler.run(|| system_metric_collection::collection_job(app_health.clone())),
+        metric_scheduler
+            .run(|| system_metric_collection::collection_job(host_system_health.clone())),
         command_scheduler.run(|| command_polling::poll()),
         speedtest_scheduler.run(|| speedtest::run()),
         docker_scheduler.run(|| docker_job::collect()),
