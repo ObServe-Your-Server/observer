@@ -18,7 +18,11 @@ pub async fn send(client: &Client, metrics: &Metrics) {
 
     match result {
         Ok(resp) if resp.status().is_success() => {
-            info!("Metrics sent ({}) http version: {:?}", resp.status(), resp.version());
+            info!(
+                "Metrics sent ({}) http version: {:?}",
+                resp.status(),
+                resp.version()
+            );
         }
         Ok(resp) => {
             error!("Server rejected metrics: {}", resp.status());
