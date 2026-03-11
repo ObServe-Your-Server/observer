@@ -4,7 +4,7 @@ use observer::client::host::system_metric_collection;
 use observer::client::host::speedtest;
 use observer::config::init_config;
 use log::{error, info};
-use observer::app_health::AppHealth;
+use observer::application_health::AppHealth;
 use observer::scheduler::Scheduler;
 use observer::scheduler::SchedulerKind;
 use std::env;

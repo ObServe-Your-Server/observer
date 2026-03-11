@@ -6,14 +6,14 @@ use sysinfo::System;
 
 
 
-use crate::app_health::AppHealth;
+use crate::application_health::AppHealth;
 use crate::client::host::collectors::disk::DiskInfo;
 use crate::client::host::collectors::{cpu, disk, network};
 use crate::client::host::system_metric_sender;
 use crate::client::host::speedtest::{self, SpeedtestResult};
-use crate::client::notification::notification::Notification;
-use crate::client::notification::notification::NotificationType::{CpuNotification, RamNotification, StorageNotification};
-use crate::client::notification::notification::Status::{Critical, Healthy, Warning};
+use crate::notification::notification::Notification;
+use crate::notification::notification::NotificationType::{CpuNotification, RamNotification, StorageNotification};
+use crate::notification::notification::Status::{Critical, Healthy, Warning};
 
 // --- network delta config ---
 #[derive(Clone)]
@@ -206,32 +206,17 @@ pub async fn collection_job(app_health: AppHealth) {
         None => debug!("Speedtest: no measurement yet"),
     }
 
-
-    // sending messages
-    let metrics_clone = metrics.clone();
-    let app_health_clone = app_health.clone();
-    tokio::spawn(async move {
-        let result = send_metric_notification(metrics_clone).await;
-        match result {
-            Ok(_) => {}
-            Err(e) => {
-                error!("Failed to send metric notification: {}", e);
-                
-            }
-        }
-    });
-
     system_metric_sender::send(&client, &metrics).await;
 }
 
 #[allow(dead_code)]
 struct State {
-    cpu_health: crate::client::notification::notification::Status,
-    memory_health: crate::client::notification::notification::Status,
-    storage_health: crate::client::notification::notification::Status,
-    packet_sender_health: crate::client::notification::notification::Status,
-    network_health: crate::client::notification::notification::Status,
-    docker_health: crate::client::notification::notification::Status,
+    cpu_health: crate::notification::notification::Status,
+    memory_health: crate::notification::notification::Status,
+    storage_health: crate::notification::notification::Status,
+    packet_sender_health: crate::notification::notification::Status,
+    network_health: crate::notification::notification::Status,
+    docker_health: crate::notification::notification::Status,
 }
 
 #[allow(dead_code)]

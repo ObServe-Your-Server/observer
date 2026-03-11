@@ -1,4 +1,4 @@
-use std::{sync::Arc, task::RawWakerVTable};
+use std::sync::Arc;
 
 use tokio::sync::RwLock;
 
@@ -39,42 +39,53 @@ impl AppHealth {
     
 }
 
-#[derive(Clone, PartialEq, Debug)]
-pub enum States {
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum State {
     Healthy,
     Unhealthy,
     Down,
     Unknown,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+impl State {
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            State::Healthy => "healthy",
+            State::Unhealthy => "unhealthy",
+            State::Down => "down",
+            State::Unknown => "unknown",
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub struct HostSystemMetricCollector {
-    pub metric_sender: States,
-    pub disk_collector: States,
+    pub metric_sender: State,
+    pub disk_collector: State,
 }
 
 impl HostSystemMetricCollector {
     pub fn new() -> Self {
         Self {
-            metric_sender: States::Unknown,
-            disk_collector: States::Unknown,
+            metric_sender: State::Unknown,
+            disk_collector: State::Unknown,
         }
     }
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Docker {
-    pub socket: States,
-    pub docker_metric_sender: States,
-    pub metric_parser: States,
+    pub socket: State,
+    pub docker_metric_sender: State,
+    pub metric_parser: State,
 }
 
 impl Docker {
     pub fn new() -> Self {
         Self {
-            socket: States::Unknown,
-            docker_metric_sender: States::Unknown,
-            metric_parser: States::Unknown,
+            socket: State::Unknown,
+            docker_metric_sender: State::Unknown,
+            metric_parser: State::Unknown,
         }
     }
 }
