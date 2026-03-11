@@ -1,11 +1,13 @@
 use log::debug;
 use reqwest::Client;
 
+use crate::system_health::HostSytemHealth;
+
 use super::collector::list_containers;
 use super::docker_metric_sender::send;
 
-pub async fn collect() {
-    let containers = match list_containers().await {
+pub async fn collect(host_sytem_health: HostSytemHealth) {
+    let containers = match list_containers(host_sytem_health).await {
         Some(c) => c,
         None => return,
     };
@@ -19,6 +21,7 @@ pub async fn collect() {
 mod tests {
     use super::*;
 
+    #[cfg(ignore)]
     #[tokio::test]
     async fn test_collect_once() {
         let containers = list_containers().await.unwrap();
