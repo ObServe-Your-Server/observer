@@ -64,10 +64,11 @@ impl Scheduler {
         }
     }
 
-    pub async fn run<F, Fut>(&self, job: F)
+    pub async fn run<F, Fut, E>(&self, job: F)
     where
         F: Fn() -> Fut,
-        Fut: std::future::Future<Output = ()>,
+        Fut: std::future::Future<Output = Result<(), E>>,
+        E: std::error::Error,
     {
         let duration = Duration::from_secs(self.interval_secs as u64);
         let mut interval = time::interval(duration);
@@ -90,7 +91,15 @@ impl Scheduler {
 
             let name = self.kind.as_str();
             match time::timeout(duration, job()).await {
-                Ok(()) => {}
+                Ok(Ok(())) => {}
+                Ok(Err(e)) => {
+                    log::error!(
+                        "Scheduler [{}] job failed: {}",
+                        name,
+                        e
+                    );
+                    // handle the error from the job
+                }
                 Err(_) => {
                     log::error!(
                         "Scheduler [{}] job exceeded interval ({}s), cancelled",

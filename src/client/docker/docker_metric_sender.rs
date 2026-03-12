@@ -22,10 +22,8 @@ pub async fn send(client: &Client, containers: &[ContainerStats]) {
             info!("Docker metrics sent ({})", resp.status());
         }
         Ok(resp) => {
-            error!("Server rejected docker metrics: {}", resp.status());
         }
         Err(e) => {
-            error!("Failed to send docker metrics: {}", e);
         }
     }
 }

@@ -3,6 +3,7 @@ use log::info;
 use reqwest::Client;
 use serde::Deserialize;
 
+use crate::client::metric_collection_errors::CollectionError;
 use crate::config::get_config;
 use crate::scheduler::get_state;
 
@@ -26,7 +27,7 @@ struct CommandResponse {
     issued_at: DateTime<Utc>,
 }
 
-pub async fn poll() {
+pub async fn poll() -> Result<(), CollectionError> {
     let config = get_config();
     let client = Client::new();
 
@@ -40,19 +41,17 @@ pub async fn poll() {
         Ok(r) if r.status().is_success() => r,
         Ok(r) => {
             log::warn!("Command poll: unexpected status {}", r.status());
-            return;
+            return Err(CollectionError::ServerRejected(r.status()));
         }
         Err(e) => {
-            log::error!("Command poll error: {}", e);
-            return;
+            return Err(CollectionError::PullFailed(e));
         }
     };
 
     let commands: Vec<CommandResponse> = match resp.json().await {
         Ok(c) => c,
         Err(e) => {
-            log::error!("Failed to deserialize commands: {}", e);
-            return;
+            return Err(CollectionError::ParsingFailed(e));
         }
     };
 
@@ -89,4 +88,6 @@ pub async fn poll() {
             }
         }
     }
+
+    Ok(())
 }
