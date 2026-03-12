@@ -1,20 +1,23 @@
 use log::debug;
 use reqwest::Client;
 
+use crate::client::metric_collection_errors::CollectionError;
 use crate::system_health::HostSytemHealth;
 
 use super::collector::list_containers;
 use super::docker_metric_sender::send;
 
-pub async fn collect(host_sytem_health: HostSytemHealth) {
+// TODO: Error handling
+pub async fn collect(host_sytem_health: HostSytemHealth) -> Result<(), CollectionError> {
     let containers = match list_containers(host_sytem_health).await {
         Some(c) => c,
-        None => return,
+        None => return Ok(()),
     };
     debug!("Collected {} docker containers", containers.len());
 
     let client = Client::new();
     send(&client, &containers).await;
+    Ok(())
 }
 
 #[cfg(test)]

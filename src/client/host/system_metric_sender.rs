@@ -2,9 +2,9 @@ use log::{debug, error, info};
 use reqwest::Client;
 
 use super::system_metric_collection::Metrics;
-use crate::config::get_config;
+use crate::{client::metric_collection_errors::CollectionError, config::get_config};
 
-pub async fn send(client: &Client, metrics: &Metrics) {
+pub async fn send(client: &Client, metrics: &Metrics) -> Result<(), CollectionError> {
     let config = get_config();
 
     debug!("Payload to send: {:?}", metrics);
@@ -23,12 +23,13 @@ pub async fn send(client: &Client, metrics: &Metrics) {
                 resp.status(),
                 resp.version()
             );
+            Ok(())
         }
         Ok(resp) => {
-            error!("Server rejected metrics: {}", resp.status());
+            Err(CollectionError::ServerRejected(resp.status()))
         }
         Err(e) => {
-            error!("Failed to send metrics: {}", e);
+            Err(CollectionError::SendFailed(e))
         }
     }
 }
