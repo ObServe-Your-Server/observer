@@ -25,11 +25,7 @@ pub async fn send(client: &Client, metrics: &Metrics) -> Result<(), CollectionEr
             );
             Ok(())
         }
-        Ok(resp) => {
-            Err(CollectionError::ServerRejected(resp.status()))
-        }
-        Err(e) => {
-            Err(CollectionError::SendFailed(e))
-        }
+        Ok(resp) => Err(CollectionError::ServerRejected(resp.status())),
+        Err(e) => Err(CollectionError::SendFailed(e)),
     }
 }

@@ -151,6 +151,6 @@ pub async fn run() -> Result<(), CollectionError> {
             ping_ms,
         });
     }
-    
+
     Ok(())
 }

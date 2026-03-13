@@ -21,9 +21,7 @@ pub async fn send(client: &Client, containers: &[ContainerStats]) {
         Ok(resp) if resp.status().is_success() => {
             info!("Docker metrics sent ({})", resp.status());
         }
-        Ok(resp) => {
-        }
-        Err(e) => {
-        }
+        Ok(resp) => {}
+        Err(e) => {}
     }
 }
