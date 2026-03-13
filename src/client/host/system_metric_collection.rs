@@ -162,7 +162,7 @@ impl Metrics {
 pub async fn collection_job(host_sytem_health: HostSytemHealth) -> Result<(), CollectionError> {
     let client = Client::new();
     let Some(mut metrics) = Metrics::collect() else {
-        return Err(CollectionError::MetricsTimeout);
+        return Err(CollectionError::MetricsCollectionTimeout);
     };
 
     //debug!("Whole struct {:?}", metrics);

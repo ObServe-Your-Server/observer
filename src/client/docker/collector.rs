@@ -59,7 +59,6 @@ pub async fn list_containers(_host_system_health: HostSytemHealth) -> Option<Vec
         Err(e) => {
             // The docker socket is not available so no docker installed or unavailable
             log::warn!("Docker socket unavailable: {}", e);
-
             return None;
         }
     };
