@@ -5,4 +5,5 @@ pub mod client;
 pub mod config;
 pub mod logging;
 pub mod scheduler;
+pub mod scheduling_master;
 pub mod system_health;

@@ -2,7 +2,7 @@ use reqwest::{Error, Response, StatusCode};
 
 #[derive(Debug)]
 pub enum CollectionError {
-    MetricsTimeout,
+    MetricsCollectionTimeout,
     SendFailed(Error),
     PullFailed(Error),
     ServerRejected(StatusCode),
@@ -12,7 +12,7 @@ pub enum CollectionError {
 impl std::fmt::Display for CollectionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CollectionError::MetricsTimeout => write!(f, "Metrics collection timed out"),
+            CollectionError::MetricsCollectionTimeout => write!(f, "Metrics collection timed out"),
             CollectionError::SendFailed(e) => write!(f, "Send failed: {}", e),
             CollectionError::PullFailed(e) => write!(f, "Pull failed: {}", e),
             CollectionError::ServerRejected(status) => write!(f, "Server rejected: {}", status),

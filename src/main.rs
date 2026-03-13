@@ -7,6 +7,7 @@ use observer::config::init_config;
 use observer::logging::init_logging;
 use observer::scheduler::Scheduler;
 use observer::scheduler::SchedulerKind;
+use observer::scheduling_master::SchedulingMaster;
 use observer::system_health::HostSytemHealth;
 use std::env;
 
@@ -31,35 +32,5 @@ async fn main() {
     );
     info!("Application ready");
 
-    let metric_scheduler = Scheduler::new(
-        SchedulerKind::MetricCollection,
-        config.intervals.metric_secs as u32,
-    );
-    let command_scheduler = Scheduler::new(
-        SchedulerKind::CommandPolling,
-        config.intervals.command_poll_secs as u32,
-    );
-    let speedtest_scheduler =
-        Scheduler::new(SchedulerKind::Speedtest, config.intervals.speedtest_secs);
-    let docker_scheduler = Scheduler::new(
-        SchedulerKind::DockerMetricCollection,
-        config.intervals.docker_secs as u32,
-    );
-
-    let host_system_health = HostSytemHealth::new();
-    let health_for_metrics = host_system_health.clone();
-    let health_for_docker = host_system_health.clone();
-
-    tokio::join!(
-        metric_scheduler.run(move || {
-            let h = health_for_metrics.clone();
-            system_metric_collection::collection_job(h)
-        }),
-        command_scheduler.run(|| command_polling::poll()),
-        speedtest_scheduler.run(|| speedtest::run()),
-        docker_scheduler.run(move || {
-            let h = health_for_docker.clone();
-            docker_job::collect(h)
-        }),
-    );
+    SchedulingMaster::register_and_start_background_jobs().await;
 }
