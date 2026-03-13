@@ -93,11 +93,7 @@ impl Scheduler {
             match time::timeout(duration, job()).await {
                 Ok(Ok(())) => {}
                 Ok(Err(e)) => {
-                    log::error!(
-                        "Scheduler [{}] job failed: {}",
-                        name,
-                        e
-                    );
+                    log::error!("Scheduler [{}] job failed: {}", name, e);
                     // handle the error from the job
                 }
                 Err(_) => {
