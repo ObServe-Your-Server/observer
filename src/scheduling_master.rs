@@ -38,6 +38,16 @@ impl SchedulingMaster {
         let health_for_metrics = host_system_health.clone();
         let health_for_docker = host_system_health.clone();
 
+        let docker_fut = async move {
+            if config.intervals.enable_docker_socket {                docker_scheduler
+                    .run(move || {
+                        let h = health_for_docker.clone();
+                        docker_job::collect(h)
+                    })
+                    .await;
+            }
+        };
+
         tokio::join!(
             metric_scheduler.run(move || {
                 let h = health_for_metrics.clone();
@@ -45,10 +55,7 @@ impl SchedulingMaster {
             }),
             command_scheduler.run(|| command_polling::poll()),
             speedtest_scheduler.run(|| speedtest::run()),
-            docker_scheduler.run(move || {
-                let h = health_for_docker.clone();
-                docker_job::collect(h)
-            }),
+            docker_fut,
         );
     }
 }

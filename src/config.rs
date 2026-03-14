@@ -34,6 +34,7 @@ pub struct IntervalsConfig {
     pub metric_secs: u16,
     pub command_poll_secs: u16,
     pub speedtest_secs: u32,
+    pub enable_docker_socket: bool,
     pub docker_secs: u16,
 }
 
@@ -116,10 +117,11 @@ base_notifier_url = "http://localhost:8080/v1/ingest/notifier"
 api_key           = "test-key"
 
 [intervals]
-metric_secs       = 5
-command_poll_secs = 10
-speedtest_secs    = 3600
-docker_secs       = 10
+metric_secs          = 5
+command_poll_secs    = 10
+speedtest_secs       = 3600
+enable_docker_socket = true
+docker_secs          = 10
 "#
     }
 
