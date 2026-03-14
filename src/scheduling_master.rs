@@ -31,7 +31,7 @@ impl SchedulingMaster {
         let mut docker_scheduler = Scheduler::new(
             SchedulerKind::DockerMetricCollection,
             config.intervals.docker_secs as u32,
-            15,
+            10,
         );
 
         let host_system_health = HostSytemHealth::new();
@@ -39,7 +39,8 @@ impl SchedulingMaster {
         let health_for_docker = host_system_health.clone();
 
         let docker_fut = async move {
-            if config.intervals.enable_docker_socket {                docker_scheduler
+            if config.intervals.enable_docker_socket {
+                docker_scheduler
                     .run(move || {
                         let h = health_for_docker.clone();
                         docker_job::collect(h)

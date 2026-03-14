@@ -1,5 +1,4 @@
 use chrono::{DateTime, Utc};
-use docker_api::models::ServiceCreateBodyParamRollbackConfigInlineItemFailureActionInlineItem;
 use log::info;
 use std::sync::{Arc, OnceLock, RwLock};
 use std::time::Duration;
@@ -116,6 +115,17 @@ impl Scheduler {
 
                         if self.error_level == ErrorLevel::ErrorCount(self.max_error_count) {
                             // exit the application because max error count has been reached
+                            // if it is the docker socket unavailable error, just stop the job
+                            if matches!(
+                                collection_error,
+                                CollectionError::DockerSocketUnavailable(_)
+                            ) {
+                                log::warn!(
+                                    "Scheduler [{}] docker socket unavailable, stopping job",
+                                    name
+                                );
+                                return;
+                            }
                             panic!(
                                 "Scheduler [{}] max error count reached: {}. The last error was: {}",
                                 name, self.max_error_count, collection_error

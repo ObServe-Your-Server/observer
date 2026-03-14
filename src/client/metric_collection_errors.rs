@@ -7,6 +7,7 @@ pub enum CollectionError {
     PullFailed(Error),
     ServerRejected(StatusCode),
     ParsingFailed(Error),
+    DockerSocketUnavailable(String),
 }
 
 impl std::fmt::Display for CollectionError {
@@ -17,6 +18,9 @@ impl std::fmt::Display for CollectionError {
             CollectionError::PullFailed(e) => write!(f, "Pull failed: {}", e),
             CollectionError::ServerRejected(status) => write!(f, "Server rejected: {}", status),
             CollectionError::ParsingFailed(e) => write!(f, "Parsing failed: {}", e),
+            CollectionError::DockerSocketUnavailable(e) => {
+                write!(f, "Docker socket unavailable: {}", e)
+            }
         }
     }
 }
