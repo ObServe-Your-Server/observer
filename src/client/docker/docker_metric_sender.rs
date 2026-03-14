@@ -2,9 +2,9 @@ use log::{debug, error, info};
 use reqwest::Client;
 
 use super::collector::ContainerStats;
-use crate::config::get_config;
+use crate::{client::metric_collection_errors::CollectionError, config::get_config};
 
-pub async fn send(client: &Client, containers: &[ContainerStats]) {
+pub async fn send(client: &Client, containers: &[ContainerStats]) -> Result<(), CollectionError> {
     let config = get_config();
     let url = &config.server.base_docker_url;
 
@@ -20,8 +20,9 @@ pub async fn send(client: &Client, containers: &[ContainerStats]) {
     match result {
         Ok(resp) if resp.status().is_success() => {
             info!("Docker metrics sent ({})", resp.status());
+            Ok(())
         }
-        Ok(resp) => {}
-        Err(e) => {}
+        Ok(resp) => Err(CollectionError::ServerRejected(resp.status())),
+        Err(e) => Err(CollectionError::SendFailed(e)),
     }
 }

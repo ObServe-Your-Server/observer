@@ -17,8 +17,10 @@ pub async fn collect(host_sytem_health: HostSytemHealth) -> Result<(), Collectio
     debug!("Collected {} docker containers", containers.len());
 
     let client = Client::new();
-    send(&client, &containers).await;
-    Ok(())
+    match send(&client, &containers).await {
+        Ok(()) => Ok(()),
+        Err(e) => Err(e),
+    }
 }
 
 #[cfg(test)]
