@@ -59,7 +59,7 @@ fn parse_cpu_percent(stats: serde_json::Value) -> f64 {
 pub async fn list_containers(
     host_system_health: HostSytemHealth,
 ) -> Result<Option<Vec<ContainerStats>>, CollectionError> {
-    let docker = match docker_api::Docker::new("unix:///var/run/docker.sockeeeee") {
+    let docker = match docker_api::Docker::new("unix:///var/run/docker.sock") {
         Ok(d) => d,
         Err(e) => {
             // The docker socket is not available so no docker installed or unavailable
