@@ -10,8 +10,9 @@ use super::docker_metric_sender::send;
 // TODO: Error handling
 pub async fn collect(host_sytem_health: HostSytemHealth) -> Result<(), CollectionError> {
     let containers = match list_containers(host_sytem_health).await {
-        Some(c) => c,
-        None => return Ok(()),
+        Ok(Some(c)) => c,
+        Ok(None) => return Ok(()),
+        Err(e) => return Err(e),
     };
     debug!("Collected {} docker containers", containers.len());
 

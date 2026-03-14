@@ -2,7 +2,10 @@ use docker_api::opts::ContainerListOpts;
 use futures_util::StreamExt;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::system_health::HostSytemHealth;
+use crate::{
+    client::metric_collection_errors::CollectionError,
+    system_health::{HostSytemHealth, State},
+};
 
 #[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -53,19 +56,37 @@ fn parse_cpu_percent(stats: serde_json::Value) -> f64 {
     (cpu_delta as f64 / system_delta as f64) * num_cpus as f64 * 100.0
 }
 
-pub async fn list_containers(_host_system_health: HostSytemHealth) -> Option<Vec<ContainerStats>> {
-    let docker = match docker_api::Docker::new("unix:///var/run/docker.sock") {
+pub async fn list_containers(
+    host_system_health: HostSytemHealth,
+) -> Result<Option<Vec<ContainerStats>>, CollectionError> {
+    let docker = match docker_api::Docker::new("unix:///var/run/docker.sockeeeee") {
         Ok(d) => d,
         Err(e) => {
             // The docker socket is not available so no docker installed or unavailable
             log::warn!("Docker socket unavailable: {}", e);
-            return None;
+            host_system_health
+                .set_docker_state(State::new(
+                    crate::system_health::Severity::Critical,
+                    crate::system_health::HostComponent::Docker,
+                    format!("Docker socket unavailable"),
+                ))
+                .await;
+            return Err(CollectionError::DockerSocketUnavailable(e.to_string()));
         }
     };
 
     if docker.ping().await.is_err() {
         log::warn!("Docker socket unavailable: ping failed");
-        return None;
+        host_system_health
+            .set_docker_state(State::new(
+                crate::system_health::Severity::Critical,
+                crate::system_health::HostComponent::Docker,
+                format!("Docker socket unavailable: ping failed"),
+            ))
+            .await;
+        return Err(CollectionError::DockerSocketUnavailable(
+            "ping failed".to_string(),
+        ));
     }
 
     let containers_api = docker.containers();
@@ -76,7 +97,14 @@ pub async fn list_containers(_host_system_health: HostSytemHealth) -> Option<Vec
         Ok(s) => s,
         Err(e) => {
             log::warn!("Failed to list containers: {}", e);
-            return None;
+            host_system_health
+                .set_docker_state(State::new(
+                    crate::system_health::Severity::Critical,
+                    crate::system_health::HostComponent::Docker,
+                    format!("Failed to list containers"),
+                ))
+                .await;
+            return Ok(None);
         }
     };
 
@@ -141,7 +169,7 @@ pub async fn list_containers(_host_system_health: HostSytemHealth) -> Option<Vec
         });
     }
 
-    Some(results)
+    Ok(Some(results))
 }
 
 #[cfg(test)]
