@@ -162,7 +162,7 @@ docker_secs          = 10
     fn test_metric_secs_too_low() {
         let f = write_temp(
             valid_toml()
-                .replace("metric_secs       = 5", "metric_secs = 1")
+                .replace("metric_secs          = 5", "metric_secs = 1")
                 .as_str(),
         );
         let result = load_config(f.path().to_str().unwrap());
@@ -174,7 +174,7 @@ docker_secs          = 10
     fn test_metric_secs_too_high() {
         let f = write_temp(
             valid_toml()
-                .replace("metric_secs       = 5", "metric_secs = 61")
+                .replace("metric_secs          = 5", "metric_secs = 61")
                 .as_str(),
         );
         let result = load_config(f.path().to_str().unwrap());
@@ -186,7 +186,7 @@ docker_secs          = 10
     fn test_command_poll_secs_out_of_range() {
         let f = write_temp(
             valid_toml()
-                .replace("command_poll_secs = 10", "command_poll_secs = 0")
+                .replace("command_poll_secs    = 10", "command_poll_secs = 0")
                 .as_str(),
         );
         let result = load_config(f.path().to_str().unwrap());
@@ -198,7 +198,7 @@ docker_secs          = 10
     fn test_speedtest_secs_too_low() {
         let f = write_temp(
             valid_toml()
-                .replace("speedtest_secs    = 3600", "speedtest_secs = 59")
+                .replace("speedtest_secs       = 3600", "speedtest_secs = 59")
                 .as_str(),
         );
         let result = load_config(f.path().to_str().unwrap());
@@ -210,7 +210,7 @@ docker_secs          = 10
     fn test_speedtest_secs_too_high() {
         let f = write_temp(
             valid_toml()
-                .replace("speedtest_secs    = 3600", "speedtest_secs = 86401")
+                .replace("speedtest_secs       = 3600", "speedtest_secs = 86401")
                 .as_str(),
         );
         let result = load_config(f.path().to_str().unwrap());
