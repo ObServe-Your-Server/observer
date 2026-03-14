@@ -49,6 +49,7 @@ DEFAULT_METRIC_SECS="5"
 DEFAULT_COMMAND_POLL_SECS="10"
 DEFAULT_SPEEDTEST_SECS="600"
 DEFAULT_DOCKER_SECS="10"
+DEFAULT_ENABLE_DOCKER_SOCKET="true"
 
 if [ -f "$CONFIG_PATH" ]; then
     echo "Observer is already installed. This will overwrite the existing config at $CONFIG_PATH." >&2
@@ -79,6 +80,12 @@ if [ -f "$CONFIG_PATH" ]; then
     DEFAULT_COMMAND_POLL_SECS=$(prefill_num 'command_poll_secs' "$DEFAULT_COMMAND_POLL_SECS")
     DEFAULT_SPEEDTEST_SECS=$(prefill_num 'speedtest_secs' "$DEFAULT_SPEEDTEST_SECS")
     DEFAULT_DOCKER_SECS=$(prefill_num 'docker_secs' "$DEFAULT_DOCKER_SECS")
+    prefill_bool() {
+        local val
+        val=$(grep "$1" "$CONFIG_PATH" | grep -o 'true\|false')
+        [ -n "$val" ] && echo "$val" || echo "$2"
+    }
+    DEFAULT_ENABLE_DOCKER_SOCKET=$(prefill_bool 'enable_docker_socket' "$DEFAULT_ENABLE_DOCKER_SOCKET")
 fi
 
 echo "Press Enter to accept the default shown in brackets." >&2
@@ -101,6 +108,9 @@ SPEEDTEST_SECS="$REPLY"
 
 ask_optional "Docker metric interval in seconds (10-60)" "$DEFAULT_DOCKER_SECS"
 DOCKER_SECS="$REPLY"
+
+ask_optional "Enable Docker socket monitoring (true/false)" "$DEFAULT_ENABLE_DOCKER_SOCKET"
+ENABLE_DOCKER_SOCKET="$REPLY"
 
 echo "" >&2
 
@@ -135,10 +145,11 @@ base_notifier_url = "$DEFAULT_NOTIFIER_URL"
 api_key           = "$API_KEY"
 
 [intervals]
-metric_secs       = $METRIC_SECS
-command_poll_secs = $COMMAND_POLL_SECS
-speedtest_secs    = $SPEEDTEST_SECS
-docker_secs       = $DOCKER_SECS
+metric_secs          = $METRIC_SECS
+command_poll_secs    = $COMMAND_POLL_SECS
+speedtest_secs       = $SPEEDTEST_SECS
+enable_docker_socket = $ENABLE_DOCKER_SOCKET
+docker_secs          = $DOCKER_SECS
 EOF
 
 chmod 600 "$CONFIG_PATH"
