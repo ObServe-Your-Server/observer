@@ -1,0 +1,18 @@
+name: Security Audit
+
+on:
+  workflow_dispatch:
+
+jobs:
+  audit:
+    name: cargo audit
+    runs-on: [observer-self-hosted]
+    container: rust:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
+      - name: Run audit
+        run: cargo audit
