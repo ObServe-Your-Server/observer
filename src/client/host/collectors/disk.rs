@@ -27,59 +27,26 @@ mod linux {
     struct BlockDevice {
         name: String,
         #[serde(default)]
-        size: Option<String>,
+        size: Option<u64>,
         #[serde(default)]
-        fsused: Option<String>,
-        #[allow(dead_code)]
+        fsused: Option<u64>,
         #[serde(default)]
-        fsavail: Option<String>,
+        fsavail: Option<u64>,
         #[serde(default)]
         mountpoint: Option<String>,
         #[serde(default)]
         model: Option<String>,
+        #[serde(rename = "type", default)]
+        r#type: Option<String>,
         #[serde(default)]
         children: Option<Vec<BlockDevice>>,
     }
 
-    /// Filters out optical drives (sr*), floppy (fd*), loop, ram, zram,
-    /// and anything whose model name suggests DVD/CD/ROM.
-    fn is_standard_device(dev: &BlockDevice) -> bool {
-        let name = dev.name.as_str();
-        if name.starts_with("sr")
-            || name.starts_with("fd")
-            || name.starts_with("loop")
-            || name.starts_with("ram")
-            || name.starts_with("zram")
-        {
-            return false;
-        }
-        if let Some(model) = &dev.model {
-            let m = model.to_uppercase();
-            if m.contains("DVD")
-                || m.contains("CD-ROM")
-                || m.contains("CD ROM")
-                || m.contains("OPTICAL")
-            {
-                return false;
-            }
-        }
-        true
-    }
-
-    /// Parse a human-readable size string from lsblk (e.g. "64G", "37.5G", "1M") into bytes.
-    fn parse_size(s: &str) -> u64 {
-        let s = s.trim();
-        let split = s.find(|c: char| c.is_alphabetic()).unwrap_or(s.len());
-        let num: f64 = s[..split].parse().unwrap_or(0.0);
-        let unit = s[split..].to_uppercase();
-        let multiplier: u64 = match unit.as_str() {
-            "K" | "KIB" | "KB" => 1024,
-            "M" | "MIB" | "MB" => 1024 * 1024,
-            "G" | "GIB" | "GB" => 1024 * 1024 * 1024,
-            "T" | "TIB" | "TB" => 1024_u64 * 1024 * 1024 * 1024,
-            _ => 1,
-        };
-        (num * multiplier as f64) as u64
+    /// Only accept actual physical disks (TYPE=disk).
+    /// This reliably excludes LVM volumes (dm-*), software RAID (md*),
+    /// optical drives, loop devices, RAM disks, and any other virtual block device.
+    fn is_physical_disk(dev: &BlockDevice) -> bool {
+        dev.r#type.as_deref() == Some("disk")
     }
 
     /// Recursively sum fsused across all mounted partitions of a device.
@@ -91,7 +58,7 @@ mod linux {
             .map(|m| !m.is_empty())
             .unwrap_or(false)
         {
-            total += dev.fsused.as_deref().map(parse_size).unwrap_or(0);
+            total += dev.fsused.unwrap_or(0);
         }
         if let Some(children) = &dev.children {
             for child in children {
@@ -102,8 +69,10 @@ mod linux {
     }
 
     pub fn collect() -> Vec<DiskInfo> {
+        // -b: output sizes in exact bytes (no human-readable rounding)
+        // TYPE column lets us filter to only real physical disks
         let output = Command::new("lsblk")
-            .args(["-J", "-o", "NAME,SIZE,FSUSED,FSAVAIL,MOUNTPOINT,MODEL"])
+            .args(["-b", "-J", "-o", "NAME,SIZE,FSUSED,FSAVAIL,MOUNTPOINT,MODEL,TYPE"])
             .output();
 
         let output = match output {
@@ -130,24 +99,56 @@ mod linux {
             }
         };
 
+        // Log every top-level block device so we can see what is accepted/skipped.
+        for dev in &parsed.blockdevices {
+            let ty = dev.r#type.as_deref().unwrap_or("?");
+            let size_gb = dev.size.unwrap_or(0) as f64 / 1024.0 / 1024.0 / 1024.0;
+            let model = dev.model.as_deref().unwrap_or("-");
+            debug!(
+                "lsblk block device: /dev/{} type={} size={:.1}GB model={}",
+                dev.name, ty, size_gb, model
+            );
+        }
+
         let mut disks: Vec<DiskInfo> = parsed
             .blockdevices
             .iter()
-            .filter(|dev| is_standard_device(dev))
+            .filter(|dev| {
+                if !is_physical_disk(dev) {
+                    debug!(
+                        "  skipping /dev/{}: type={} (not a physical disk)",
+                        dev.name,
+                        dev.r#type.as_deref().unwrap_or("?")
+                    );
+                    return false;
+                }
+                let size = dev.size.unwrap_or(0);
+                if size == 0 {
+                    debug!(
+                        "  skipping /dev/{}: size is 0 (uninitialized or virtual device)",
+                        dev.name
+                    );
+                    return false;
+                }
+                true
+            })
             .map(|dev| {
-                let total_bytes = dev.size.as_deref().map(parse_size).unwrap_or(0);
+                let total_bytes = dev.size.unwrap_or(0);
                 let used_bytes = sum_used(dev);
                 let name = dev
                     .model
                     .as_deref()
                     .map(|m| m.trim())
                     .filter(|m| !m.is_empty())
-                    .unwrap_or("Unknown")
+                    .unwrap_or(&dev.name)
                     .to_string();
 
                 debug!(
-                    "lsblk disk: dev={} name={} total={}B used={}B",
-                    dev.name, name, total_bytes, used_bytes,
+                    "  accepted /dev/{} as \"{}\": total={:.1}GB used={:.1}GB",
+                    dev.name,
+                    name,
+                    total_bytes as f64 / 1024.0 / 1024.0 / 1024.0,
+                    used_bytes as f64 / 1024.0 / 1024.0 / 1024.0,
                 );
 
                 DiskInfo {

@@ -59,10 +59,14 @@ fn parse_cpu_percent(stats: serde_json::Value) -> f64 {
 pub async fn list_containers(
     host_system_health: HostSytemHealth,
 ) -> Result<Option<Vec<ContainerStats>>, CollectionError> {
+    log::debug!("Docker: attempting to connect to unix:///var/run/docker.sock");
+
     let docker = match docker_api::Docker::new("unix:///var/run/docker.sock") {
-        Ok(d) => d,
+        Ok(d) => {
+            log::debug!("Docker: client created successfully");
+            d
+        }
         Err(e) => {
-            // The docker socket is not available so no docker installed or unavailable
             log::warn!("Docker socket unavailable: {}", e);
             host_system_health
                 .set_docker_state(State::new(
@@ -75,20 +79,25 @@ pub async fn list_containers(
         }
     };
 
-    if docker.ping().await.is_err() {
-        log::warn!("Docker socket unavailable: ping failed");
-        host_system_health
-            .set_docker_state(State::new(
-                crate::system_health::Severity::Critical,
-                crate::system_health::HostComponent::Docker,
-                format!("Docker socket unavailable: ping failed"),
-            ))
-            .await;
-        return Err(CollectionError::DockerSocketUnavailable(
-            "ping failed".to_string(),
-        ));
+    log::debug!("Docker: sending ping...");
+    match docker.ping().await {
+        Ok(_) => log::debug!("Docker: ping succeeded"),
+        Err(e) => {
+            log::warn!("Docker socket unavailable: ping failed: {}", e);
+            host_system_health
+                .set_docker_state(State::new(
+                    crate::system_health::Severity::Critical,
+                    crate::system_health::HostComponent::Docker,
+                    format!("Docker socket unavailable: ping failed"),
+                ))
+                .await;
+            return Err(CollectionError::DockerSocketUnavailable(
+                format!("ping failed: {}", e),
+            ));
+        }
     }
 
+    log::debug!("Docker: listing containers...");
     let containers_api = docker.containers();
     let summaries = match containers_api
         .list(&ContainerListOpts::builder().all(true).build())
