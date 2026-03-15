@@ -28,20 +28,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install musl tools
-        # musl links the C library statically so the binary runs on any Linux without dependencies
-        run: apt-get update && apt-get install -y musl-tools pkg-config
+      - name: Install build tools
+        # musl-tools for x86_64 static linking; python3/pip for ziglang (cross-compilation)
+        run: apt-get update && apt-get install -y musl-tools pkg-config python3-pip && pip3 install ziglang --break-system-packages
 
-      - name: Add musl target
-        # adds the musl compile target to rustup
-        run: rustup target add x86_64-unknown-linux-musl
+      - name: Install cargo-zigbuild
+        # cargo-zigbuild uses Zig as a cross-linker — no Docker needed
+        run: cargo install cargo-zigbuild
 
-      - name: Build static binary
-        run: cargo build --release --bin observer --target x86_64-unknown-linux-musl
+      - name: Add targets
+        run: |
+          rustup target add x86_64-unknown-linux-musl
+          rustup target add aarch64-unknown-linux-musl
+
+      - name: Build x86_64 binary
+        run: cargo zigbuild --release --bin observer --target x86_64-unknown-linux-musl
+
+      - name: Build aarch64 binary (Raspberry Pi 3/4/5, 64-bit)
+        run: cargo zigbuild --release --bin observer --target aarch64-unknown-linux-musl
+
+      - name: Rename binaries with arch suffix
+        run: |
+          cp target/x86_64-unknown-linux-musl/release/observer target/observer-x86_64
+          cp target/aarch64-unknown-linux-musl/release/observer target/observer-aarch64
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: target/x86_64-unknown-linux-musl/release/observer
+          files: |
+            target/observer-x86_64
+            target/observer-aarch64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
