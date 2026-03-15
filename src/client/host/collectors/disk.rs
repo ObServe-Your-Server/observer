@@ -33,6 +33,8 @@ mod linux {
         #[serde(default)]
         fsavail: Option<u64>,
         #[serde(default)]
+        fstype: Option<String>,
+        #[serde(default)]
         mountpoint: Option<String>,
         #[serde(default)]
         model: Option<String>,
@@ -47,6 +49,51 @@ mod linux {
     /// optical drives, loop devices, RAM disks, and any other virtual block device.
     fn is_physical_disk(dev: &BlockDevice) -> bool {
         dev.r#type.as_deref() == Some("disk")
+    }
+
+    /// Returns true if this device or any of its partitions is a ZFS pool member.
+    fn is_zfs_member(dev: &BlockDevice) -> bool {
+        if dev.fstype.as_deref() == Some("zfs_member") {
+            return true;
+        }
+        dev.children
+            .as_ref()
+            .map_or(false, |kids| kids.iter().any(is_zfs_member))
+    }
+
+    /// Query ZFS pools via `zpool list` and return them as DiskInfo entries.
+    fn collect_zpools() -> Vec<DiskInfo> {
+        let output = match Command::new("zpool")
+            .args(["list", "-H", "-p", "-o", "name,size,alloc"])
+            .output()
+        {
+            Ok(o) if o.status.success() => o,
+            _ => return vec![],
+        };
+        let stdout = match std::str::from_utf8(&output.stdout) {
+            Ok(s) => s,
+            Err(_) => return vec![],
+        };
+        stdout
+            .lines()
+            .filter_map(|line| {
+                let mut parts = line.split('\t');
+                let name = parts.next()?.trim().to_string();
+                let total_bytes: u64 = parts.next()?.trim().parse().ok()?;
+                let used_bytes: u64 = parts.next()?.trim().parse().ok()?;
+                debug!(
+                    "  zpool \"{}\": total={:.1}GB used={:.1}GB",
+                    name,
+                    total_bytes as f64 / 1024.0 / 1024.0 / 1024.0,
+                    used_bytes as f64 / 1024.0 / 1024.0 / 1024.0,
+                );
+                Some(DiskInfo {
+                    name,
+                    total_bytes,
+                    used_bytes,
+                })
+            })
+            .collect()
     }
 
     /// Recursively sum fsused across all mounted partitions of a device.
@@ -72,7 +119,7 @@ mod linux {
         // -b: output sizes in exact bytes (no human-readable rounding)
         // TYPE column lets us filter to only real physical disks
         let output = Command::new("lsblk")
-            .args(["-b", "-J", "-o", "NAME,SIZE,FSUSED,FSAVAIL,MOUNTPOINT,MODEL,TYPE"])
+            .args(["-b", "-J", "-o", "NAME,SIZE,FSUSED,FSAVAIL,FSTYPE,MOUNTPOINT,MODEL,TYPE"])
             .output();
 
         let output = match output {
@@ -130,6 +177,13 @@ mod linux {
                     );
                     return false;
                 }
+                if is_zfs_member(dev) {
+                    debug!(
+                        "  skipping /dev/{}: ZFS pool member (pool stats collected separately)",
+                        dev.name
+                    );
+                    return false;
+                }
                 true
             })
             .map(|dev| {
@@ -159,6 +213,7 @@ mod linux {
             })
             .collect();
 
+        disks.extend(collect_zpools());
         disks.sort_by(|a, b| a.name.cmp(&b.name));
         disks
     }
