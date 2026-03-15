@@ -1,0 +1,11 @@
+[book]
+title = "Observer"
+description = "Docs for the Observer backend"
+authors = ["Marco"]
+language = "en"
+
+[output.html]
+default-theme = "coal"
+preferred-dark-theme = "coal"
+additional-css = ["theme/custom.css"]
+git-repository-url = "https://github.com/ObServe-Your-Server/observer"
