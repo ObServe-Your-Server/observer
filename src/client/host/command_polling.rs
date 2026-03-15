@@ -89,5 +89,6 @@ pub async fn poll() -> Result<(), CollectionError> {
         }
     }
 
+    log::info!("Successful command poll");
     Ok(())
 }
