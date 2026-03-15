@@ -51,68 +51,98 @@ DEFAULT_SPEEDTEST_SECS="600"
 DEFAULT_DOCKER_SECS="10"
 DEFAULT_ENABLE_DOCKER_SOCKET="true"
 
+MODE="full"
+
 if [ -f "$CONFIG_PATH" ]; then
-    echo "Observer is already installed. This will overwrite the existing config at $CONFIG_PATH." >&2
-    printf "Continue? [y/N]: " >&2
-    IFS= read -r REPLY </dev/tty
-    case "$REPLY" in
-        [yY][eE][sS]|[yY]) ;;
-        *) echo "Aborted." >&2; exit 0 ;;
-    esac
+    echo "Observer is already installed." >&2
+    echo "" >&2
+    echo "  u  Update binary only (keep current config)" >&2
+    echo "  c  Update config and binary" >&2
+    echo "  x  Uninstall" >&2
+    echo "  n  Cancel" >&2
+    echo "" >&2
+    while true; do
+        printf "Choice [u/c/x/n]: " >&2
+        IFS= read -r REPLY </dev/tty
+        case "$REPLY" in
+            u) MODE="update_only"; break ;;
+            c) MODE="full"; break ;;
+            x) MODE="uninstall"; break ;;
+            n) echo "Cancelled." >&2; exit 0 ;;
+            *) echo "  Please enter u, c, x, or n." >&2 ;;
+        esac
+    done
     echo "" >&2
 
-    # Pre-fill defaults from the existing config (only override if the field exists)
-    prefill_str() {
-        local val
-        val=$(grep "$1" "$CONFIG_PATH" | sed 's/.*= "\(.*\)"/\1/')
-        [ -n "$val" ] && echo "$val" || echo "$2"
-    }
-    prefill_num() {
-        local val
-        val=$(grep "$1" "$CONFIG_PATH" | sed 's/[^0-9]*\([0-9]*\).*/\1/')
-        [ -n "$val" ] && echo "$val" || echo "$2"
-    }
+    if [ "$MODE" = "uninstall" ]; then
+        echo "Uninstalling observer..." >&2
+        systemctl stop observer 2>/dev/null || true
+        systemctl disable observer 2>/dev/null || true
+        rm -f /usr/local/bin/observer
+        rm -f /etc/systemd/system/observer.service
+        rm -f "$CONFIG_PATH"
+        rmdir "$CONFIG_DIR" 2>/dev/null || true
+        systemctl daemon-reload
+        echo "Observer uninstalled." >&2
+        exit 0
+    fi
 
-    DEFAULT_API_KEY=$(prefill_str 'api_key' "$DEFAULT_API_KEY")
-    DEFAULT_DOCKER_URL=$(prefill_str 'base_docker_url' "$DEFAULT_DOCKER_URL")
-    DEFAULT_NOTIFIER_URL=$(prefill_str 'base_notifier_url' "$DEFAULT_NOTIFIER_URL")
-    DEFAULT_METRIC_SECS=$(prefill_num 'metric_secs' "$DEFAULT_METRIC_SECS")
-    DEFAULT_COMMAND_POLL_SECS=$(prefill_num 'command_poll_secs' "$DEFAULT_COMMAND_POLL_SECS")
-    DEFAULT_SPEEDTEST_SECS=$(prefill_num 'speedtest_secs' "$DEFAULT_SPEEDTEST_SECS")
-    DEFAULT_DOCKER_SECS=$(prefill_num 'docker_secs' "$DEFAULT_DOCKER_SECS")
-    prefill_bool() {
-        local val
-        val=$(grep "$1" "$CONFIG_PATH" | grep -o 'true\|false')
-        [ -n "$val" ] && echo "$val" || echo "$2"
-    }
-    DEFAULT_ENABLE_DOCKER_SOCKET=$(prefill_bool 'enable_docker_socket' "$DEFAULT_ENABLE_DOCKER_SOCKET")
+    if [ "$MODE" = "full" ]; then
+        # Pre-fill defaults from the existing config (only override if the field exists)
+        prefill_str() {
+            local val
+            val=$(grep "$1" "$CONFIG_PATH" | sed 's/.*= "\(.*\)"/\1/')
+            [ -n "$val" ] && echo "$val" || echo "$2"
+        }
+        prefill_num() {
+            local val
+            val=$(grep "$1" "$CONFIG_PATH" | sed 's/[^0-9]*\([0-9]*\).*/\1/')
+            [ -n "$val" ] && echo "$val" || echo "$2"
+        }
+        prefill_bool() {
+            local val
+            val=$(grep "$1" "$CONFIG_PATH" | grep -o 'true\|false')
+            [ -n "$val" ] && echo "$val" || echo "$2"
+        }
+
+        DEFAULT_API_KEY=$(prefill_str 'api_key' "$DEFAULT_API_KEY")
+        DEFAULT_DOCKER_URL=$(prefill_str 'base_docker_url' "$DEFAULT_DOCKER_URL")
+        DEFAULT_NOTIFIER_URL=$(prefill_str 'base_notifier_url' "$DEFAULT_NOTIFIER_URL")
+        DEFAULT_METRIC_SECS=$(prefill_num 'metric_secs' "$DEFAULT_METRIC_SECS")
+        DEFAULT_COMMAND_POLL_SECS=$(prefill_num 'command_poll_secs' "$DEFAULT_COMMAND_POLL_SECS")
+        DEFAULT_SPEEDTEST_SECS=$(prefill_num 'speedtest_secs' "$DEFAULT_SPEEDTEST_SECS")
+        DEFAULT_DOCKER_SECS=$(prefill_num 'docker_secs' "$DEFAULT_DOCKER_SECS")
+        DEFAULT_ENABLE_DOCKER_SOCKET=$(prefill_bool 'enable_docker_socket' "$DEFAULT_ENABLE_DOCKER_SOCKET")
+    fi
 fi
 
-echo "Press Enter to accept the default shown in brackets." >&2
-echo "" >&2
+if [ "$MODE" = "full" ]; then
+    echo "Press Enter to accept the default shown in brackets." >&2
+    echo "" >&2
 
-METRICS_URL="$DEFAULT_METRICS_URL"
-COMMANDS_URL="$DEFAULT_COMMANDS_URL"
+    METRICS_URL="$DEFAULT_METRICS_URL"
+    COMMANDS_URL="$DEFAULT_COMMANDS_URL"
 
-ask_required "API key" "$DEFAULT_API_KEY"
-API_KEY="$REPLY"
+    ask_required "API key" "$DEFAULT_API_KEY"
+    API_KEY="$REPLY"
 
-ask_optional "Metric send interval in seconds (2-60)" "$DEFAULT_METRIC_SECS"
-METRIC_SECS="$REPLY"
+    ask_optional "Metric send interval in seconds (2-60)" "$DEFAULT_METRIC_SECS"
+    METRIC_SECS="$REPLY"
 
-ask_optional "Command poll interval in seconds (2-60)" "$DEFAULT_COMMAND_POLL_SECS"
-COMMAND_POLL_SECS="$REPLY"
+    ask_optional "Command poll interval in seconds (2-60)" "$DEFAULT_COMMAND_POLL_SECS"
+    COMMAND_POLL_SECS="$REPLY"
 
-ask_optional "Speedtest interval in seconds (60-86400)" "$DEFAULT_SPEEDTEST_SECS"
-SPEEDTEST_SECS="$REPLY"
+    ask_optional "Speedtest interval in seconds (60-86400)" "$DEFAULT_SPEEDTEST_SECS"
+    SPEEDTEST_SECS="$REPLY"
 
-ask_optional "Docker metric interval in seconds (10-60)" "$DEFAULT_DOCKER_SECS"
-DOCKER_SECS="$REPLY"
+    ask_optional "Docker metric interval in seconds (10-60)" "$DEFAULT_DOCKER_SECS"
+    DOCKER_SECS="$REPLY"
 
-ask_optional "Enable Docker socket monitoring (true/false)" "$DEFAULT_ENABLE_DOCKER_SOCKET"
-ENABLE_DOCKER_SOCKET="$REPLY"
+    ask_optional "Enable Docker socket monitoring (true/false)" "$DEFAULT_ENABLE_DOCKER_SOCKET"
+    ENABLE_DOCKER_SOCKET="$REPLY"
 
-echo "" >&2
+    echo "" >&2
+fi
 
 # Stop the service before replacing the binary (can't overwrite a running executable)
 if systemctl is-active --quiet observer; then
@@ -125,8 +155,14 @@ LATEST_TAG=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" \
     | grep '"tag_name"' | sed 's/.*"tag_name": "\(.*\)".*/\1/')
 echo "Installing version: $LATEST_TAG" >&2
 
-echo "Downloading observer binary..." >&2
-curl -fsSL "https://github.com/$REPO/releases/latest/download/observer" -o /tmp/observer
+echo "Detecting architecture..." >&2
+case "$(uname -m)" in
+  x86_64)  ARCH_SUFFIX="x86_64" ;;
+  aarch64) ARCH_SUFFIX="aarch64" ;;
+  *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+esac
+echo "Downloading observer binary for $ARCH_SUFFIX..." >&2
+curl -fsSL "https://github.com/$REPO/releases/latest/download/observer-$ARCH_SUFFIX" -o /tmp/observer
 mv /tmp/observer /usr/local/bin/observer
 chmod +x /usr/local/bin/observer
 
@@ -134,9 +170,10 @@ echo "Installing systemd service..." >&2
 curl -fsSL "https://raw.githubusercontent.com/$REPO/main/setup/observer.service" \
     -o /etc/systemd/system/observer.service
 
-echo "Writing config to $CONFIG_PATH..." >&2
-mkdir -p "$CONFIG_DIR"
-cat > "$CONFIG_PATH" <<EOF
+if [ "$MODE" = "full" ]; then
+    echo "Writing config to $CONFIG_PATH..." >&2
+    mkdir -p "$CONFIG_DIR"
+    cat > "$CONFIG_PATH" <<EOF
 [server]
 base_metrics_url  = "$METRICS_URL"
 base_commands_url = "$COMMANDS_URL"
@@ -151,8 +188,8 @@ speedtest_secs       = $SPEEDTEST_SECS
 enable_docker_socket = $ENABLE_DOCKER_SOCKET
 docker_secs          = $DOCKER_SECS
 EOF
-
-chmod 600 "$CONFIG_PATH"
+    chmod 600 "$CONFIG_PATH"
+fi
 
 echo "Enabling and starting observer service..." >&2
 systemctl daemon-reload
