@@ -8,7 +8,8 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: [observer-self-hosted]
+    container: rust:latest
     permissions:
       contents: write
     steps:
