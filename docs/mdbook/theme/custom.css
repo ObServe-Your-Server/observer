@@ -173,7 +173,7 @@ body {
 .content main {
   color: var(--text-body);
   font-size: var(--text-base);
-  padding: 3rem 4rem 6rem;
+  padding: 3rem 4rem 2rem;
   max-width: 900px;
 }
 
@@ -532,4 +532,60 @@ hr {
 ::selection {
   background: rgba(69, 140, 253, 0.25);
   color: var(--text);
+}
+
+/* ── Mobile ── */
+@media only screen and (max-width: 768px) {
+  html {
+    font-size: 14px !important;
+  }
+
+  .content main {
+    padding: 1.5rem 1.25rem 1rem !important;
+    max-width: 100% !important;
+  }
+
+  .content h1 { font-size: 1.6rem !important; }
+  .content h2 { font-size: 1.3rem !important; }
+  .content h3 { font-size: 1.1rem !important; }
+
+  pre {
+    padding: 1rem 1rem !important;
+    font-size: 0.8rem !important;
+    overflow-x: auto;
+  }
+
+  pre code {
+    font-size: 0.8rem !important;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nav-wrapper {
+    padding: 1rem 1.25rem 2rem !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    gap: 0.5rem !important;
+  }
+
+  .nav-wrapper a.nav-chapters,
+  .nav-wrapper a.mobile-nav-chapters {
+    padding: 0.5rem 0.85rem !important;
+    font-size: 0.65rem !important;
+    max-width: 45% !important;
+    text-align: center !important;
+  }
+
+  .chapter li a {
+    padding: 0.7rem 1rem !important;
+    font-size: 0.9rem !important;
+  }
+
+  .menu-title {
+    font-size: 0.75rem !important;
+  }
 }
