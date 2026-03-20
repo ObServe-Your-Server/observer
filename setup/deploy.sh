@@ -157,8 +157,8 @@ echo "Installing version: $LATEST_TAG" >&2
 
 echo "Detecting architecture..." >&2
 case "$(uname -m)" in
-  x86_64)  ARCH_SUFFIX="x86_64" ;;
-  aarch64) ARCH_SUFFIX="aarch64" ;;
+  x86_64|amd64)   ARCH_SUFFIX="x86_64" ;;
+  aarch64|arm64)  ARCH_SUFFIX="aarch64" ;;
   *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
 esac
 echo "Downloading observer binary for $ARCH_SUFFIX..." >&2
