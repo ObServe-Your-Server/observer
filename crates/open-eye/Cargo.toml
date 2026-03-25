@@ -1,0 +1,10 @@
+[package]
+name = "open-eye"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "open_eye"
+path = "src/lib.rs"
+
+[dependencies]
