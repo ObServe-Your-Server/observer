@@ -1,6 +1,6 @@
 [package]
 name = "open-eye"
-version = "0.1.0"
+version = "0.1.1"
 description = "Metrics collection library for the Observe server monitoring application"
 repository = "https://github.com/ObServe-Your-Server/observer/tree/standalone/crates/open-eye"
 edition = "2021"
