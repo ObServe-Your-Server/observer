@@ -1,6 +1,6 @@
 # open-eye
 
-The metrics collection library powering [Observe](https://github.com/ObServe-Your-Server), a self-hosted server monitoring application.
+The metrics collection library powering [Observe](https://observe.vision), a self-hosted server monitoring application.
 
 ## Status
 
