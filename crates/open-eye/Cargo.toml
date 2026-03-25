@@ -9,7 +9,7 @@ documentation = "https://docs.rs/open-eye"
 homepage = "https://observe.vision"
 readme = "README.md"
 authors = ["Marco Brandt mail@marco-brandt.com"]
-license = "PolyForm-Noncommercial-1.0.0"
+license-file = "../../LICENSE"
 
 
 [lib]
