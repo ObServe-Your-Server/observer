@@ -1,7 +1,16 @@
 [package]
 name = "open-eye"
 version = "0.1.0"
+description = "Metrics collection library for the Observe server monitoring application"
+repository = "https://github.com/ObServe-Your-Server/observer/tree/standalone/crates/open-eye"
 edition = "2021"
+keywords = ["observe", "system", "metrics", "cpu", "memory"]
+documentation = "https://docs.rs/open-eye"
+homepage = "https://observe.vision"
+readme = "README.md"
+authors = ["Marco Brandt mail@marco-brandt.com"]
+license = "PolyForm-Noncommercial-1.0.0"
+
 
 [lib]
 name = "open_eye"
