@@ -10,11 +10,14 @@ A lightweight agent that runs on a server and collects system metrics. It period
 curl -fsSL https://install.observe.vision | sudo bash
 ```
 
-The script will interactively ask for your server URLs and API key, then download the binary, install the systemd service, and write the config to `/etc/observer/observer.toml`.
+The script will interactively ask for your API key, then download the binary, 
+install the systemd service, and write the config to `/etc/observer/observer.toml`.
 
 # IMPORTANT: Updating / Wrong API Key
 
-Run the installer again, it will detect the existing installation and prompt you to update the config (pre-filled with current values), fix a wrong API key, and restart the service:
+Run the installer again, it will detect the existing installation and prompt you to update the config 
+(pre-filled with current values), fix a wrong API key, and restart the service (should happen automatically after the 
+script finishes):
 
 ```sh
 curl -fsSL https://install.observe.vision | sudo bash
