@@ -1,10 +1,10 @@
 [package]
-name = "observer"
+name = "observer-client"
 version = "1.2.5"
 edition = "2024"
 
 [[bin]]
-name = "observer"
+name = "observer_client"
 path = "src/main.rs"
 
 # criterion runs benchmarks and generates html timing reports

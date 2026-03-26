@@ -1,14 +1,12 @@
 use log::{error, info};
-use observer::client::docker::docker_job;
-use observer::client::host::command_polling;
-use observer::client::host::speedtest;
-use observer::client::host::system_metric_collection;
-use observer::config::init_config;
-use observer::logging::init_logging;
-use observer::scheduler::Scheduler;
-use observer::scheduler::SchedulerKind;
-use observer::scheduling_master::SchedulingMaster;
-use observer::system_health::HostSytemHealth;
+
+
+
+
+use observer_client::config::init_config;
+use observer_client::logging::init_logging;
+use observer_client::scheduling_master::SchedulingMaster;
+
 use std::env;
 
 #[tokio::main]
