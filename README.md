@@ -22,7 +22,7 @@ Not yet implemented:
 **One-liner install (recommended):**
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/ObServe-Your-Server/observer/main/setup/deploy.sh | sudo bash
+curl -fsSL https://install.observe.vision | sudo bash
 ```
 
 The script will interactively ask for your server URLs and API key, then download the binary, install the systemd service, and write the config to `/etc/observer/observer.toml`.
