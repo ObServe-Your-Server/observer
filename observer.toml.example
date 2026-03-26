@@ -1,11 +1,13 @@
 [server]
-base_metrics_url  = "https://example.com/api/metrics"
-base_commands_url = "https://example.com/api/commands"
-base_docker_url   = "https://example.com/api/docker"
-api_key           = "your-api-key-here"
+base_metrics_url  = "https://watch-tower.observe.vision/v1/ingest"
+base_commands_url = "https://watch-tower.observe.vision/v1/commands"
+base_docker_url   = "https://watch-tower.observe.vision/v1/ingest/docker"
+base_notifier_url = "https://watch-tower.observe.vision/v1/ingest/notification"
+api_key           = "<api-key-from-app>"
 
 [intervals]
-metric_secs       = 5    # 2–60 seconds
-command_poll_secs = 5    # 2–60 seconds
-speedtest_secs    = 300  # 60–86400 seconds (5 minutes)
-docker_secs       = 10   # 10–60 seconds
+metric_secs       = 5       # 2–60 seconds
+command_poll_secs = 10      # 1–60 seconds
+speedtest_secs    = 3600    # 60–86400 seconds (1 hour)
+enable_docker_socket = true # it disables itself if it can't find or connect to a docker socket
+docker_secs       = 10      # 10–60 seconds
