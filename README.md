@@ -2,21 +2,6 @@
 
 A lightweight agent that runs on a server and collects system metrics. It periodically measures CPU usage, RAM, storage, uptime and runs speedtests, then streams the results to a central endpoint.
 
-## Current state
-
-Work in progress. The following is implemented:
-
-- Config loading from a TOML file with validation
-- Metric collection via sysinfo (CPU, RAM, storage, uptime)
-- Speedtest against Cloudflare (download, upload, ping)
-- Sending metrics to the server via HTTP POST
-- Periodic schedulers for metrics and speedtest
-- Systemd service setup for Linux
-
-Not yet implemented:
-
-- Command execution from the command buffer
-
 ## Deploy
 
 **One-liner install (recommended):**
@@ -27,7 +12,13 @@ curl -fsSL https://install.observe.vision | sudo bash
 
 The script will interactively ask for your server URLs and API key, then download the binary, install the systemd service, and write the config to `/etc/observer/observer.toml`.
 
-**Updating:** run the same one-liner again — it will ask if you want to overwrite the existing config, pre-fill current values as defaults, and restart the service.
+# IMPORTANT: Updating / Wrong API Key
+
+Run the installer again, it will detect the existing installation and prompt you to update the config (pre-filled with current values), fix a wrong API key, and restart the service:
+
+```sh
+curl -fsSL https://install.observe.vision | sudo bash
+```
 
 **Useful commands:**
 
@@ -37,7 +28,24 @@ systemctl restart observer    # restart
 journalctl -u observer -f     # follow logs
 ```
 
-## Manual deployment
+# IMPORTANT: The config
+
+The config lays in `/etc/observer/observer.toml`. There the api key can also be viewed anc 
+changed. After a change please restart the service:
+
+```sh
+sudo nano /etc/observer/observer.toml     # edit config
+
+sudo systemctl restart observer           # restart to apply changes
+
+journalctl -u observer -f                 # follow logs to check if it works
+```
+
+When something doesnt work and you run into issues. Please feel free to write us a mail to **mail@observe.vision**.
+We will reply as soon as possible and look into it.
+
+---
+# Manual deployment
 
 Use this if you want to deploy without the install script, or on a system where it does not work.
 
