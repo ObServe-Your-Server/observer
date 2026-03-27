@@ -13,6 +13,14 @@ curl -fsSL https://install.observe.vision | sudo bash
 The script will interactively ask for your API key, then download the binary, 
 install the systemd service, and write the config to `/etc/observer/observer.toml`.
 
+We are actively working also on the backend and there will be some downtime. The **observer** application running on 
+**your** device **shuts down after some time without a connection** to our backend, 
+so if you are experiencing issues and getting no metrics please just restart the backend with 
+`sudo systemctl restart observer`. If you install docker later on you machine please also restart the backend. The docker 
+metrics collector deactivates if it cant connect to a docker socket.
+
+In further releases we will implement an auto-wakeup feature to prevent this.
+
 # IMPORTANT: Updating / Wrong API Key
 
 Run the installer again, it will detect the existing installation and prompt you to update the config 
@@ -29,9 +37,10 @@ curl -fsSL https://install.observe.vision | sudo bash
 systemctl status observer     # check if running
 systemctl restart observer    # restart
 journalctl -u observer -f     # follow logs
+journalctl -u observer -n 50  # last 50 log lines
 ```
 
-# IMPORTANT: The config
+# The config
 
 The config lays in `/etc/observer/observer.toml`. There the api key can also be viewed anc 
 changed. After a change please restart the service:
@@ -46,6 +55,15 @@ journalctl -u observer -f                 # follow logs to check if it works
 
 When something doesnt work and you run into issues. Please feel free to write us a mail to **mail@observe.vision**.
 We will reply as soon as possible and look into it.
+
+---
+# Contributing
+
+We are actively looking for developers to join the project. Both for **Observer** (this agent) and for **Watch-Tower**, 
+our application that collects and provides the metrics to the dashboard.
+
+If you are interested in contributing, feel free to open an issue, submit a pull request, 
+or reach out directly at **mail@observe.vision**. All skill levels are welcome.
 
 ---
 # Manual deployment
