@@ -176,7 +176,7 @@ fi
 # We filter to prereleases only and take the first one.
 echo "Fetching latest prerelease info..." >&2
 LATEST_TAG=$(curl -fsSL "https://api.github.com/repos/$REPO/releases" \
-    | grep -A5 '"prerelease": true' \
+    | grep -B5 '"prerelease": true' \
     | grep '"tag_name"' \
     | head -1 \
     | sed 's/.*"tag_name": "\(.*\)".*/\1/')
