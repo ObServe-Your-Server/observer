@@ -1,8 +1,8 @@
-name: Release
+name: Prerelease
 
 on:
   push:
-    tags-ignore:
+    tags:
       - "v*-*"
 
 jobs:
@@ -18,22 +18,20 @@ jobs:
         run: cargo test --workspace
 
   build:
-    name: Build and publish release
-    needs: test  # only runs if tests pass
+    name: Build and publish prerelease
+    needs: test
     runs-on: [observer-self-hosted]
     container: rust:latest
     permissions:
-      contents: write  # required to create the release and upload the binary
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install build tools
-        # musl-tools for x86_64 static linking; python3/pip for ziglang (cross-compilation)
         run: apt-get update && apt-get install -y musl-tools pkg-config python3-pip && pip3 install ziglang --break-system-packages
 
       - name: Install cargo-zigbuild
-        # cargo-zigbuild uses Zig as a cross-linker — no Docker needed
         run: cargo install cargo-zigbuild
 
       - name: Add targets
@@ -52,9 +50,10 @@ jobs:
           cp target/x86_64-unknown-linux-musl/release/observer target/observer-x86_64
           cp target/aarch64-unknown-linux-musl/release/observer target/observer-aarch64
 
-      - name: Create GitHub Release
+      - name: Create GitHub Prerelease
         uses: softprops/action-gh-release@v2
         with:
+          prerelease: true
           files: |
             target/observer-x86_64
             target/observer-aarch64
