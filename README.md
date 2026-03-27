@@ -16,8 +16,8 @@ install the systemd service, and write the config to `/etc/observer/observer.tom
 We are actively working also on the backend and there will be some downtime. The **observer** application running on 
 **your** device **shuts down after some time without a connection** to our backend, 
 so if you are experiencing issues and getting no metrics please just restart the backend with 
-`sudo systemctl restart observer`. If you install docker later on you machine please also restart the backend. The docker 
-metrics collector deactivates if it cant connect to a docker socket.
+`sudo systemctl restart observer`. If you install docker later on your machine please also restart the backend. The docker
+metrics collector deactivates if it can't connect to a docker socket.
 
 In further releases we will implement an auto-wakeup feature to prevent this.
 
@@ -42,7 +42,7 @@ journalctl -u observer -n 50  # last 50 log lines
 
 # The config
 
-The config lays in `/etc/observer/observer.toml`. There the api key can also be viewed anc 
+The config lays in `/etc/observer/observer.toml`. There the api key can also be viewed and
 changed. After a change please restart the service:
 
 ```sh
@@ -53,7 +53,7 @@ sudo systemctl restart observer           # restart to apply changes
 journalctl -u observer -f                 # follow logs to check if it works
 ```
 
-When something doesnt work and you run into issues. Please feel free to write us a mail to **mail@observe.vision**.
+When something doesn't work and you run into issues. Please feel free to write us a mail to **mail@observe.vision**.
 We will reply as soon as possible and look into it.
 
 ---
