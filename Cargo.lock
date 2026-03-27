@@ -1279,7 +1279,7 @@ dependencies = [
 
 [[package]]
 name = "observer"
-version = "1.2.6"
+version = "1.2.7"
 dependencies = [
  "chrono",
  "criterion",
