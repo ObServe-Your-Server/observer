@@ -1,4 +1,4 @@
-use reqwest::{Error, Response, StatusCode};
+use reqwest::{Error, StatusCode};
 
 #[derive(Debug)]
 pub enum CollectionError {
