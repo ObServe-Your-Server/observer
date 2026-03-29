@@ -2,12 +2,11 @@ name: Test
 
 on:
   push:
-  workflow_dispatch:
 
 jobs:
   test:
     name: Run tests
-    runs-on: [observe-self-hosted]
+    runs-on: [observer-self-hosted]
     container: rust:latest
     steps:
       - name: Checkout repository

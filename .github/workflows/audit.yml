@@ -1,12 +1,14 @@
 name: Security Audit
 
 on:
+  schedule:
+    - cron: '0 6 * * *'
   workflow_dispatch:
 
 jobs:
   audit:
     name: cargo audit
-    runs-on: [observe-self-hosted]
+    runs-on: [observer-self-hosted]
     container: rust:latest
     steps:
       - uses: actions/checkout@v4

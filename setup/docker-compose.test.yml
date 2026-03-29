@@ -1,0 +1,23 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TEST COMMANDS
+#
+#   Start:   docker compose -f setup/docker-compose.test.yml up -d
+#   Shell:   docker exec -it observer-test-alpine bash
+#   Script:  bash /setup/deploy-pre.sh
+#   Status:  rc-service observer status
+#   Cleanup: docker compose -f setup/docker-compose.test.yml down
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  test-alpine:
+    image: alpine:latest
+    container_name: observer-test-alpine
+    # OpenRC needs /run and a writable /sys/fs/cgroup, privileged gives both
+    privileged: true
+    # Keep the container alive so you can exec into it
+    command: /bin/sh -c "apk add --no-cache openrc curl bash && mkdir -p /run/openrc && touch /run/openrc/softlevel && openrc default && tail -f /dev/null"
+    volumes:
+      # Mount the setup directory so the scripts are available inside
+      - ./:/setup:ro
+    environment:
+      - TERM=xterm
