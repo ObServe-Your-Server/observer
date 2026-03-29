@@ -47,7 +47,7 @@ journalctl -u observer -n 50  # last 50 log lines
 ```sh
 rc-service observer status    # check if running
 rc-service observer restart   # restart
-logread | grep observer        # logs (via busybox syslog)
+tail -f /var/log/observer.log  # follow logs
 ```
 
 # The config
@@ -145,7 +145,7 @@ journalctl -u observer -f                         # follow live logs
 journalctl -u observer --since "1 hour ago"       # last hour
 
 # OpenRC / Alpine
-logread | grep observer                            # syslog output
+tail -f /var/log/observer.log                      # follow live logs
 
 # any system
 OBSERVER_LOG_LEVEL=debug /usr/local/bin/observer  # run manually with debug output

@@ -3,6 +3,8 @@ description="Observer monitoring agent"
 command="/usr/local/bin/observer"
 command_background="yes"
 pidfile="/run/observer.pid"
+output_log="/var/log/observer.log"
+error_log="/var/log/observer.log"
 export OBSERVER_CONFIG="/etc/observer/observer.toml"
 
 depend() {
