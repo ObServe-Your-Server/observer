@@ -62,7 +62,11 @@ svc_enable_start() {
         systemctl restart observer 2>/dev/null || systemctl start observer
     else
         rc-update add observer default 2>/dev/null || true
-        rc-service observer restart 2>/dev/null || rc-service observer start
+        rc-service observer stop 2>/dev/null || true
+        sleep 2
+        rm -f /run/observer.pid
+        : > /var/log/observer.log
+        rc-service observer start
     fi
 }
 svc_disable_stop() {
@@ -84,16 +88,15 @@ svc_status() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STAGING ENDPOINTS & DEFAULTS
-# Change these to point at your staging / prerelease environment.
+# ENDPOINTS & DEFAULTS
 # The four URL values are always written to the config, regardless of what
 # was there before — this is intentional (see note 2 above).
 # ─────────────────────────────────────────────────────────────────────────────
 
-STAGING_METRICS_URL="https://staging.observe.vision/v1/ingest"
-STAGING_COMMANDS_URL="https://staging.observe.vision/v1/commands"
-STAGING_DOCKER_URL="https://staging.observe.vision/v1/ingest/docker"
-STAGING_NOTIFIER_URL="https://staging.observe.vision/v1/ingest/notification"
+STAGING_METRICS_URL="https://watch-tower.observe.vision/v1/ingest"
+STAGING_COMMANDS_URL="https://watch-tower.observe.vision/v1/commands"
+STAGING_DOCKER_URL="https://watch-tower.observe.vision/v1/ingest/docker"
+STAGING_NOTIFIER_URL="https://watch-tower.observe.vision/v1/ingest/notification"
 
 DEFAULT_METRIC_SECS="5"
 DEFAULT_COMMAND_POLL_SECS="10"

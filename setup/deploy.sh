@@ -45,7 +45,11 @@ svc_enable_start() {
         systemctl restart observer 2>/dev/null || systemctl start observer
     else
         rc-update add observer default 2>/dev/null || true
-        rc-service observer restart 2>/dev/null || rc-service observer start
+        rc-service observer stop 2>/dev/null || true
+        sleep 2
+        rm -f /run/observer.pid
+        : > /var/log/observer.log
+        rc-service observer start
     fi
 }
 svc_disable_stop() {
@@ -112,7 +116,7 @@ MODE="full"
 if [ -f "$CONFIG_PATH" ]; then
     echo "Observer is already installed." >&2
     echo "" >&2
-    echo "  u  Update binary only (keep current config)" >&2
+    echo "  u  Update binary only (keep current config, URLs are always reset)" >&2
     echo "  c  Update config and binary" >&2
     echo "  x  Uninstall" >&2
     echo "  n  Cancel" >&2
@@ -161,8 +165,6 @@ if [ -f "$CONFIG_PATH" ]; then
         }
 
         DEFAULT_API_KEY=$(prefill_str 'api_key' "$DEFAULT_API_KEY")
-        DEFAULT_DOCKER_URL=$(prefill_str 'base_docker_url' "$DEFAULT_DOCKER_URL")
-        DEFAULT_NOTIFIER_URL=$(prefill_str 'base_notifier_url' "$DEFAULT_NOTIFIER_URL")
         DEFAULT_METRIC_SECS=$(prefill_num 'metric_secs' "$DEFAULT_METRIC_SECS")
         DEFAULT_COMMAND_POLL_SECS=$(prefill_num 'command_poll_secs' "$DEFAULT_COMMAND_POLL_SECS")
         DEFAULT_SPEEDTEST_SECS=$(prefill_num 'speedtest_secs' "$DEFAULT_SPEEDTEST_SECS")
@@ -252,6 +254,15 @@ enable_docker_socket = $ENABLE_DOCKER_SOCKET
 docker_secs          = $DOCKER_SECS
 EOF
     chmod 600 "$CONFIG_PATH"
+fi
+
+# update_only: always overwrite URLs to ensure correct production endpoints
+if [ "$MODE" = "update_only" ]; then
+    echo "Updating URLs in existing config..." >&2
+    sed -i "s|base_metrics_url.*|base_metrics_url  = \"$DEFAULT_METRICS_URL\"|" "$CONFIG_PATH"
+    sed -i "s|base_commands_url.*|base_commands_url = \"$DEFAULT_COMMANDS_URL\"|" "$CONFIG_PATH"
+    sed -i "s|base_docker_url.*|base_docker_url   = \"$DEFAULT_DOCKER_URL\"|" "$CONFIG_PATH"
+    sed -i "s|base_notifier_url.*|base_notifier_url = \"$DEFAULT_NOTIFIER_URL\"|" "$CONFIG_PATH"
 fi
 
 echo "Enabling and starting observer service..." >&2
