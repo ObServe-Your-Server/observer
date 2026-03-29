@@ -10,6 +10,62 @@ REPO="ObServe-Your-Server/observer"
 CONFIG_DIR="/etc/observer"
 CONFIG_PATH="$CONFIG_DIR/observer.toml"
 
+# ─────────────────────────────────────────────────────────────────────────────
+# INIT SYSTEM DETECTION
+# ─────────────────────────────────────────────────────────────────────────────
+detect_init() {
+    if command -v systemctl >/dev/null 2>&1 && systemctl --version >/dev/null 2>&1; then
+        echo "systemd"
+    elif command -v rc-service >/dev/null 2>&1 || [ -f /sbin/openrc-run ]; then
+        echo "openrc"
+    else
+        echo "unknown"
+    fi
+}
+INIT_SYSTEM=$(detect_init)
+
+svc_stop()    {
+    if [ "$INIT_SYSTEM" = "systemd" ]; then
+        systemctl stop observer
+    else
+        rc-service observer stop 2>/dev/null || true
+    fi
+}
+svc_is_active() {
+    if [ "$INIT_SYSTEM" = "systemd" ]; then
+        systemctl is-active --quiet observer
+    else
+        rc-service observer status 2>/dev/null | grep -q started
+    fi
+}
+svc_enable_start() {
+    if [ "$INIT_SYSTEM" = "systemd" ]; then
+        systemctl daemon-reload
+        systemctl enable observer
+        systemctl restart observer 2>/dev/null || systemctl start observer
+    else
+        rc-update add observer default 2>/dev/null || true
+        rc-service observer restart 2>/dev/null || rc-service observer start
+    fi
+}
+svc_disable_stop() {
+    if [ "$INIT_SYSTEM" = "systemd" ]; then
+        systemctl stop observer 2>/dev/null || true
+        systemctl disable observer 2>/dev/null || true
+        systemctl daemon-reload
+    else
+        rc-service observer stop 2>/dev/null || true
+        rc-update del observer default 2>/dev/null || true
+    fi
+}
+svc_status() {
+    if [ "$INIT_SYSTEM" = "systemd" ]; then
+        systemctl status observer
+    else
+        rc-service observer status
+    fi
+}
+
 # Prompts go to stderr (never piped, always reaches the terminal).
 # Input is read from /dev/tty (the controlling terminal directly).
 ask_required() {
@@ -76,13 +132,12 @@ if [ -f "$CONFIG_PATH" ]; then
 
     if [ "$MODE" = "uninstall" ]; then
         echo "Uninstalling observer..." >&2
-        systemctl stop observer 2>/dev/null || true
-        systemctl disable observer 2>/dev/null || true
+        svc_disable_stop
         rm -f /usr/local/bin/observer
         rm -f /etc/systemd/system/observer.service
+        rm -f /etc/init.d/observer
         rm -f "$CONFIG_PATH"
         rmdir "$CONFIG_DIR" 2>/dev/null || true
-        systemctl daemon-reload
         echo "Observer uninstalled." >&2
         exit 0
     fi
@@ -145,9 +200,9 @@ if [ "$MODE" = "full" ]; then
 fi
 
 # Stop the service before replacing the binary (can't overwrite a running executable)
-if systemctl is-active --quiet observer; then
+if svc_is_active; then
     echo "Stopping observer service..." >&2
-    systemctl stop observer
+    svc_stop
 fi
 
 echo "Fetching latest release info..." >&2
@@ -166,9 +221,17 @@ curl -fsSL "https://github.com/$REPO/releases/latest/download/observer-$ARCH_SUF
 mv /tmp/observer /usr/local/bin/observer
 chmod +x /usr/local/bin/observer
 
-echo "Installing systemd service..." >&2
-curl -fsSL "https://raw.githubusercontent.com/$REPO/main/setup/observer.service" \
-    -o /etc/systemd/system/observer.service
+echo "Installing service ($INIT_SYSTEM)..." >&2
+if [ "$INIT_SYSTEM" = "systemd" ]; then
+    curl -fsSL "https://raw.githubusercontent.com/$REPO/main/setup/observer.service" \
+        -o /etc/systemd/system/observer.service
+elif [ "$INIT_SYSTEM" = "openrc" ]; then
+    curl -fsSL "https://raw.githubusercontent.com/$REPO/main/setup/observer.openrc" \
+        -o /etc/init.d/observer
+    chmod +x /etc/init.d/observer
+else
+    echo "Warning: unknown init system — skipping service installation. Run observer manually." >&2
+fi
 
 if [ "$MODE" = "full" ]; then
     echo "Writing config to $CONFIG_PATH..." >&2
@@ -192,10 +255,8 @@ EOF
 fi
 
 echo "Enabling and starting observer service..." >&2
-systemctl daemon-reload
-systemctl enable observer
-systemctl restart observer 2>/dev/null || systemctl start observer
+svc_enable_start
 
 echo "" >&2
 echo "Observer $LATEST_TAG installed successfully!" >&2
-systemctl status observer
+svc_status

@@ -1,0 +1,10 @@
+#!/sbin/openrc-run
+description="Observer monitoring agent"
+command="/usr/local/bin/observer"
+command_background="yes"
+pidfile="/run/observer.pid"
+export OBSERVER_CONFIG="/etc/observer/observer.toml"
+
+depend() {
+    need net
+}
