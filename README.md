@@ -4,40 +4,50 @@ A lightweight agent that runs on a server and collects system metrics. It period
 
 ## Deploy
 
-**One-liner install (recommended):**
+**One-liner install (recommended)**
 
 ```sh
 curl -fsSL https://install.observe.vision | sudo bash
 ```
 
-The script will interactively ask for your API key, then download the binary, 
-install the systemd service, and write the config to `/etc/observer/observer.toml`.
+The script will interactively ask for your API key, then download the binary,
+install the service, and write the config to `/etc/observer/observer.toml`.
 
-We are actively working also on the backend and there will be some downtime. The **observer** application running on 
-**your** device **shuts down after some time without a connection** to our backend, 
-so if you are experiencing issues and getting no metrics please just restart the backend with 
-`sudo systemctl restart observer`. If you install docker later on your machine please also restart the backend. The docker
+The script auto-detects the init system. **systemd** (Ubuntu, Debian, ...) and **OpenRC** (Alpine Linux, ...) are both supported.
+
+We are actively working also on the backend and there will be some downtime. The **observer** application running on
+**your** device **shuts down after some time without a connection** to our backend,
+so if you are experiencing issues and getting no metrics please just restart the agent with
+`sudo systemctl restart observer` (or `sudo rc-service observer restart` on Alpine). If you install docker later on your machine please also restart the agent. The docker
 metrics collector deactivates if it can't connect to a docker socket.
 
 In further releases we will implement an auto-wakeup feature to prevent this.
 
 # IMPORTANT: Updating / Wrong API Key
 
-Run the installer again, it will detect the existing installation and prompt you to update the config 
-(pre-filled with current values), fix a wrong API key, and restart the service (should happen automatically after the 
+Run the installer again, it will detect the existing installation and prompt you to update the config
+(pre-filled with current values), fix a wrong API key, and restart the service (should happen automatically after the
 script finishes):
 
 ```sh
 curl -fsSL https://install.observe.vision | sudo bash
 ```
 
-**Useful commands:**
+**Useful commands (systemd)**
 
 ```sh
 systemctl status observer     # check if running
 systemctl restart observer    # restart
 journalctl -u observer -f     # follow logs
 journalctl -u observer -n 50  # last 50 log lines
+```
+
+**Useful commands (OpenRC / Alpine)**
+
+```sh
+rc-service observer status    # check if running
+rc-service observer restart   # restart
+logread | grep observer        # logs (via busybox syslog)
 ```
 
 # The config
@@ -59,10 +69,10 @@ We will reply as soon as possible and look into it.
 ---
 # Contributing
 
-We are actively looking for developers to join the project. Both for **Observer** (this agent) and for **Watch-Tower**, 
+We are actively looking for developers to join the project. Both for **Observer** (this agent) and for **Watch-Tower**,
 our application that collects and provides the metrics to the dashboard.
 
-If you are interested in contributing, feel free to open an issue, submit a pull request, 
+If you are interested in contributing, feel free to open an issue, submit a pull request,
 or reach out directly at **mail@observe.vision**. All skill levels are welcome.
 
 ---
@@ -70,20 +80,20 @@ or reach out directly at **mail@observe.vision**. All skill levels are welcome.
 
 Use this if you want to deploy without the install script, or on a system where it does not work.
 
-**1. Build the binary:**
+**1. Build the binary**
 
 ```sh
 cargo build --release
 ```
 
-**2. Place the binary:**
+**2. Place the binary**
 
 ```sh
 sudo cp target/release/observer /usr/local/bin/observer
 sudo chmod +x /usr/local/bin/observer
 ```
 
-**3. Create the config:**
+**3. Create the config**
 
 ```sh
 sudo mkdir -p /etc/observer
@@ -93,7 +103,7 @@ sudo nano /etc/observer/observer.toml   # fill in your server URLs and API key
 
 The config is read from `/etc/observer/observer.toml`. All available options are documented in `observer.toml.example`.
 
-**4. Install and enable the systemd service:**
+**4a. Install and enable the systemd service (Ubuntu, Debian, ...)**
 
 ```sh
 sudo cp setup/observer.service /etc/systemd/system/observer.service
@@ -102,7 +112,16 @@ sudo systemctl enable observer
 sudo systemctl start observer
 ```
 
-**Starting and stopping:**
+**4b. Install and enable the OpenRC service (Alpine Linux, ...)**
+
+```sh
+sudo cp setup/observer.openrc /etc/init.d/observer
+sudo chmod +x /etc/init.d/observer
+sudo rc-update add observer default
+sudo rc-service observer start
+```
+
+**Starting and stopping (systemd)**
 
 ```sh
 sudo systemctl start observer    # start
@@ -110,10 +129,24 @@ sudo systemctl stop observer     # stop
 sudo systemctl restart observer  # restart
 ```
 
-**Checking logs:**
+**Starting and stopping (OpenRC)**
 
 ```sh
+sudo rc-service observer start    # start
+sudo rc-service observer stop     # stop
+sudo rc-service observer restart  # restart
+```
+
+**Checking logs**
+
+```sh
+# systemd
 journalctl -u observer -f                         # follow live logs
 journalctl -u observer --since "1 hour ago"       # last hour
+
+# OpenRC / Alpine
+logread | grep observer                            # syslog output
+
+# any system
 OBSERVER_LOG_LEVEL=debug /usr/local/bin/observer  # run manually with debug output
 ```
