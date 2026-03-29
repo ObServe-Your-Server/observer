@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use sysinfo::{Components, Cpu, System};
+use sysinfo::{Components, System};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CpuStats {
@@ -80,7 +80,7 @@ mod tests {
 
     #[test]
     fn get_current_cpu_stats_test() {
-        let res = get_current_cpu_stats();
+        let res: crate::collector::cpu::types::CpuStats = get_current_cpu_stats();
 
         assert!(!res.cpu_name.is_empty(), "cpu_name should not be empty");
         assert!(res.cpu_count > 0, "cpu_count should be > 0");
