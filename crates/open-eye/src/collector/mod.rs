@@ -4,5 +4,5 @@ pub mod docker;
 pub mod gpu;
 pub mod network;
 pub mod processes;
-pub mod ram;
+pub mod memory;
 pub mod systemstats;

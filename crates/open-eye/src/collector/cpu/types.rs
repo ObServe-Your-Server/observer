@@ -21,9 +21,9 @@ pub struct Core {
 
 pub fn get_current_cpu_stats() -> CpuStats {
     let mut sys = System::new_all();
-    sys.refresh_all();
+    sys.refresh_cpu_all();
     std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL + Duration::from_millis(200));
-    sys.refresh_all();
+    sys.refresh_cpu_all();
 
     let cpu_name = match sys.cpus().first() {
         Some(c) => c.brand().to_string(),
@@ -84,7 +84,10 @@ mod tests {
 
         assert!(!res.cpu_name.is_empty(), "cpu_name should not be empty");
         assert!(res.cpu_count > 0, "cpu_count should be > 0");
-        assert!(res.cpu_physical_count > 0, "cpu_physical_count should be > 0");
+        assert!(
+            res.cpu_physical_count > 0,
+            "cpu_physical_count should be > 0"
+        );
         assert!(
             res.cpu_physical_count <= res.cpu_count,
             "physical cores ({}) should be <= logical cores ({})",
@@ -109,7 +112,10 @@ mod tests {
                 "core_usage_percent {} should be in [0, 100]",
                 core.core_usage_percent
             );
-            assert!(core.core_frequency_mhz > 0, "core_frequency_mhz should be > 0");
+            assert!(
+                core.core_frequency_mhz > 0,
+                "core_frequency_mhz should be > 0"
+            );
         }
     }
 
