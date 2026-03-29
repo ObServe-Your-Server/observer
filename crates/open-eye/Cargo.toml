@@ -17,3 +17,4 @@ name = "open_eye"
 path = "src/lib.rs"
 
 [dependencies]
+sysinfo = "0.38.4"
