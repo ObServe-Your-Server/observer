@@ -6,7 +6,7 @@ on:
 jobs:
   test:
     name: Run tests
-    runs-on: [self-hosted]
+    runs-on: [observe-runner]
     container: rust:latest
     steps:
       - name: Checkout repository
