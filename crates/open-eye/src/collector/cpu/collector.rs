@@ -76,11 +76,11 @@ mod tests {
 
     use sysinfo::{Components, Disks, Motherboard, System};
 
-    use crate::collector::cpu::types::get_current_cpu_stats;
+    use crate::collector::cpu::collector::get_current_cpu_stats;
 
     #[test]
     fn get_current_cpu_stats_test() {
-        let res: crate::collector::cpu::types::CpuStats = get_current_cpu_stats();
+        let res: crate::collector::cpu::collector::CpuStats = get_current_cpu_stats();
 
         assert!(!res.cpu_name.is_empty(), "cpu_name should not be empty");
         assert!(res.cpu_count > 0, "cpu_count should be > 0");

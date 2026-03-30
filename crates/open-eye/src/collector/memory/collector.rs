@@ -32,7 +32,7 @@ mod tests {
 
     #[test]
     fn get_current_memory_stats_test() {
-        use crate::collector::memory::types::get_current_memory_stats;
+        use crate::collector::memory::collector::get_current_memory_stats;
 
         let res = get_current_memory_stats();
 
