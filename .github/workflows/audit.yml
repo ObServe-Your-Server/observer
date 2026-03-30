@@ -8,7 +8,7 @@ on:
 jobs:
   audit:
     name: cargo audit
-    runs-on: [observe-self-hosted]
+    runs-on: [observe-runner]
     container: rust:latest
     steps:
       - uses: actions/checkout@v5

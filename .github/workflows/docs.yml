@@ -8,7 +8,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: [observe-self-hosted]
+    runs-on: [observe-runner]
     container: rust:latest
     permissions:
       contents: write
