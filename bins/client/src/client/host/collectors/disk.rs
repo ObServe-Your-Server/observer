@@ -119,7 +119,12 @@ mod linux {
         // -b: output sizes in exact bytes (no human-readable rounding)
         // TYPE column lets us filter to only real physical disks
         let output = Command::new("lsblk")
-            .args(["-b", "-J", "-o", "NAME,SIZE,FSUSED,FSAVAIL,FSTYPE,MOUNTPOINT,MODEL,TYPE"])
+            .args([
+                "-b",
+                "-J",
+                "-o",
+                "NAME,SIZE,FSUSED,FSAVAIL,FSTYPE,MOUNTPOINT,MODEL,TYPE",
+            ])
             .output();
 
         let output = match output {

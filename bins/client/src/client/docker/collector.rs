@@ -91,9 +91,10 @@ pub async fn list_containers(
                     format!("Docker socket unavailable: ping failed"),
                 ))
                 .await;
-            return Err(CollectionError::DockerSocketUnavailable(
-                format!("ping failed: {}", e),
-            ));
+            return Err(CollectionError::DockerSocketUnavailable(format!(
+                "ping failed: {}",
+                e
+            )));
         }
     }
 
