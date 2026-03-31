@@ -20,7 +20,7 @@ jobs:
   build:
     name: Build and publish prerelease
     needs: test
-    runs-on: [observer-self-hosted]
+    runs-on: [observe-runner]
     container: rust:latest
     permissions:
       contents: write

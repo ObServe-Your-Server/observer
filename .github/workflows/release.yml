@@ -20,7 +20,7 @@ jobs:
   build:
     name: Build and publish release
     needs: test  # only runs if tests pass
-    runs-on: [observer-self-hosted]
+    runs-on: [observe-runner]
     container: rust:latest
     permissions:
       contents: write  # required to create the release and upload the binary
