@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Chapter 1 - Observer</title>
+        <title>Introduction - Observer</title>
 
 
         <!-- Custom HTML head -->
@@ -28,7 +28,7 @@
         <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="theme/custom-95890d83.css">
+        <link rel="stylesheet" href="theme/custom-a6d3a2ab.css">
 
 
         <!-- Provide site root and default themes to javascript -->
@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "coal";
             const default_dark_theme = "coal";
-            window.path_to_searchindex_js = "searchindex-f69ef9e9.js";
+            window.path_to_searchindex_js = "searchindex-f513556d.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-3fa54c7d.js"></script>
+        <script src="toc-c7b58e43.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -179,74 +179,32 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="observer"><a class="header" href="#observer">Observer</a></h1>
-<p>Observer is a lightweight agent that runs on your server and streams system metrics to a central endpoint.</p>
-<h2 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h2>
-<p>Install the agent with a single command:</p>
-<pre><code class="language-sh">curl -fsSL https://raw.githubusercontent.com/ObServe-Your-Server/observer/main/setup/deploy.sh | sudo bash
-</code></pre>
-<p>Then check it’s running:</p>
-<pre><code class="language-sh">systemctl status observer
-journalctl -u observer -f
-</code></pre>
-<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
-<p>The config lives at <code>/etc/observer/observer.toml</code>. Here’s a minimal example:</p>
-<pre><code class="language-toml">[server]
-base_metrics_url  = "https://your-server.com/api/metrics"
-api_key           = "your-api-key"
-
-[intervals]
-metric_secs    = 5
-speedtest_secs = 300
-</code></pre>
-<h3 id="config-options"><a class="header" href="#config-options">Config Options</a></h3>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Key</th><th>Default</th><th>Description</th></tr>
-</thead>
-<tbody>
-<tr><td><code>base_metrics_url</code></td><td>—</td><td>Endpoint to POST metrics to</td></tr>
-<tr><td><code>api_key</code></td><td>—</td><td>Authentication key</td></tr>
-<tr><td><code>metric_secs</code></td><td><code>5</code></td><td>How often to collect metrics (2–60s)</td></tr>
-<tr><td><code>speedtest_secs</code></td><td><code>300</code></td><td>How often to run a speedtest (60–86400s)</td></tr>
-<tr><td><code>docker_secs</code></td><td><code>10</code></td><td>Docker container poll interval</td></tr>
-</tbody>
-</table>
-</div>
-<h2 id="what-gets-collected"><a class="header" href="#what-gets-collected">What Gets Collected</a></h2>
+<p>Observer is a lightweight Rust agent that collects metrics and streams them to Watch-Tower, our backend.
+For Questions or our community please join our <a href="https://discord.gg/Xnh7nKdsnM">Discord</a> server and ask questions there.</p>
+<h2 id="what-it-monitors"><a class="header" href="#what-it-monitors">What it monitors</a></h2>
 <ul>
-<li><strong>CPU</strong> — usage percentage per core</li>
-<li><strong>RAM</strong> — used / total memory</li>
-<li><strong>Storage</strong> — disk usage per mount</li>
-<li><strong>Uptime</strong> — system uptime in seconds</li>
-<li><strong>Speedtest</strong> — download, upload, ping via Cloudflare</li>
-<li><strong>Docker</strong> — per-container CPU and memory stats</li>
+<li>CPU, RAM, disk, and network usage</li>
+<li>System info (hostname, OS, uptime, IP)</li>
+<li>Docker container CPU and memory</li>
+<li>Network speed (download, upload, latency)</li>
+<li>Component health state changes</li>
 </ul>
-<blockquote>
-<p><strong>Note:</strong> The speedtest runs against Cloudflare’s speed test endpoint. It adds some outbound traffic — tune <code>speedtest_secs</code> if needed.</p>
-</blockquote>
-<h2 id="useful-commands"><a class="header" href="#useful-commands">Useful Commands</a></h2>
-<pre><code class="language-sh">systemctl restart observer          # restart the agent
-systemctl stop observer             # stop the agent
-journalctl -u observer --since "1 hour ago"   # recent logs
-OBSERVER_LOG_LEVEL=debug /usr/local/bin/observer  # debug mode
+<h2 id="how-it-works"><a class="header" href="#how-it-works">How it works</a></h2>
+<p>Observer runs as a background service, periodically collecting metrics and POSTing them to
+a backend endpoint. It authenticates with an API key and can poll the backend for
+remote commands to execute.</p>
+<h2 id="this-is-a-early-access-version"><a class="header" href="#this-is-a-early-access-version">This is a early access version</a></h2>
+<p>As this is an early access version you application on you server shouldn’t fail. It is more likely
+that our <em>Watch-Tower</em> backend fails. There is a mechanism which shuts down you backend if it cant connect after x amount of retries to our server. If you dont get metrics in the frontend. This is a likely cause. So please go ahead and just restart observer on your server.</p>
+<pre><code class="language-sh">systemctl restart observer
 </code></pre>
-<h2 id="status-indicators"><a class="header" href="#status-indicators">Status Indicators</a></h2>
-<p>When viewing metrics in the dashboard, servers show one of three states:</p>
-<ul>
-<li>Online — agent is connected and sending data</li>
-<li>Offline — no data received recently</li>
-<li>Connecting — agent started, waiting for first ping</li>
-</ul>
-<hr>
-<p>See the next section for deployment details.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
 
-                            <a rel="next prefetch" href="chapter_2.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="getting-started/installation.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -257,7 +215,7 @@ OBSERVER_LOG_LEVEL=debug /usr/local/bin/observer  # debug mode
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
 
-                    <a rel="next prefetch" href="chapter_2.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="getting-started/installation.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

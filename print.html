@@ -29,7 +29,7 @@
         <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="theme/custom-95890d83.css">
+        <link rel="stylesheet" href="theme/custom-a6d3a2ab.css">
 
 
         <!-- Provide site root and default themes to javascript -->
@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "coal";
             const default_dark_theme = "coal";
-            window.path_to_searchindex_js = "searchindex-f69ef9e9.js";
+            window.path_to_searchindex_js = "searchindex-f513556d.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-3fa54c7d.js"></script>
+        <script src="toc-c7b58e43.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -180,125 +180,105 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="observer"><a class="header" href="#observer">Observer</a></h1>
-<p>Observer is a lightweight agent that runs on your server and streams system metrics to a central endpoint.</p>
-<h2 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h2>
-<p>Install the agent with a single command:</p>
-<pre><code class="language-sh">curl -fsSL https://raw.githubusercontent.com/ObServe-Your-Server/observer/main/setup/deploy.sh | sudo bash
+<p>Observer is a lightweight Rust agent that collects metrics and streams them to Watch-Tower, our backend.
+For Questions or our community please join our <a href="https://discord.gg/Xnh7nKdsnM">Discord</a> server and ask questions there.</p>
+<h2 id="what-it-monitors"><a class="header" href="#what-it-monitors">What it monitors</a></h2>
+<ul>
+<li>CPU, RAM, disk, and network usage</li>
+<li>System info (hostname, OS, uptime, IP)</li>
+<li>Docker container CPU and memory</li>
+<li>Network speed (download, upload, latency)</li>
+<li>Component health state changes</li>
+</ul>
+<h2 id="how-it-works"><a class="header" href="#how-it-works">How it works</a></h2>
+<p>Observer runs as a background service, periodically collecting metrics and POSTing them to
+a backend endpoint. It authenticates with an API key and can poll the backend for
+remote commands to execute.</p>
+<h2 id="this-is-a-early-access-version"><a class="header" href="#this-is-a-early-access-version">This is a early access version</a></h2>
+<p>As this is an early access version you application on you server shouldn’t fail. It is more likely
+that our <em>Watch-Tower</em> backend fails. There is a mechanism which shuts down you backend if it cant connect after x amount of retries to our server. If you dont get metrics in the frontend. This is a likely cause. So please go ahead and just restart observer on your server.</p>
+<pre><code class="language-sh">systemctl restart observer
 </code></pre>
-<p>Then check it’s running:</p>
-<pre><code class="language-sh">systemctl status observer
-journalctl -u observer -f
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
+<h2 id="one-liner-installer"><a class="header" href="#one-liner-installer">One-liner installer</a></h2>
+<pre><code class="language-sh">curl -fsSL https://install.observe.vision | sudo bash
 </code></pre>
-<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
-<p>The config lives at <code>/etc/observer/observer.toml</code>. Here’s a minimal example:</p>
-<pre><code class="language-toml">[server]
-base_metrics_url  = "https://your-server.com/api/metrics"
-api_key           = "your-api-key"
+<p>This script detects your init system (systemd or OpenRC) and installs Observer as a managed service.</p>
+<h2 id="manual-installation"><a class="header" href="#manual-installation">Manual installation</a></h2>
+<p>Download the latest binary from the releases page and place it in <code>/usr/local/bin/observer</code> or a directory
+of your choice.
+Then place the config file at <code>/etc/observer/observer.toml</code> or any other dir if you want:</p>
+<p>Example:</p>
+<pre><code class="language-sh"># download and place the bin in there
+mkdir -p /usr/local/bin/observer
+</code></pre>
+<h3 id="create-the-config-dir"><a class="header" href="#create-the-config-dir">Create the config dir</a></h3>
+<pre><code class="language-sh">mkdir -p /etc/observer
+touch /etc/observer/observer.toml
+chmod 600 /etc/observer/observer.toml
+</code></pre>
+<p>In this file you can now place the config:</p>
+<pre><code class="language-sh">[server]
+base_metrics_url  = "https://watch-tower.observe.vision/v1/ingest"
+base_commands_url = "https://watch-tower.observe.vision/v1/commands"
+base_docker_url   = "https://watch-tower.observe.vision/v1/ingest/docker"
+base_notifier_url = "https://watch-tower.observe.vision/v1/ingest/notification"
+api_key           = "&lt;api-key&gt;"
 
 [intervals]
-metric_secs    = 5
-speedtest_secs = 300
+metric_secs       = 2           # 2–60 seconds
+command_poll_secs = 10          # 1–60 seconds
+speedtest_secs    = 3600        # 60–86400 seconds (1 hour)
+enable_docker_socket = true
+docker_secs       = 10          # 10–60 seconds
 </code></pre>
-<h3 id="config-options"><a class="header" href="#config-options">Config Options</a></h3>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Key</th><th>Default</th><th>Description</th></tr>
-</thead>
-<tbody>
-<tr><td><code>base_metrics_url</code></td><td>—</td><td>Endpoint to POST metrics to</td></tr>
-<tr><td><code>api_key</code></td><td>—</td><td>Authentication key</td></tr>
-<tr><td><code>metric_secs</code></td><td><code>5</code></td><td>How often to collect metrics (2–60s)</td></tr>
-<tr><td><code>speedtest_secs</code></td><td><code>300</code></td><td>How often to run a speedtest (60–86400s)</td></tr>
-<tr><td><code>docker_secs</code></td><td><code>10</code></td><td>Docker container poll interval</td></tr>
-</tbody>
-</table>
-</div>
-<h2 id="what-gets-collected"><a class="header" href="#what-gets-collected">What Gets Collected</a></h2>
-<ul>
-<li><strong>CPU</strong> — usage percentage per core</li>
-<li><strong>RAM</strong> — used / total memory</li>
-<li><strong>Storage</strong> — disk usage per mount</li>
-<li><strong>Uptime</strong> — system uptime in seconds</li>
-<li><strong>Speedtest</strong> — download, upload, ping via Cloudflare</li>
-<li><strong>Docker</strong> — per-container CPU and memory stats</li>
-</ul>
-<blockquote>
-<p><strong>Note:</strong> The speedtest runs against Cloudflare’s speed test endpoint. It adds some outbound traffic — tune <code>speedtest_secs</code> if needed.</p>
-</blockquote>
-<h2 id="useful-commands"><a class="header" href="#useful-commands">Useful Commands</a></h2>
-<pre><code class="language-sh">systemctl restart observer          # restart the agent
-systemctl stop observer             # stop the agent
-journalctl -u observer --since "1 hour ago"   # recent logs
-OBSERVER_LOG_LEVEL=debug /usr/local/bin/observer  # debug mode
+<p>Then it is only a matter of inserting the api key and starting the application with the env for the config file.</p>
+<pre><code class="language-sh">OBSERVER_CONFIG=/etc/observer/observer.toml /usr/local/bin/observer
 </code></pre>
-<h2 id="status-indicators"><a class="header" href="#status-indicators">Status Indicators</a></h2>
-<p>When viewing metrics in the dashboard, servers show one of three states:</p>
-<ul>
-<li>Online — agent is connected and sending data</li>
-<li>Offline — no data received recently</li>
-<li>Connecting — agent started, waiting for first ping</li>
-</ul>
-<hr>
-<p>See the next section for deployment details.</p>
+<h2 id="compile-from-source"><a class="header" href="#compile-from-source">Compile from source</a></h2>
+<p>Requires <a href="https://rustup.rs">Rust</a> (edition 2024, stable toolchain).</p>
+<pre><code class="language-sh">git clone https://github.com/ObServe-Your-Server/observer.git
+cd observer
+cargo build --release
+cp target/release/observer /usr/local/bin/observer
+</code></pre>
+<p>Then the rest of the setup from above also works.</p>
 <div style="break-before: page; page-break-before: always;"></div>
-<h1 id="chapter-2"><a class="header" href="#chapter-2">Chapter 2</a></h1>
-<p>This is a sample second chapter.</p>
-<h2 id="a-section"><a class="header" href="#a-section">A Section</a></h2>
-<p>Some body text here. Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
-<h3 id="a-subsection"><a class="header" href="#a-subsection">A Subsection</a></h3>
-<p>More text with an inline <code>code snippet</code> and a link to <a href="#observer">Chapter 1</a>.</p>
-<h2 id="code-example"><a class="header" href="#code-example">Code Example</a></h2>
-<pre><code class="language-sh">echo "hello from chapter 2"
+<h1 id="useful-infos"><a class="header" href="#useful-infos">Useful infos</a></h1>
+<p>After installation, you can edit the configuration file and start the service. If you run through the
+installer over the shell script then all should be set and ready to go.</p>
+<p>If you need to edit the config file it is under <code>/etc/observer/observer.toml</code>.</p>
+<h3 id="important"><a class="header" href="#important">IMPORTANT</a></h3>
+<p>If you need to reconfigure or update observer you can do this via the provided
+shellcript on our repo or webseite.</p>
+<p>For starting the service or other information
+(this is all for systemd you can search the correspoding commands
+for you system or if you have an own config it may be different):</p>
+<pre><code class="language-sh"># get the status of observer
+systemctl status observer
+
+# restart
+sytemctl restart observer
+
+# see and follow the logs
+journalctl -u observer -f
+
+# show the last 20 log lines
+journalctl -u observer -n 20
 </code></pre>
-<h2 id="a-table"><a class="header" href="#a-table">A Table</a></h2>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Column A</th><th>Column B</th><th>Column C</th></tr>
-</thead>
-<tbody>
-<tr><td>foo</td><td>bar</td><td>baz</td></tr>
-<tr><td>one</td><td>two</td><td>three</td></tr>
-</tbody>
-</table>
-</div>
-<blockquote>
-<p>This is a blockquote for testing styles.</p>
-</blockquote>
 <div style="break-before: page; page-break-before: always;"></div>
-<h1 id="chapter-3"><a class="header" href="#chapter-3">Chapter 3</a></h1>
-<p>Another sample chapter for style testing.</p>
-<h2 id="section-one"><a class="header" href="#section-one">Section One</a></h2>
-<p>Body text goes here. Observer collects metrics and sends them to your server endpoint.</p>
-<h3 id="nested-section"><a class="header" href="#nested-section">Nested Section</a></h3>
-<p>More detail with an inline <code>variable</code> and some <strong>bold</strong> and <em>italic</em> text.</p>
-<h2 id="code-block"><a class="header" href="#code-block">Code Block</a></h2>
-<pre class="playground"><code class="language-rust">fn main() {
-    println!("Observer starting...");
-}</code></pre>
-<h2 id="another-table"><a class="header" href="#another-table">Another Table</a></h2>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Key</th><th>Type</th><th>Required</th><th>Description</th></tr>
-</thead>
-<tbody>
-<tr><td><code>api_key</code></td><td>string</td><td>yes</td><td>Authentication key</td></tr>
-<tr><td><code>metric_secs</code></td><td>int</td><td>no</td><td>Collection interval</td></tr>
-<tr><td><code>speedtest_secs</code></td><td>int</td><td>no</td><td>Speedtest interval</td></tr>
-</tbody>
-</table>
-</div>
-<blockquote>
-<p><strong>Note:</strong> All interval values must be within the allowed range defined in the config.</p>
-</blockquote>
-<h2 id="list-example"><a class="header" href="#list-example">List Example</a></h2>
+<h1 id="contributing"><a class="header" href="#contributing">Contributing</a></h1>
+<p>We are actively looking for developers to join the project — both for <strong>Observer</strong> (this agent) and <strong>Watch-Tower</strong>, the backend that collects and serves metrics to the dashboard. All skill levels are welcome.</p>
+<h2 id="ways-to-contribute"><a class="header" href="#ways-to-contribute">Ways to contribute</a></h2>
 <ul>
-<li>First item in a list</li>
-<li>Second item with <code>inline code</code></li>
-<li>Third item with a <a href="#observer">link</a></li>
+<li><strong>Bug reports</strong> — open an issue on GitHub with steps to reproduce</li>
+<li><strong>Feature requests</strong> — open an issue describing the use case</li>
+<li><strong>Pull requests</strong> — fork the repo, make your changes, and submit a PR against <code>main</code></li>
+<li><strong>Documentation</strong> — improvements to these docs are always appreciated</li>
 </ul>
+<h2 id="getting-in-touch"><a class="header" href="#getting-in-touch">Getting in touch</a></h2>
+<p>Join our <a href="https://discord.gg/Xnh7nKdsnM">Discord</a> for questions, ideas, or just to follow along with development. You can also reach us directly at <a href="mailto:mail@observe.vision">mail@observe.vision</a>.</p>
 
                     </main>
 

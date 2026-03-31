@@ -15,7 +15,7 @@
   /* Proportional type scale (all relative to --base via rem) */
   --text-xs:   0.7rem;   /* labels, badges     ~12px */
   --text-sm:   0.85rem;  /* small UI           ~14px */
-  --text-base: 1rem;     /* body               ~17px */
+  --text-base: 1.15rem;  /* body               ~17px */
   --text-md:   1.15rem;  /* large body         ~20px */
   --text-lg:   1.4rem;   /* h3                 ~24px */
   --text-xl:   1.85rem;  /* h2                 ~31px */
@@ -28,7 +28,7 @@
   --bg-input:       #0d0d0d;
 
   --text:           #ffffff;
-  --text-body:      rgba(255, 255, 255, 0.5);
+  --text-body:      rgba(255, 255, 255, 0.75);
   --text-secondary: rgba(255, 255, 255, 0.7);
   --text-muted:     rgba(255, 255, 255, 0.3);
   --text-label:     rgba(255, 255, 255, 0.25);
@@ -51,7 +51,7 @@
 .coal, .navy, .ayu, .rust, .light {
   --bg:             #000000 !important;
   --sidebar-bg:     #050505 !important;
-  --fg:             rgba(255, 255, 255, 0.5) !important;
+  --fg:             rgba(255, 255, 255, 0.75) !important;
   --sidebar-fg:     rgba(255, 255, 255, 0.5) !important;
   --sidebar-active: #458CFD !important;
   --links:          #458CFD !important;
@@ -135,7 +135,7 @@ body {
 
 .chapter li a {
   color: rgba(255, 255, 255, 0.5) !important;
-  font-size: var(--text-base) !important;
+  font-size: 0.97rem !important;
   font-family: var(--font-sans) !important;
   letter-spacing: 0.01em !important;
   border-radius: 0 !important;
@@ -283,18 +283,18 @@ pre {
   border-radius: 0 !important;
   padding: 1.5rem 2rem !important;
   font-family: var(--font-mono) !important;
-  font-size: var(--text-base) !important;
+  font-size: 0.93rem !important;
   line-height: 1.65 !important;
 }
 
 pre code {
   font-family: var(--font-mono) !important;
-  font-size: var(--text-base) !important;
+  font-size: 0.93rem !important;
 }
 
 code {
   font-family: var(--font-mono) !important;
-  font-size: var(--text-base) !important;
+  font-size: 0.93rem !important;
 }
 
 :not(pre) > code {
@@ -373,21 +373,21 @@ tr:hover td {
 /* ── Nav buttons (prev / next) ── */
 .nav-wrapper {
   border-top: 1px solid var(--border) !important;
-  padding: 1.5rem 0 2rem !important;
+  padding: 0.75rem 0 1.25rem !important;
   display: flex;
   justify-content: center;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .nav-wrapper a.nav-chapters {
   color: rgba(255, 255, 255, 0.35) !important;
-  font-size: var(--text-xs) !important;
+  font-size: 0.6rem !important;
   font-family: var(--font-mono) !important;
   letter-spacing: 0.08em !important;
   text-transform: uppercase !important;
   text-decoration: none !important;
   border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  padding: 0.65rem 1.25rem !important;
+  padding: 0.3rem 0.65rem !important;
   position: relative !important;
   transition: color 0.2s, border-color 0.2s !important;
   background: transparent !important;
@@ -402,8 +402,8 @@ tr:hover td {
 .nav-wrapper a.nav-chapters::after {
   content: '';
   position: absolute;
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
   border-color: rgba(255, 255, 255, 0.3);
   border-style: solid;
   transition: border-color 0.2s, transform 0.2s;
