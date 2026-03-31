@@ -2,6 +2,8 @@
 
 A lightweight agent that runs on a server and collects system metrics. It periodically measures CPU usage, RAM, storage, uptime and runs speedtests, then streams the results to a central endpoint.
 
+Documentation can also be found under [docs](https://observer-docs.observe.vision/).
+
 ## Deploy
 
 **One-liner install (recommended)**

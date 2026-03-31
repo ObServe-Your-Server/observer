@@ -1,5 +1,9 @@
 # Summary
 
-- [Chapter 1](./chapter_1.md)
-- [Chapter 2](./chapter_2.md)
-- [Chapter 3](./chapter_3.md)
+- [Introduction](./index.md)
+
+
+- [Quick Start](./getting-started/installation.md)
+  - [Useful infos](./getting-started/useful-information.md)
+
+- [Contributing](./contributing.md)
