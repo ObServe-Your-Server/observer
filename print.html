@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "coal";
             const default_dark_theme = "coal";
-            window.path_to_searchindex_js = "searchindex-f513556d.js";
+            window.path_to_searchindex_js = "searchindex-dc7ec431.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c7b58e43.js"></script>
+        <script src="toc-989fdf95.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -266,6 +266,16 @@ journalctl -u observer -f
 
 # show the last 20 log lines
 journalctl -u observer -n 20
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="pre-release-builds"><a class="header" href="#pre-release-builds">Pre-release builds</a></h1>
+<p>We also offer pre-release versions of the observer backend. They are considered less stable though
+all our observer builds have a current proud error rate of 0%. It never once had an irrecoverable
+issue in the software.
+That said the pre-releases are the ones we are actively working on and have the newest features.
+This said you should be aware of issues which can happen.</p>
+<p>Out of the way with the warnings. Here you can install them:</p>
+<pre><code class="language-sh">curl -fsSL https://raw.githubusercontent.com/ObServe-Your-Server/observer/main/setup/deploy-pre.sh | sudo bash
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="contributing"><a class="header" href="#contributing">Contributing</a></h1>

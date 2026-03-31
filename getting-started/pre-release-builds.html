@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Quick Start - Observer</title>
+        <title>Pre-release builds - Observer</title>
 
 
         <!-- Custom HTML head -->
@@ -178,60 +178,25 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
-<h2 id="one-liner-installer"><a class="header" href="#one-liner-installer">One-liner installer</a></h2>
-<pre><code class="language-sh">curl -fsSL https://install.observe.vision | sudo bash
+                        <h1 id="pre-release-builds"><a class="header" href="#pre-release-builds">Pre-release builds</a></h1>
+<p>We also offer pre-release versions of the observer backend. They are considered less stable though
+all our observer builds have a current proud error rate of 0%. It never once had an irrecoverable
+issue in the software.
+That said the pre-releases are the ones we are actively working on and have the newest features.
+This said you should be aware of issues which can happen.</p>
+<p>Out of the way with the warnings. Here you can install them:</p>
+<pre><code class="language-sh">curl -fsSL https://raw.githubusercontent.com/ObServe-Your-Server/observer/main/setup/deploy-pre.sh | sudo bash
 </code></pre>
-<p>This script detects your init system (systemd or OpenRC) and installs Observer as a managed service.</p>
-<h2 id="manual-installation"><a class="header" href="#manual-installation">Manual installation</a></h2>
-<p>Download the latest binary from the releases page and place it in <code>/usr/local/bin/observer</code> or a directory
-of your choice.
-Then place the config file at <code>/etc/observer/observer.toml</code> or any other dir if you want:</p>
-<p>Example:</p>
-<pre><code class="language-sh"># download and place the bin in there
-mkdir -p /usr/local/bin/observer
-</code></pre>
-<h3 id="create-the-config-dir"><a class="header" href="#create-the-config-dir">Create the config dir</a></h3>
-<pre><code class="language-sh">mkdir -p /etc/observer
-touch /etc/observer/observer.toml
-chmod 600 /etc/observer/observer.toml
-</code></pre>
-<p>In this file you can now place the config:</p>
-<pre><code class="language-sh">[server]
-base_metrics_url  = "https://watch-tower.observe.vision/v1/ingest"
-base_commands_url = "https://watch-tower.observe.vision/v1/commands"
-base_docker_url   = "https://watch-tower.observe.vision/v1/ingest/docker"
-base_notifier_url = "https://watch-tower.observe.vision/v1/ingest/notification"
-api_key           = "&lt;api-key&gt;"
-
-[intervals]
-metric_secs       = 2           # 2–60 seconds
-command_poll_secs = 10          # 1–60 seconds
-speedtest_secs    = 3600        # 60–86400 seconds (1 hour)
-enable_docker_socket = true
-docker_secs       = 10          # 10–60 seconds
-</code></pre>
-<p>Then it is only a matter of inserting the api key and starting the application with the env for the config file.</p>
-<pre><code class="language-sh">OBSERVER_CONFIG=/etc/observer/observer.toml /usr/local/bin/observer
-</code></pre>
-<h2 id="compile-from-source"><a class="header" href="#compile-from-source">Compile from source</a></h2>
-<p>Requires <a href="https://rustup.rs">Rust</a> (edition 2024, stable toolchain).</p>
-<pre><code class="language-sh">git clone https://github.com/ObServe-Your-Server/observer.git
-cd observer
-cargo build --release
-cp target/release/observer /usr/local/bin/observer
-</code></pre>
-<p>Then the rest of the setup from above also works.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../getting-started/useful-information.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../getting-started/useful-information.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../contributing.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -241,11 +206,11 @@ cp target/release/observer /usr/local/bin/observer
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../getting-started/useful-information.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../getting-started/useful-information.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../contributing.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
