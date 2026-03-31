@@ -5,5 +5,6 @@
 
 - [Quick Start](./getting-started/installation.md)
   - [Useful infos](./getting-started/useful-information.md)
+  - [Pre-release builds](./getting-started/pre-release-builds.md)
 
 - [Contributing](./contributing.md)
