@@ -1,10 +1,16 @@
 # Observer
 
-A lightweight agent that runs on a server and collects system metrics. It periodically measures CPU usage, RAM, storage, uptime and runs speedtests, then streams the results to a central endpoint. You can also visit us on our [webseite](https://observe.vision/)
+A lightweight agent that runs on a server and collects system metrics. It periodically measures CPU usage, RAM, storage, uptime and runs speedtests, 
+then streams the results to a central endpoint. You can also visit us on our [webseite](https://observe.vision/).
 
 Documentation can also be found under [docs](https://observer-docs.observe.vision/).
 
-## Deploy
+<p align="center">
+  <img src="./assets/phone-left.svg" alt="app banner" width="300">
+  <img src="./assets/phone-right.svg" alt="app banner" width="300">
+</p>
+
+# Deploy
 
 **One-liner install (recommended)**
 
