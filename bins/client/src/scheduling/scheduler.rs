@@ -7,17 +7,17 @@ use tokio::time::MissedTickBehavior;
 
 use crate::client::metric_collection_errors::CollectionError;
 
-pub struct AppState {
+pub struct SubsystemState {
     pub metrics_enabled: RwLock<bool>,
     pub speedtest_enabled: RwLock<bool>,
     pub docker_metrics_enabled: RwLock<bool>,
     pub started_at: DateTime<Utc>,
 }
 
-static STATE: OnceLock<AppState> = OnceLock::new();
+static STATE: OnceLock<SubsystemState> = OnceLock::new();
 
-pub fn get_state() -> &'static AppState {
-    STATE.get_or_init(|| AppState {
+pub fn get_state() -> &'static SubsystemState {
+    STATE.get_or_init(|| SubsystemState {
         metrics_enabled: RwLock::new(true),
         speedtest_enabled: RwLock::new(true),
         docker_metrics_enabled: RwLock::new(true),
@@ -84,6 +84,7 @@ impl Scheduler {
     {
         let duration = Duration::from_secs(*self.interval_secs.read().unwrap() as u64);
         let mut interval = time::interval(duration);
+        // skip if the execution took too long or other issues
         interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
         info!(

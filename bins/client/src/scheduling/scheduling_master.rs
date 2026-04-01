@@ -1,9 +1,9 @@
 use crate::client::docker::docker_job;
 use crate::client::host::{command_polling, speedtest};
+use crate::scheduling::scheduler::{Scheduler, SchedulerKind};
 use crate::{
     client::host::system_metric_collection,
     config::get_config,
-    scheduler::{Scheduler, SchedulerKind},
     system_health::HostSytemHealth,
 };
 

@@ -1395,6 +1395,7 @@ dependencies = [
  "local-ip-address",
  "log",
  "nix",
+ "reqwest",
  "serde",
  "serde_json",
  "sysinfo",

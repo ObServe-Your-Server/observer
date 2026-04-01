@@ -4,9 +4,6 @@ use reqwest::Client;
 use crate::client::metric_collection_errors::CollectionError;
 use crate::system_health::HostSytemHealth;
 
-use super::collector::list_containers;
-use super::docker_metric_sender::send;
-
 // TODO: Error handling
 pub async fn collect(host_sytem_health: HostSytemHealth) -> Result<(), CollectionError> {
     let containers = match list_containers(host_sytem_health).await {

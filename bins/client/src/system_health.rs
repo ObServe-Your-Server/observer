@@ -78,52 +78,19 @@ impl HostSytemHealth {
         }
     }
 
-    pub async fn set_cpu_state(&self, new_state: State) {
-        let old_cpu_state = self.cpu.read().await.clone();
-        if old_cpu_state != new_state {
-            debug!("cpu state changed: {:?}", new_state);
-            *self.cpu.write().await = new_state.clone();
-            // send notification
-            self.handle_notification(new_state).await;
-        }
-    }
-
-    pub async fn set_memory_state(&self, new_state: State) {
-        let old_memory_state = self.memory.read().await.clone();
-        if old_memory_state != new_state {
-            debug!("memory state changed: {:?}", new_state);
-            *self.memory.write().await = new_state.clone();
-            // send notification
-            self.handle_notification(new_state).await;
-        }
-    }
-
-    pub async fn set_disk_state(&self, new_state: State) {
-        let old_disk_state = self.disk.read().await.clone();
-        if old_disk_state != new_state {
-            debug!("disk state changed: {:?}", new_state);
-            *self.disk.write().await = new_state.clone();
-            // send notification
-            self.handle_notification(new_state).await;
-        }
-    }
-
-    pub async fn set_network_stats_state(&self, new_state: State) {
-        let old_network_stats_state = self.network_stats.read().await.clone();
-        if old_network_stats_state != new_state {
-            debug!("network stats state changed: {:?}", new_state);
-            *self.network_stats.write().await = new_state.clone();
-            // send notification
-            self.handle_notification(new_state).await;
-        }
-    }
-
-    pub async fn set_docker_state(&self, new_state: State) {
-        let old_docker_state = self.docker.read().await.clone();
-        if old_docker_state != new_state {
-            debug!("docker state changed: {:?}", new_state);
-            *self.docker.write().await = new_state.clone();
-            // send notification
+    pub async fn set_state(&self, new_state: State) {
+        let slot = match new_state.component {
+            HostComponent::Cpu => &self.cpu,
+            HostComponent::Memory => &self.memory,
+            HostComponent::Disk => &self.disk,
+            HostComponent::Network => &self.network_stats,
+            HostComponent::Docker => &self.docker,
+            HostComponent::Speedtest => return,
+        };
+        let old_state = slot.read().await.clone();
+        if old_state != new_state {
+            debug!("{:?} state changed: {:?}", new_state.component, new_state);
+            *slot.write().await = new_state.clone();
             self.handle_notification(new_state).await;
         }
     }
