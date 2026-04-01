@@ -26,3 +26,4 @@ tokio = { version = "1.50.0", features = ["full"] }
 local-ip-address = "0.6"
 docker-api = "0.14.0"
 futures-util = "0.3.32"
+nix = { version = "0.31.2", features = ["fs"] }
