@@ -2,7 +2,7 @@ use log::{error, info};
 
 use observer_client::config::init_config;
 use observer_client::logging::init_logging;
-use observer_client::scheduling_master::SchedulingMaster;
+use observer_client::scheduling::scheduling_master::SchedulingMaster;
 
 use std::env;
 

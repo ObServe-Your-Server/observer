@@ -5,7 +5,8 @@ use serde::Deserialize;
 
 use crate::client::metric_collection_errors::CollectionError;
 use crate::config::get_config;
-use crate::scheduler::get_state;
+use crate::scheduling::scheduler::get_state;
+
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]

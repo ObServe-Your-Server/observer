@@ -1,2 +1,2 @@
 pub mod scheduling_master;
-mod scheduler;
+pub mod scheduler;

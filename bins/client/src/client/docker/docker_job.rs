@@ -6,7 +6,7 @@ use crate::system_health::HostSytemHealth;
 
 // TODO: Error handling
 pub async fn collect(host_sytem_health: HostSytemHealth) -> Result<(), CollectionError> {
-    let containers = match list_containers(host_sytem_health).await {
+    /*let containers = match list_containers(host_sytem_health).await {
         Ok(Some(c)) => c,
         Ok(None) => return Ok(()),
         Err(e) => return Err(e),
@@ -17,7 +17,8 @@ pub async fn collect(host_sytem_health: HostSytemHealth) -> Result<(), Collectio
     match send(&client, &containers).await {
         Ok(()) => Ok(()),
         Err(e) => Err(e),
-    }
+    }*/
+    todo!()
 }
 
 #[cfg(test)]
