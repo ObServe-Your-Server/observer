@@ -138,6 +138,8 @@ impl Scheduler {
                                 name, self.max_error_count, collection_error
                             );
                         }
+                    } else {
+                        log::error!("Another error occurred during a collection run: {}", e);
                     }
                 }
                 Err(_) => {
