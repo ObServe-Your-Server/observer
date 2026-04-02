@@ -1,11 +1,5 @@
-use crate::client::docker::docker_job;
-use crate::client::host::{command_polling, speedtest};
 use crate::scheduling::scheduler::{Scheduler, SchedulerKind};
-use crate::{
-    client::host::system_metric_collection,
-    config::get_config,
-    system_health::HostSytemHealth,
-};
+use crate::{config::get_config, subsystem::host_metrics_collector::HostMetrics};
 
 pub struct SchedulingMaster {}
 
@@ -18,45 +12,7 @@ impl SchedulingMaster {
             config.intervals.metric_secs as u32,
             15,
         );
-        let mut command_scheduler = Scheduler::new(
-            SchedulerKind::CommandPolling,
-            config.intervals.command_poll_secs as u32,
-            15,
-        );
-        let mut speedtest_scheduler = Scheduler::new(
-            SchedulerKind::Speedtest,
-            config.intervals.speedtest_secs,
-            15,
-        );
-        let mut docker_scheduler = Scheduler::new(
-            SchedulerKind::DockerMetricCollection,
-            config.intervals.docker_secs as u32,
-            10,
-        );
 
-        let host_system_health = HostSytemHealth::new();
-        let health_for_metrics = host_system_health.clone();
-        let health_for_docker = host_system_health.clone();
-
-        let docker_fut = async move {
-            if config.intervals.enable_docker_socket {
-                docker_scheduler
-                    .run(move || {
-                        let h = health_for_docker.clone();
-                        docker_job::collect(h)
-                    })
-                    .await;
-            }
-        };
-
-        tokio::join!(
-            metric_scheduler.run(move || {
-                let h = health_for_metrics.clone();
-                system_metric_collection::collection_job(h)
-            }),
-            command_scheduler.run(|| command_polling::poll()),
-            speedtest_scheduler.run(|| speedtest::run()),
-            docker_fut,
-        );
+        metric_scheduler.run(|| HostMetrics::run()).await;
     }
 }

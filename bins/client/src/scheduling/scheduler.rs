@@ -9,8 +9,6 @@ use crate::client::metric_collection_errors::CollectionError;
 
 pub struct SubsystemState {
     pub metrics_enabled: RwLock<bool>,
-    pub speedtest_enabled: RwLock<bool>,
-    pub docker_metrics_enabled: RwLock<bool>,
     pub started_at: DateTime<Utc>,
 }
 
@@ -19,26 +17,18 @@ static STATE: OnceLock<SubsystemState> = OnceLock::new();
 pub fn get_state() -> &'static SubsystemState {
     STATE.get_or_init(|| SubsystemState {
         metrics_enabled: RwLock::new(true),
-        speedtest_enabled: RwLock::new(true),
-        docker_metrics_enabled: RwLock::new(true),
         started_at: Utc::now(),
     })
 }
 
 pub enum SchedulerKind {
     MetricCollection,
-    CommandPolling,
-    Speedtest,
-    DockerMetricCollection,
 }
 
 impl SchedulerKind {
     fn as_str(&self) -> &'static str {
         match self {
             SchedulerKind::MetricCollection => "metric-collection",
-            SchedulerKind::CommandPolling => "command-polling",
-            SchedulerKind::Speedtest => "speedtest",
-            SchedulerKind::DockerMetricCollection => "docker-metric-collection",
         }
     }
 
@@ -46,9 +36,6 @@ impl SchedulerKind {
         let state = get_state();
         match self {
             SchedulerKind::MetricCollection => *state.metrics_enabled.read().unwrap(),
-            SchedulerKind::CommandPolling => true,
-            SchedulerKind::Speedtest => *state.speedtest_enabled.read().unwrap(),
-            SchedulerKind::DockerMetricCollection => *state.docker_metrics_enabled.read().unwrap(),
         }
     }
 }

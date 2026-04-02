@@ -1,11 +1,12 @@
 use nix::sys::statvfs::statvfs;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::process::Command;
 
 #[cfg(not(target_os = "linux"))]
 use sysinfo::Disks;
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiskInfo {
     pub name: String,
@@ -326,14 +327,18 @@ fn collect_zpools() -> Vec<DiskInfo> {
 
 // ── Public entry point ─────────────────────────────────────────────────────────
 
-#[cfg(target_os = "linux")]
-pub fn collect() -> Vec<DiskInfo> {
-    linux::collect()
-}
+pub struct DiskStats;
 
-#[cfg(target_os = "macos")]
-pub fn collect() -> Vec<DiskInfo> {
-    macos::collect()
+impl DiskStats {
+    #[cfg(target_os = "linux")]
+    pub fn get_current_stats() -> Vec<DiskInfo> {
+        linux::collect()
+    }
+
+    #[cfg(target_os = "macos")]
+    pub fn get_current_stats() -> Vec<DiskInfo> {
+        macos::collect()
+    }
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
@@ -344,7 +349,7 @@ mod tests {
 
     #[test]
     fn used_does_not_exceed_total() {
-        for d in collect() {
+        for d in DiskStats::get_current_stats() {
             assert!(d.total_bytes > 0, "{}: total must be > 0", d.name);
             assert!(
                 d.used_bytes <= d.total_bytes,
@@ -358,7 +363,7 @@ mod tests {
 
     #[test]
     fn blocks_consistent_with_bytes() {
-        for d in collect() {
+        for d in DiskStats::get_current_stats() {
             if d.block_size == 0 {
                 continue;
             }
@@ -379,7 +384,7 @@ mod tests {
 
     #[test]
     fn print_all_disks() {
-        let disks = collect();
+        let disks = DiskStats::get_current_stats();
 
         assert!(!disks.is_empty(), "No disks found — something is wrong");
 

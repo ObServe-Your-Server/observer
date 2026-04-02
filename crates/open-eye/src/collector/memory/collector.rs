@@ -1,6 +1,7 @@
+use serde::{Deserialize, Serialize};
 use sysinfo::System;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MemoryStats {
     pub total_memory_in_byte: u64,
     pub available_memory_in_byte: u64,
@@ -10,17 +11,19 @@ pub struct MemoryStats {
     pub used_swap_in_byte: u64,
 }
 
-pub fn get_current_memory_stats() -> MemoryStats {
-    let mut sys = System::new_all();
-    sys.refresh_memory();
+impl MemoryStats {
+    pub fn get_current_stats() -> MemoryStats {
+        let mut sys = System::new_all();
+        sys.refresh_memory();
 
-    MemoryStats {
-        total_memory_in_byte: sys.total_memory(),
-        available_memory_in_byte: sys.available_memory(),
-        used_memory_in_byte: sys.used_memory(),
-        total_swap_in_byte: sys.total_swap(),
-        available_swap_in_byte: sys.free_swap(),
-        used_swap_in_byte: sys.used_swap(),
+        MemoryStats {
+            total_memory_in_byte: sys.total_memory(),
+            available_memory_in_byte: sys.available_memory(),
+            used_memory_in_byte: sys.used_memory(),
+            total_swap_in_byte: sys.total_swap(),
+            available_swap_in_byte: sys.free_swap(),
+            used_swap_in_byte: sys.used_swap(),
+        }
     }
 }
 
@@ -30,11 +33,11 @@ mod tests {
 
     use sysinfo::System;
 
+    use crate::collector::memory::collector::MemoryStats;
+
     #[test]
     fn get_current_memory_stats_test() {
-        use crate::collector::memory::collector::get_current_memory_stats;
-
-        let res = get_current_memory_stats();
+        let res = MemoryStats::get_current_stats();
 
         assert!(res.total_memory_in_byte > 0, "total_memory should be > 0");
         assert!(

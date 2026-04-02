@@ -14,10 +14,6 @@ enum Command {
     StopApplication,
     StopMetricCollection,
     StartMetricCollection,
-    StopSpeedtest,
-    StartSpeedtest,
-    StopDockerMetricCollection,
-    StartDockerMetricCollection,
 }
 
 #[derive(Deserialize, Debug)]
@@ -79,14 +75,6 @@ pub async fn poll() -> Result<(), CollectionError> {
             }
             Command::StopMetricCollection => *state.metrics_enabled.write().unwrap() = false,
             Command::StartMetricCollection => *state.metrics_enabled.write().unwrap() = true,
-            Command::StopSpeedtest => *state.speedtest_enabled.write().unwrap() = false,
-            Command::StartSpeedtest => *state.speedtest_enabled.write().unwrap() = true,
-            Command::StopDockerMetricCollection => {
-                *state.docker_metrics_enabled.write().unwrap() = false
-            }
-            Command::StartDockerMetricCollection => {
-                *state.docker_metrics_enabled.write().unwrap() = true
-            }
         }
     }
 
