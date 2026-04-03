@@ -1,4 +1,3 @@
-use crate::client::metric_collection_errors::CollectionError;
 use open_eye::collector::{
     cpu::collector::CpuStats,
     disk::collector::{DiskInfo, DiskStats},
@@ -7,6 +6,8 @@ use open_eye::collector::{
     systemstats::collector::SystemStats,
 };
 use serde::{Deserialize, Serialize};
+
+use crate::scheduling::collection_error::CollectionError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HostMetrics {
@@ -28,17 +29,39 @@ impl HostMetrics {
         );
 
         HostMetrics {
-            cpu: cpu.map_err(|e| log::error!("cpu collector panicked: {e}")).ok(),
-            memory: memory.map_err(|e| log::error!("memory collector panicked: {e}")).ok(),
-            disks: disks.map_err(|e| log::error!("disk collector panicked: {e}")).ok(),
-            network: network.map_err(|e| log::error!("network collector panicked: {e}")).ok(),
-            system: system.map_err(|e| log::error!("system stats collector panicked: {e}")).ok(),
+            cpu: cpu
+                .map_err(|e| log::error!("cpu collector panicked: {e}"))
+                .ok(),
+            memory: memory
+                .map_err(|e| log::error!("memory collector panicked: {e}"))
+                .ok(),
+            disks: disks
+                .map_err(|e| log::error!("disk collector panicked: {e}"))
+                .ok(),
+            network: network
+                .map_err(|e| log::error!("network collector panicked: {e}"))
+                .ok(),
+            system: system
+                .map_err(|e| log::error!("system stats collector panicked: {e}"))
+                .ok(),
         }
     }
 
     pub async fn run() -> Result<(), CollectionError> {
         let metrics = HostMetrics::collect().await;
-        log::info!("Host metrics collected: {:?}", metrics);
+        log::debug!("Host metrics collected: {:?}", metrics);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::subsystem::host_metrics_collector::HostMetrics;
+
+    #[tokio::test]
+    async fn run_test() {
+        let metrics = HostMetrics::collect().await;
+
+        println!("Collected metrics: {:?}", metrics);
     }
 }

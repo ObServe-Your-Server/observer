@@ -5,5 +5,5 @@ pub mod gpu;
 pub mod memory;
 pub mod network;
 pub mod processes;
-pub mod systemstats;
 pub mod speedtest;
+pub mod systemstats;

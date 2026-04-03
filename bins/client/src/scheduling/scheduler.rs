@@ -5,7 +5,8 @@ use std::time::Duration;
 use tokio::time;
 use tokio::time::MissedTickBehavior;
 
-use crate::client::metric_collection_errors::CollectionError;
+use crate::scheduling::collection_error::CollectionError;
+
 
 pub struct SubsystemState {
     pub metrics_enabled: RwLock<bool>,
@@ -90,6 +91,7 @@ impl Scheduler {
             }
 
             let name = self.kind.as_str();
+            // run the job and wait on the result
             match time::timeout(duration, job()).await {
                 Ok(Ok(())) => match self.error_level {
                     ErrorLevel::ErrorCount(_) => {
@@ -108,18 +110,21 @@ impl Scheduler {
                         self.increment_error_count();
 
                         if self.error_level == ErrorLevel::ErrorCount(self.max_error_count) {
-                            // exit the application because max error count has been reached
-                            // if it is the docker socket unavailable error, just stop the job
+                            
+                            // if the container socket is unavailable then just 
+                            // stop this job and not exit in a whole
                             if matches!(
                                 collection_error,
-                                CollectionError::DockerSocketUnavailable(_)
+                                CollectionError::ContainerSocketUnavailable(_)
                             ) {
                                 log::warn!(
-                                    "Scheduler [{}] docker socket unavailable, stopping job",
+                                    "Scheduler [{}] container socket unavailable, stopping job",
                                     name
                                 );
                                 return;
                             }
+                            
+                            // exit the application if it is another error
                             panic!(
                                 "Scheduler [{}] max error count reached: {}. The last error was: {}",
                                 name, self.max_error_count, collection_error

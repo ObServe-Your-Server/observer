@@ -1,7 +1,7 @@
 use reqwest::{Error, StatusCode};
 
 #[derive(Debug)]
-pub enum CollectionError {
+pub enum CollectionErrorOld {
     MetricsCollectionTimeout,
     SendFailed(Error),
     PullFailed(Error),
@@ -10,19 +10,21 @@ pub enum CollectionError {
     DockerSocketUnavailable(String),
 }
 
-impl std::fmt::Display for CollectionError {
+impl std::fmt::Display for CollectionErrorOld {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CollectionError::MetricsCollectionTimeout => write!(f, "Metrics collection timed out"),
-            CollectionError::SendFailed(e) => write!(f, "Send failed: {}", e),
-            CollectionError::PullFailed(e) => write!(f, "Pull failed: {}", e),
-            CollectionError::ServerRejected(status) => write!(f, "Server rejected: {}", status),
-            CollectionError::ParsingFailed(e) => write!(f, "Parsing failed: {}", e),
-            CollectionError::DockerSocketUnavailable(e) => {
+            CollectionErrorOld::MetricsCollectionTimeout => {
+                write!(f, "Metrics collection timed out")
+            }
+            CollectionErrorOld::SendFailed(e) => write!(f, "Send failed: {}", e),
+            CollectionErrorOld::PullFailed(e) => write!(f, "Pull failed: {}", e),
+            CollectionErrorOld::ServerRejected(status) => write!(f, "Server rejected: {}", status),
+            CollectionErrorOld::ParsingFailed(e) => write!(f, "Parsing failed: {}", e),
+            CollectionErrorOld::DockerSocketUnavailable(e) => {
                 write!(f, "Docker socket unavailable: {}", e)
             }
         }
     }
 }
 
-impl std::error::Error for CollectionError {}
+impl std::error::Error for CollectionErrorOld {}

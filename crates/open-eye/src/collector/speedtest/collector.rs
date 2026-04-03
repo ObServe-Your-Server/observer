@@ -1,7 +1,10 @@
 use futures_util::StreamExt;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, atomic::{AtomicBool, AtomicU64, Ordering}};
+use std::sync::{
+    atomic::{AtomicBool, AtomicU64, Ordering},
+    Arc,
+};
 use std::time::{Duration, Instant};
 
 const DOWNLOAD_URL: &str = "https://speed.cloudflare.com/__down?bytes=100000000";
@@ -70,14 +73,18 @@ async fn download_stream(stop: Arc<AtomicBool>, counter: Arc<AtomicU64>) {
         Err(_) => return,
     };
     loop {
-        if stop.load(Ordering::Relaxed) { return; }
+        if stop.load(Ordering::Relaxed) {
+            return;
+        }
         let resp = match client.get(DOWNLOAD_URL).send().await {
             Ok(r) => r,
             Err(_) => return,
         };
         let mut stream = resp.bytes_stream();
         while let Some(chunk) = stream.next().await {
-            if stop.load(Ordering::Relaxed) { return; }
+            if stop.load(Ordering::Relaxed) {
+                return;
+            }
             if let Ok(b) = chunk {
                 counter.fetch_add(b.len() as u64, Ordering::Relaxed);
             }
@@ -93,7 +100,9 @@ async fn upload_stream(stop: Arc<AtomicBool>, counter: Arc<AtomicU64>) {
         Err(_) => return,
     };
     loop {
-        if stop.load(Ordering::Relaxed) { return; }
+        if stop.load(Ordering::Relaxed) {
+            return;
+        }
         let payload = vec![0u8; UPLOAD_CHUNK];
         let len = payload.len() as u64;
         match client
@@ -172,10 +181,16 @@ pub async fn run() -> Result<SpeedtestResult, SpeedtestError> {
 
     log::info!(
         "Speedtest: ↓ {:.1} Mbit/s  ↑ {:.1} Mbit/s  ping {:.1} ms",
-        download_mbps, upload_mbps, ping_ms
+        download_mbps,
+        upload_mbps,
+        ping_ms
     );
 
-    Ok(SpeedtestResult { download_mbps, upload_mbps, ping_ms })
+    Ok(SpeedtestResult {
+        download_mbps,
+        upload_mbps,
+        ping_ms,
+    })
 }
 
 #[cfg(test)]
@@ -192,7 +207,11 @@ mod tests {
             "Download: {:.2} Mbit/s | Upload: {:.2} Mbit/s | Ping: {:.2} ms",
             result.download_mbps, result.upload_mbps, result.ping_ms
         );
-        assert!(result.download_mbps > 1.0, "got {:.2}", result.download_mbps);
+        assert!(
+            result.download_mbps > 1.0,
+            "got {:.2}",
+            result.download_mbps
+        );
         assert!(result.upload_mbps > 1.0, "got {:.2}", result.upload_mbps);
         assert!(result.ping_ms > 0.0 && result.ping_ms < 2000.0);
     }

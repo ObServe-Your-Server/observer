@@ -1,10 +1,19 @@
 use docker_api::opts::ContainerListOpts;
 use futures_util::StreamExt;
-use std::time::{SystemTime, UNIX_EPOCH};
-
+use serde::{Deserialize, Serialize};
+use std::{
+    fmt,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 #[derive(Debug, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
+pub struct ContainerRuntimeStats {
+    pub container_runtime: ContainerRuntime,
+    pub collected_at: chrono::DateTime<chrono::Utc>,
+    pub container_stats: Vec<ContainerStats>,
+}
+
+#[derive(Debug, serde::Serialize)]
 pub struct ContainerStats {
     pub id: String,
     pub host_name: String,
@@ -16,6 +25,43 @@ pub struct ContainerStats {
     pub networks: Vec<String>,
     pub cpu_usage_percent: f64,
     pub memory_usage_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ContainerRuntime {
+    Docker,
+    DockerDesktop,
+    Podman,
+}
+
+impl ContainerRuntime {
+    fn socket_uri(&self) -> String {
+        match self {
+            ContainerRuntime::Docker => "unix:///var/run/docker.sock".to_string(),
+            ContainerRuntime::DockerDesktop => {
+                let home = std::env::var("HOME").unwrap_or_default();
+                format!("unix://{}/.docker/desktop/docker.sock", home)
+            }
+            ContainerRuntime::Podman => {
+                let uid = std::fs::read_to_string("/proc/self/loginuid")
+                    .ok()
+                    .and_then(|s| s.trim().parse::<u32>().ok())
+                    .unwrap_or(1000);
+                format!("unix:///run/user/{}/podman/podman.sock", uid)
+            }
+        }
+    }
+}
+
+impl fmt::Display for ContainerRuntime {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::Docker => "docker socket",
+            Self::DockerDesktop => "docker desktop",
+            Self::Podman => "podman socket",
+        };
+        write!(f, "{}", s)
+    }
 }
 
 /// Calculates CPU usage % from a Docker stats JSON snapshot.
@@ -52,33 +98,10 @@ fn parse_cpu_percent(stats: serde_json::Value) -> f64 {
     (cpu_delta as f64 / system_delta as f64) * num_cpus as f64 * 100.0
 }
 
-pub enum ContainerRuntime {
-    Docker,
-    DockerDesktop,
-    Podman,
-}
-
-impl ContainerRuntime {
-    fn socket_uri(&self) -> String {
-        match self {
-            ContainerRuntime::Docker => "unix:///var/run/docker.sock".to_string(),
-            ContainerRuntime::DockerDesktop => {
-                let home = std::env::var("HOME").unwrap_or_default();
-                format!("unix://{}/.docker/desktop/docker.sock", home)
-            }
-            ContainerRuntime::Podman => {
-                let uid = std::fs::read_to_string("/proc/self/loginuid")
-                    .ok()
-                    .and_then(|s| s.trim().parse::<u32>().ok())
-                    .unwrap_or(1000);
-                format!("unix:///run/user/{}/podman/podman.sock", uid)
-            }
-        }
-    }
-}
-
-pub async fn list_containers(runtime: ContainerRuntime) -> Result<Vec<ContainerStats>, docker_api::Error> {
-    let socket_uri = runtime.socket_uri();
+pub async fn get_current_stats(
+    container_runtime: ContainerRuntime,
+) -> Result<ContainerRuntimeStats, docker_api::Error> {
+    let socket_uri = container_runtime.socket_uri();
     log::debug!("Docker: attempting to connect to {}", socket_uri);
 
     let docker = docker_api::Docker::new(&socket_uri)?;
@@ -99,7 +122,7 @@ pub async fn list_containers(runtime: ContainerRuntime) -> Result<Vec<ContainerS
         .unwrap()
         .as_secs();
 
-    let mut results = Vec::new();
+    let mut container_stats = Vec::new();
 
     for c in summaries {
         let id = c.id.unwrap_or_default();
@@ -141,7 +164,7 @@ pub async fn list_containers(runtime: ContainerRuntime) -> Result<Vec<ContainerS
             (0.0, 0)
         };
 
-        results.push(ContainerStats {
+        container_stats.push(ContainerStats {
             id,
             host_name,
             created_at,
@@ -155,7 +178,11 @@ pub async fn list_containers(runtime: ContainerRuntime) -> Result<Vec<ContainerS
         });
     }
 
-    Ok(results)
+    Ok(ContainerRuntimeStats {
+        container_runtime,
+        collected_at: chrono::Utc::now(),
+        container_stats,
+    })
 }
 
 #[cfg(test)]
@@ -165,13 +192,13 @@ mod tests {
     #[cfg(ignore)]
     #[tokio::test]
     async fn test_list_containers() {
-        let containers = list_containers(ContainerRuntime::Docker).await.unwrap();
-        
+        let containers = get_current_stats(ContainerRuntime::Docker).await.unwrap();
+
         if containers.is_empty() {
             println!("No containers found.");
             return;
         }
-        
+
         for c in &containers {
             println!("---");
             println!("  id:              {}", c.id);

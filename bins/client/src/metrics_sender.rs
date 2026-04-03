@@ -1,14 +1,15 @@
 use std::fmt;
+/*
 
 use log::{debug, info};
 use reqwest::Client;
 use serde::Serialize;
 
-use crate::{client::metric_collection_errors::CollectionError, config::get_config};
+use crate::{client::metric_collection_errors::CollectionErrorOld, config::get_config};
 
-pub async fn send<T>(client: &Client, metrics: T) -> Result<(), CollectionError> 
-where 
-    T: Serialize + fmt::Debug
+pub async fn send<T>(client: &Client, metrics: T) -> Result<(), CollectionErrorOld>
+where
+    T: Serialize + fmt::Debug,
 {
     let config = get_config();
 
@@ -30,7 +31,7 @@ where
             );
             Ok(())
         }
-        Ok(resp) => Err(CollectionError::ServerRejected(resp.status())),
-        Err(e) => Err(CollectionError::SendFailed(e)),
+        Ok(resp) => Err(CollectionErrorOld::ServerRejected(resp.status())),
+        Err(e) => Err(CollectionErrorOld::SendFailed(e)),
     }
-}
+}*/

@@ -8,7 +8,7 @@ use crate::client::host::collectors::disk::DiskInfo;
 use crate::client::host::collectors::{cpu, disk, network};
 use crate::client::host::speedtest::{self, SpeedtestResult};
 use crate::client::host::system_metric_sender;
-use crate::client::metric_collection_errors::CollectionError;
+use crate::client::metric_collection_errors::CollectionErrorOld;
 use crate::system_health::{HostComponent, HostSytemHealth, Severity, State};
 
 // --- network delta config ---
@@ -159,10 +159,10 @@ impl Metrics {
     }
 }
 
-pub async fn collection_job(host_sytem_health: HostSytemHealth) -> Result<(), CollectionError> {
+pub async fn collection_job(host_sytem_health: HostSytemHealth) -> Result<(), CollectionErrorOld> {
     let client = Client::new();
     let Some(mut metrics) = Metrics::collect() else {
-        return Err(CollectionError::MetricsCollectionTimeout);
+        return Err(CollectionErrorOld::MetricsCollectionTimeout);
     };
 
     //debug!("Whole struct {:?}", metrics);

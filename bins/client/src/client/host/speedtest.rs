@@ -5,7 +5,7 @@ use serde::Serialize;
 use std::sync::RwLock;
 use std::time::Instant;
 
-use crate::client::metric_collection_errors::CollectionError;
+use crate::client::metric_collection_errors::CollectionErrorOld;
 
 const DOWNLOAD_URL: &str = "https://speed.cloudflare.com/__down?bytes=10000000"; // 10MB
 const UPLOAD_URL: &str = "https://speed.cloudflare.com/__up";
@@ -102,7 +102,7 @@ async fn measure_upload(client: &Client) -> Result<f64, String> {
 }
 
 // TODO: Add error handling
-pub async fn run() -> Result<(), CollectionError> {
+pub async fn run() -> Result<(), CollectionErrorOld> {
     info!(
         "Starting speedtest against Cloudflare ({} download rounds)...",
         DOWNLOAD_ROUNDS

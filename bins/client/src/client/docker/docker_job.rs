@@ -1,11 +1,11 @@
 use log::debug;
 use reqwest::Client;
 
-use crate::client::metric_collection_errors::CollectionError;
+use crate::client::metric_collection_errors::CollectionErrorOld;
 use crate::system_health::HostSytemHealth;
 
 // TODO: Error handling
-pub async fn collect(host_sytem_health: HostSytemHealth) -> Result<(), CollectionError> {
+pub async fn collect(host_sytem_health: HostSytemHealth) -> Result<(), CollectionErrorOld> {
     /*let containers = match list_containers(host_sytem_health).await {
         Ok(Some(c)) => c,
         Ok(None) => return Ok(()),
