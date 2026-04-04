@@ -9,8 +9,12 @@ use open_eye::collector::{
 };
 use serde::{Deserialize, Serialize};
 
-
-use crate::scheduling::collection_error::CollectionError;
+use crate::{
+    mapper::{
+        host_metrics_mapper::HostSystemMapper, host_metrics_models::mapped_host_system_metrics,
+    },
+    scheduling::collection_error::CollectionError, sender::host_system_metrics_sender::HostSystemMetricsSender,
+};
 
 static LAST_METRICS: RwLock<Option<HostMetrics>> = RwLock::new(None);
 
@@ -54,11 +58,18 @@ impl HostMetrics {
 
     pub async fn run() -> Result<(), CollectionError> {
         let metrics = HostMetrics::collect().await;
-        
+
         log::debug!("Host metrics collected: {:?}", metrics);
-        
-        // then send the metrics
-        Ok(())
+
+        // first map then send the metrics
+        let mapped_metrics = HostSystemMapper::map_for_watch_tower(
+            metrics,
+            LAST_METRICS
+                .read()
+                .expect("Failed to read the host system metrics last value")
+                .clone(),
+        );
+        return HostSystemMetricsSender::send(mapped_metrics).await;
     }
 }
 
