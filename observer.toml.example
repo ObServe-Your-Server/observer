@@ -1,8 +1,8 @@
 [server]
-base_metrics_url  = "https://watch-tower.observe.vision/v1/ingest"
-base_commands_url = "https://watch-tower.observe.vision/v1/commands"
-base_docker_url   = "https://watch-tower.observe.vision/v1/ingest/docker"
-base_notifier_url = "https://watch-tower.observe.vision/v1/ingest/notification"
+base_metrics_url  = "https://watch-tower.observe.vision/v1/ingest" # Please dont edit this
+base_commands_url = "https://watch-tower.observe.vision/v1/commands" # Please dont edit this
+base_docker_url   = "https://watch-tower.observe.vision/v1/ingest/docker" # Please dont edit this
+base_notifier_url = "https://watch-tower.observe.vision/v1/ingest/notification" # Please dont edit this
 api_key           = "<api-key-from-app>"
 
 [intervals]

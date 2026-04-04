@@ -103,15 +103,13 @@ impl Scheduler {
 
             let name = self.kind.as_str();
             match time::timeout(duration, job()).await {
-                Ok(Ok(())) => {
-                    match self.error_level {
-                        ErrorLevel::ErrorCount(_) => {
-                            self.reset_error_count();
-                            log::info!("Scheduler [{}] job succeeded after error", name);
-                        }
-                        ErrorLevel::HealthyJob => {}
+                Ok(Ok(())) => match self.error_level {
+                    ErrorLevel::ErrorCount(_) => {
+                        self.reset_error_count();
+                        log::info!("Scheduler [{}] job succeeded after error", name);
                     }
-                }
+                    ErrorLevel::HealthyJob => {}
+                },
                 Ok(Err(e)) => {
                     log::error!("Scheduler [{}] job failed: {}", name, e);
                     // handle the error from the job
