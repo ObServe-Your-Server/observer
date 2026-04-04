@@ -1,3 +1,5 @@
+use std::sync::RwLock;
+
 use open_eye::collector::{
     cpu::collector::CpuStats,
     disk::collector::{DiskInfo, DiskStats},
@@ -7,7 +9,10 @@ use open_eye::collector::{
 };
 use serde::{Deserialize, Serialize};
 
+
 use crate::scheduling::collection_error::CollectionError;
+
+static LAST_METRICS: RwLock<Option<HostMetrics>> = RwLock::new(None);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HostMetrics {
@@ -49,7 +54,10 @@ impl HostMetrics {
 
     pub async fn run() -> Result<(), CollectionError> {
         let metrics = HostMetrics::collect().await;
+        
         log::debug!("Host metrics collected: {:?}", metrics);
+        
+        // then send the metrics
         Ok(())
     }
 }
