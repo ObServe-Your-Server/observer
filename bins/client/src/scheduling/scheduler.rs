@@ -107,6 +107,7 @@ impl Scheduler {
                     if let Some(collection_error) =
                         (&e as &dyn std::any::Any).downcast_ref::<CollectionError>()
                     {
+                        // increase the error count
                         self.increment_error_count();
 
                         if self.error_level == ErrorLevel::ErrorCount(self.max_error_count) {
@@ -135,8 +136,10 @@ impl Scheduler {
                     }
                 }
                 Err(_) => {
+                    // executes when the job takes too long
                     log::error!(
-                        "Scheduler [{}] job exceeded interval ({}s), cancelled",
+                        "Scheduler [{}] job exceeded interval ({}s), cancelled. 
+                        You may need to increase the metrics collection interval.",
                         name,
                         self.interval_secs.read().unwrap()
                     );
