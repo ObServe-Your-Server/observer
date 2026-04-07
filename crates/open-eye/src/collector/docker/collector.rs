@@ -1,3 +1,4 @@
+use log::debug;
 use docker_api::opts::ContainerListOpts;
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
@@ -102,16 +103,16 @@ pub async fn get_current_stats(
     container_runtime: ContainerRuntime,
 ) -> Result<ContainerRuntimeStats, docker_api::Error> {
     let socket_uri = container_runtime.socket_uri();
-    log::debug!("Docker: attempting to connect to {}", socket_uri);
+    debug!("Docker: attempting to connect to {}", socket_uri);
 
     let docker = docker_api::Docker::new(&socket_uri)?;
-    log::debug!("Docker: client created successfully");
+    debug!("Docker: client created successfully");
 
-    log::debug!("Docker: sending ping...");
+    debug!("Docker: sending ping...");
     docker.ping().await?;
-    log::debug!("Docker: ping succeeded");
+    debug!("Docker: ping succeeded");
 
-    log::debug!("Docker: listing containers...");
+    debug!("Docker: listing containers...");
     let containers_api = docker.containers();
     let summaries = containers_api
         .list(&ContainerListOpts::builder().all(true).build())

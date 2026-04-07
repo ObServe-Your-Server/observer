@@ -1,5 +1,6 @@
 use std::sync::OnceLock;
 use tokio::sync::RwLock;
+use log::{debug, error};
 
 use open_eye::collector::{
     cpu::collector::CpuStats,
@@ -44,19 +45,19 @@ impl HostMetrics {
 
         HostMetrics {
             cpu: cpu
-                .map_err(|e| log::error!("cpu collector panicked: {e}"))
+                .map_err(|e| error!("cpu collector panicked: {e}"))
                 .ok(),
             memory: memory
-                .map_err(|e| log::error!("memory collector panicked: {e}"))
+                .map_err(|e| error!("memory collector panicked: {e}"))
                 .ok(),
             disks: disks
-                .map_err(|e| log::error!("disk collector panicked: {e}"))
+                .map_err(|e| error!("disk collector panicked: {e}"))
                 .ok(),
             network: network
-                .map_err(|e| log::error!("network collector panicked: {e}"))
+                .map_err(|e| error!("network collector panicked: {e}"))
                 .ok(),
             system: system
-                .map_err(|e| log::error!("system stats collector panicked: {e}"))
+                .map_err(|e| error!("system stats collector panicked: {e}"))
                 .ok(),
         }
     }
@@ -64,7 +65,7 @@ impl HostMetrics {
     pub async fn run() -> Result<(), CollectionError> {
         let metrics = HostMetrics::collect().await;
 
-        log::debug!("Host metrics collected: {:?}", metrics);
+        debug!("Host metrics collected: {:?}", metrics);
 
         // first map then send the metrics
         let mapped_metrics = HostSystemMapper::map_for_watch_tower(

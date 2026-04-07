@@ -1,4 +1,5 @@
 use std::env;
+use log::debug;
 
 // the init should be done either from a top level crate and
 // then the value for the logging configuration should pe set.
@@ -14,5 +15,5 @@ pub fn init_logging() {
         .filter(Some("open_eye"), level) // only open_eye crate
         .try_init(); // don't panic if already initialized
 
-    log::debug!("Logging initialized at level: {}", level);
+    debug!("Logging initialized at level: {}", level);
 }

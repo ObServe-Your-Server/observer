@@ -1,3 +1,4 @@
+use log::debug;
 use local_ip_address::local_ip;
 use serde::{Deserialize, Serialize};
 use sysinfo::Networks;
@@ -55,7 +56,7 @@ impl NetworkStats {
         let local_ip = match local_ip() {
             Ok(ip) => ip.to_string(),
             Err(err) => {
-                log::debug!("Error during gathering of local ip {}", err);
+                debug!("Error during gathering of local ip {}", err);
                 "not-found".to_string()
             }
         };

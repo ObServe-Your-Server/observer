@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use log::info;
+use log::{error, info, warn};
 use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
 use std::time::Duration;
@@ -97,12 +97,12 @@ impl Scheduler {
                 Ok(Ok(())) => match self.error_level {
                     ErrorLevel::ErrorCount(_) => {
                         self.reset_error_count();
-                        log::info!("Scheduler [{}] job succeeded after error", name);
+                        info!("Scheduler [{}] job succeeded after error", name);
                     }
                     ErrorLevel::HealthyJob => {}
                 },
                 Ok(Err(e)) => {
-                    log::error!("Scheduler [{}] job failed: {}", name, e);
+                    error!("Scheduler [{}] job failed: {}", name, e);
                     // handle the error from the job
                     // first reference as a dynamic Any. Then try do downcast it to a collection error
                     if let Some(collection_error) =
@@ -119,7 +119,7 @@ impl Scheduler {
                                 collection_error,
                                 CollectionError::ContainerSocketUnavailable(_)
                             ) {
-                                log::warn!(
+                                warn!(
                                     "Scheduler [{}] container socket unavailable, stopping job",
                                     name
                                 );
@@ -133,12 +133,12 @@ impl Scheduler {
                             );
                         }
                     } else {
-                        log::error!("Another error occurred during a collection run: {}", e);
+                        error!("Another error occurred during a collection run: {}", e);
                     }
                 }
                 Err(_) => {
                     // executes when the job takes too long
-                    log::error!(
+                    error!(
                         "Scheduler [{}] job exceeded interval ({}s), cancelled.
                         You may need to increase the metrics collection interval.",
                         name,

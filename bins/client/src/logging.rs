@@ -1,4 +1,5 @@
 use std::env;
+use log::debug;
 
 pub enum LogTarget {
     MetricCollection,
@@ -30,5 +31,5 @@ pub fn init_logging() {
         .filter(Some("observer"), level)
         .init();
 
-    log::debug!("Logging initialized at level: {}", level);
+    debug!("Logging initialized at level: {}", level);
 }

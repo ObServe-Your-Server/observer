@@ -1,3 +1,4 @@
+use log::{debug, info};
 use futures_util::StreamExt;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -171,15 +172,15 @@ pub async fn run() -> Result<SpeedtestResult, SpeedtestError> {
     let client = Client::new();
 
     let ping_ms = measure_ping(&client).await?;
-    log::debug!("Speedtest: ping {:.2} ms", ping_ms);
+    debug!("Speedtest: ping {:.2} ms", ping_ms);
 
     let download_mbps = measure_download().await?;
-    log::debug!("Speedtest: download {:.2} Mbit/s", download_mbps);
+    debug!("Speedtest: download {:.2} Mbit/s", download_mbps);
 
     let upload_mbps = measure_upload().await?;
-    log::debug!("Speedtest: upload {:.2} Mbit/s", upload_mbps);
+    debug!("Speedtest: upload {:.2} Mbit/s", upload_mbps);
 
-    log::info!(
+    info!(
         "Speedtest: ↓ {:.1} Mbit/s  ↑ {:.1} Mbit/s  ping {:.1} ms",
         download_mbps,
         upload_mbps,
