@@ -189,17 +189,17 @@ pub async fn get_current_stats(
 mod tests {
     use super::*;
 
-    #[cfg(ignore)]
+    #[ignore = "requires a running Docker socket"]
     #[tokio::test]
     async fn test_list_containers() {
-        let containers = get_current_stats(ContainerRuntime::Docker).await.unwrap();
+        let result = get_current_stats(ContainerRuntime::Docker).await.unwrap();
 
-        if containers.is_empty() {
+        if result.container_stats.is_empty() {
             println!("No containers found.");
             return;
         }
 
-        for c in &containers {
+        for c in &result.container_stats {
             println!("---");
             println!("  id:              {}", c.id);
             println!("  name:            {}", c.host_name);

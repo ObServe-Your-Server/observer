@@ -1,4 +1,5 @@
-use std::sync::RwLock;
+use std::sync::OnceLock;
+use tokio::sync::RwLock;
 
 use open_eye::collector::{
     cpu::collector::CpuStats,
@@ -16,7 +17,11 @@ use crate::{
     scheduling::collection_error::CollectionError, sender::host_system_metrics_sender::HostSystemMetricsSender,
 };
 
-static LAST_METRICS: RwLock<Option<HostMetrics>> = RwLock::new(None);
+static LAST_METRICS: OnceLock<RwLock<Option<HostMetrics>>> = OnceLock::new();
+
+fn last_metrics() -> &'static RwLock<Option<HostMetrics>> {
+    LAST_METRICS.get_or_init(|| RwLock::new(None))
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HostMetrics {
@@ -64,10 +69,7 @@ impl HostMetrics {
         // first map then send the metrics
         let mapped_metrics = HostSystemMapper::map_for_watch_tower(
             metrics,
-            LAST_METRICS
-                .read()
-                .expect("Failed to read the host system metrics last value")
-                .clone(),
+            last_metrics().read().await.clone(),
         );
         return HostSystemMetricsSender::send(mapped_metrics).await;
     }

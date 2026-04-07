@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use log::info;
-use std::sync::{Arc, OnceLock, RwLock};
+use std::sync::{Arc, OnceLock};
+use tokio::sync::RwLock;
 use std::time::Duration;
 use tokio::time;
 use tokio::time::MissedTickBehavior;
@@ -33,10 +34,10 @@ impl SchedulerKind {
         }
     }
 
-    fn is_enabled(&self) -> bool {
+    async fn is_enabled(&self) -> bool {
         let state = get_state();
         match self {
-            SchedulerKind::MetricCollection => *state.metrics_enabled.read().unwrap(),
+            SchedulerKind::MetricCollection => *state.metrics_enabled.read().await,
         }
     }
 }
@@ -70,7 +71,7 @@ impl Scheduler {
         Fut: std::future::Future<Output = Result<(), E>>,
         E: std::error::Error + 'static,
     {
-        let duration = Duration::from_secs(*self.interval_secs.read().unwrap() as u64);
+        let duration = Duration::from_secs(*self.interval_secs.read().await as u64);
         let mut interval = time::interval(duration);
         // skip if the execution took too long or other issues
         interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
@@ -78,14 +79,14 @@ impl Scheduler {
         info!(
             "Scheduler [{}] starting, running every {}s",
             self.kind.as_str(),
-            self.interval_secs.read().unwrap()
+            *self.interval_secs.read().await
         );
 
         loop {
             interval.tick().await;
 
             // check over the polled state if the job should be running
-            if !self.kind.is_enabled() {
+            if !self.kind.is_enabled().await {
                 info!("Scheduler [{}] paused, skipping tick", self.kind.as_str());
                 continue;
             }
@@ -138,10 +139,10 @@ impl Scheduler {
                 Err(_) => {
                     // executes when the job takes too long
                     log::error!(
-                        "Scheduler [{}] job exceeded interval ({}s), cancelled. 
+                        "Scheduler [{}] job exceeded interval ({}s), cancelled.
                         You may need to increase the metrics collection interval.",
                         name,
-                        self.interval_secs.read().unwrap()
+                        *self.interval_secs.read().await
                     );
                 }
             }
