@@ -8,7 +8,7 @@ use std::sync::{
 };
 use std::time::{Duration, Instant};
 
-const DOWNLOAD_URL: &str = "https://speed.cloudflare.com/__down?bytes=100000000";
+const DOWNLOAD_URL: &str = "https://speed.cloudflare.com/__down?bytes=90000000";
 const UPLOAD_URL: &str = "https://speed.cloudflare.com/__up";
 const PING_URL: &str = "https://speed.cloudflare.com/__ping";
 
@@ -17,7 +17,7 @@ const PING_ROUNDS: u32 = 5;
 // 8 parallel streams, each on its own OS thread via tokio::spawn on a multi-thread
 // runtime. This saturates the link the same way a browser download does.
 const PARALLEL_STREAMS: usize = 8;
-const WARMUP_SECS: u64 = 2;
+const WARMUP_SECS: u64 = 4;
 const MEASURE_SECS: u64 = 8;
 
 const UPLOAD_CHUNK: usize = 10_000_000; // 10 MB per POST
@@ -68,8 +68,8 @@ async fn measure_ping(client: &Client) -> Result<f64, SpeedtestError> {
 
 /// Single download stream: pulls bytes until `stop` fires, adds to `counter`.
 /// Gets its own Client so it has an independent TCP connection + congestion window.
-async fn download_stream(stop: Arc<AtomicBool>, counter: Arc<AtomicU64>) {
-    let client = match Client::builder().no_gzip().build() {
+async fn download_stream(stop: Arc<AtomicBool>, counter: Arc<AtomicU64>, measure_flag: Arc<AtomicBool>) {
+    let client = match Client::builder().no_gzip().pool_max_idle_per_host(0).build() {
         Ok(c) => c,
         Err(_) => return,
     };
@@ -79,24 +79,36 @@ async fn download_stream(stop: Arc<AtomicBool>, counter: Arc<AtomicU64>) {
         }
         let resp = match client.get(DOWNLOAD_URL).send().await {
             Ok(r) => r,
-            Err(_) => return,
+            Err(e) => {
+                debug!("download stream error, retrying: {e}");
+                tokio::time::sleep(Duration::from_millis(200)).await;
+                continue;
+            }
         };
         let mut stream = resp.bytes_stream();
-        while let Some(chunk) = stream.next().await {
+        loop {
             if stop.load(Ordering::Relaxed) {
                 return;
             }
-            if let Ok(b) = chunk {
-                counter.fetch_add(b.len() as u64, Ordering::Relaxed);
+            match stream.next().await {
+                Some(Ok(chunk)) => {
+                    if measure_flag.load(Ordering::Acquire) {
+                        counter.fetch_add(chunk.len() as u64, Ordering::Relaxed);
+                    }
+                }
+                Some(Err(e)) => {
+                    debug!("download chunk error: {e}");
+                    break;
+                }
+                None => break,
             }
         }
-        // 100 MB exhausted before stop fired — loop and start another request.
     }
 }
 
 /// Single upload stream: POSTs chunks until `stop` fires, adds to `counter`.
-async fn upload_stream(stop: Arc<AtomicBool>, counter: Arc<AtomicU64>) {
-    let client = match Client::builder().no_gzip().build() {
+async fn upload_stream(stop: Arc<AtomicBool>, counter: Arc<AtomicU64>, measure_flag: Arc<AtomicBool>) {
+    let client = match Client::builder().no_gzip().pool_max_idle_per_host(0).build() {
         Ok(c) => c,
         Err(_) => return,
     };
@@ -114,58 +126,59 @@ async fn upload_stream(stop: Arc<AtomicBool>, counter: Arc<AtomicU64>) {
             .await
         {
             Ok(resp) => {
-                counter.fetch_add(len, Ordering::Relaxed);
                 let _ = resp.bytes().await;
+                if measure_flag.load(Ordering::Acquire) {
+                    counter.fetch_add(len, Ordering::Relaxed);
+                }
             }
-            Err(_) => return,
+            Err(e) => {
+                debug!("stream error, retrying: {e}");
+                tokio::time::sleep(Duration::from_millis(200)).await;
+                continue;
+            }
         }
     }
 }
 
 /// Spawn `PARALLEL_STREAMS` tasks, let them run for `duration`, then stop and collect bytes.
 /// Uses `tokio::spawn` so each stream runs on its own OS thread (requires multi-thread runtime).
-async fn run_parallel<F, Fut>(duration: Duration, make_fut: F) -> u64
+async fn run_persistent<F, Fut>(make_fut: F) -> (u64, Duration)
 where
-    F: Fn(Arc<AtomicBool>, Arc<AtomicU64>) -> Fut,
+    F: Fn(Arc<AtomicBool>, Arc<AtomicU64>, Arc<AtomicBool>) -> Fut,
     Fut: std::future::Future<Output = ()> + Send + 'static,
 {
     let stop = Arc::new(AtomicBool::new(false));
     let counter = Arc::new(AtomicU64::new(0));
+    let measure_flag = Arc::new(AtomicBool::new(false));
 
     let handles: Vec<_> = (0..PARALLEL_STREAMS)
-        .map(|_| tokio::spawn(make_fut(Arc::clone(&stop), Arc::clone(&counter))))
+        .map(|_| tokio::spawn(make_fut(Arc::clone(&stop), Arc::clone(&counter), Arc::clone(&measure_flag))))
         .collect();
 
-    tokio::time::sleep(duration).await;
+    tokio::time::sleep(Duration::from_secs(WARMUP_SECS)).await;
+
+    counter.store(0, Ordering::Release);
+    let start = Instant::now();
+    measure_flag.store(true, Ordering::Release);
+    tokio::time::sleep(Duration::from_secs(MEASURE_SECS)).await;
+
     stop.store(true, Ordering::Relaxed);
 
     for h in handles {
         let _ = h.await;
     }
 
-    counter.load(Ordering::Relaxed)
+    (counter.load(Ordering::Relaxed), start.elapsed())
 }
 
 async fn measure_download() -> Result<f64, SpeedtestError> {
-    // Warmup: prime TCP congestion windows, discard result.
-    run_parallel(Duration::from_secs(WARMUP_SECS), download_stream).await;
-
-    let start = Instant::now();
-    let bytes = run_parallel(Duration::from_secs(MEASURE_SECS), download_stream).await;
-    let elapsed = start.elapsed().as_secs_f64().max(f64::EPSILON);
-
-    Ok((bytes as f64 * 8.0) / (elapsed * 1_000_000.0))
+    let (bytes, elapsed) = run_persistent(download_stream).await;
+    Ok(bytes as f64 * 8.0 / (elapsed.as_secs_f64() * 1_000_000.0))
 }
 
 async fn measure_upload() -> Result<f64, SpeedtestError> {
-    // Warmup.
-    run_parallel(Duration::from_secs(WARMUP_SECS), upload_stream).await;
-
-    let start = Instant::now();
-    let bytes = run_parallel(Duration::from_secs(MEASURE_SECS), upload_stream).await;
-    let elapsed = start.elapsed().as_secs_f64().max(f64::EPSILON);
-
-    Ok((bytes as f64 * 8.0) / (elapsed * 1_000_000.0))
+    let (bytes, elapsed) = run_persistent(upload_stream).await;
+    Ok(bytes as f64 * 8.0 / (elapsed.as_secs_f64() * 1_000_000.0))
 }
 
 pub async fn run() -> Result<SpeedtestResult, SpeedtestError> {
@@ -200,7 +213,6 @@ mod tests {
 
     // multi_thread is required: tokio::spawn needs real OS threads so each
     // download stream has its own thread and doesn't starve the others.
-    #[cfg(ignore)]
     #[tokio::test(flavor = "multi_thread")]
     async fn test_full_speedtest() {
         let result = run().await.expect("speedtest failed");
