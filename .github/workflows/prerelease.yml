@@ -12,7 +12,7 @@ jobs:
     container: rust:latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Run tests
         run: cargo test --workspace
@@ -26,7 +26,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install build tools
         run: apt-get update && apt-get install -y musl-tools pkg-config python3-pip && pip3 install ziglang --break-system-packages

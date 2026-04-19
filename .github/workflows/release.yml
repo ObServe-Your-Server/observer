@@ -12,7 +12,7 @@ jobs:
     container: rust:latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Run tests
         run: cargo test --workspace
@@ -26,7 +26,7 @@ jobs:
       contents: write  # required to create the release and upload the binary
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install build tools
         # musl-tools for x86_64 static linking; python3/pip for ziglang (cross-compilation)
