@@ -76,16 +76,17 @@ pub async fn poll() -> Result<(), CollectionError> {
                 );
                 std::process::exit(1);
             }
-            Command::StopMetricCollection => *state.metrics_enabled.write().unwrap() = false,
-            Command::StartMetricCollection => *state.metrics_enabled.write().unwrap() = true,
-            Command::StopSpeedtest => *state.speedtest_enabled.write().unwrap() = false,
-            Command::StartSpeedtest => *state.speedtest_enabled.write().unwrap() = true,
-            Command::StopDockerMetricCollection => {
+            //Command::StopMetricCollection => *state.metrics_enabled.write().unwrap() = false,
+            //Command::StartMetricCollection => *state.metrics_enabled.write().unwrap() = true,
+            //Command::StopSpeedtest => *state.speedtest_enabled.write().unwrap() = false,
+            //Command::StartSpeedtest => *state.speedtest_enabled.write().unwrap() = true,
+            /*Command::StopDockerMetricCollection => {
                 *state.docker_metrics_enabled.write().unwrap() = false
             }
             Command::StartDockerMetricCollection => {
                 *state.docker_metrics_enabled.write().unwrap() = true
-            }
+            }*/
+            _ => log::info!("received command: {:?}", item.command)
         }
     }
 

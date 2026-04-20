@@ -53,21 +53,21 @@ impl SchedulerKind {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 enum ErrorLevel {
     HealthyJob,
-    ErrorCount(u8),
+    ErrorCount(u16),
 }
 
 pub struct Scheduler {
     kind: SchedulerKind,
     interval_secs: Arc<RwLock<u32>>,
     error_level: ErrorLevel,
-    max_error_count: u8,
+    max_error_count: u16,
 }
 
 impl Scheduler {
-    pub fn new(kind: SchedulerKind, interval_secs: u32, max_error_count: u8) -> Self {
+    pub fn new(kind: SchedulerKind, interval_secs: u32, max_error_count: u16) -> Self {
         Self {
             kind,
             interval_secs: Arc::new(RwLock::new(interval_secs)),
@@ -118,6 +118,7 @@ impl Scheduler {
                         (&e as &dyn std::any::Any).downcast_ref::<CollectionError>()
                     {
                         self.increment_error_count();
+                        log::warn!("Increased error count for {}, level: {:?}, max: {}", self.kind.as_str(), self.error_level, self.max_error_count);
 
                         if self.error_level == ErrorLevel::ErrorCount(self.max_error_count) {
                             // exit the application because max error count has been reached

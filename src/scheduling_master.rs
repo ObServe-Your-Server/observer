@@ -16,22 +16,22 @@ impl SchedulingMaster {
         let mut metric_scheduler = Scheduler::new(
             SchedulerKind::MetricCollection,
             config.intervals.metric_secs as u32,
-            100,
+            1000,
         );
         let mut command_scheduler = Scheduler::new(
             SchedulerKind::CommandPolling,
             config.intervals.command_poll_secs as u32,
-            100,
+            1000,
         );
         let mut speedtest_scheduler = Scheduler::new(
             SchedulerKind::Speedtest,
             config.intervals.speedtest_secs,
-            100,
+            1000,
         );
         let mut docker_scheduler = Scheduler::new(
             SchedulerKind::DockerMetricCollection,
             config.intervals.docker_secs as u32,
-            100,
+            1000,
         );
 
         let host_system_health = HostSytemHealth::new();
