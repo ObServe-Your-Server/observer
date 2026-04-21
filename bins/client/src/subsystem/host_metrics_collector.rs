@@ -73,6 +73,7 @@ impl HostMetrics {
         let mapped_metrics = HostSystemMapper::map_for_watch_tower(
             metrics.clone(),
             last,
+            speedtest,
         );
 
         // store current metrics as last for next delta calculation
