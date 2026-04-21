@@ -25,12 +25,14 @@ pub fn get_state() -> &'static SubsystemState {
 
 pub enum SchedulerKind {
     MetricCollection,
+    SpeedtestCollection,
 }
 
 impl SchedulerKind {
     fn as_str(&self) -> &'static str {
         match self {
             SchedulerKind::MetricCollection => "metric-collection",
+            SchedulerKind::SpeedtestCollection => "speedtest-collection",
         }
     }
 
@@ -38,6 +40,7 @@ impl SchedulerKind {
         let state = get_state();
         match self {
             SchedulerKind::MetricCollection => *state.metrics_enabled.read().await,
+            SchedulerKind::SpeedtestCollection => *state.metrics_enabled.read().await,
         }
     }
 }
