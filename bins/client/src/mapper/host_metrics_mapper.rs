@@ -1,9 +1,11 @@
+use crate::mapper::host_metrics_models::speed_test_result::SpeedtestResult;
 use crate::{
     mapper::host_metrics_models::{
         disk_info::DiskInfo,
         mapped_host_system_metrics::MappedHostSystemMetrics,
     },
     subsystem::host_metrics_collector::HostMetrics,
+    subsystem::speedtest::SpeedtestMetrics,
 };
 
 pub struct HostSystemMapper {}
@@ -12,6 +14,7 @@ impl HostSystemMapper {
     pub fn map_for_watch_tower(
         current: HostMetrics,
         last: Option<HostMetrics>,
+        speedtest: Option<SpeedtestMetrics>,
     ) -> MappedHostSystemMetrics {
         let cpu = current.cpu.as_ref();
         let memory = current.memory.as_ref();
@@ -59,7 +62,11 @@ impl HostSystemMapper {
             net_bytes_transmitted_per_second,
             local_ip: network.map(|n| n.local_ip.clone()),
             disks,
-            speedtest_result: None,
+            speedtest_result: speedtest.map(|s| SpeedtestResult {
+                download_mbps: s.download_mbps.unwrap_or(0.0),
+                upload_mbps: s.upload_mbps.unwrap_or(0.0),
+                ping_ms: s.ping_ms.unwrap_or(0.0),
+            }),
             hostname: system.and_then(|s| s.host_name.clone()),
         }
     }
@@ -141,7 +148,7 @@ mod tests {
             system: None,
         };
 
-        let result = HostSystemMapper::map_for_watch_tower(make_full_metrics(), Some(last));
+        let result = HostSystemMapper::map_for_watch_tower(make_full_metrics(), Some(last), None);
 
         assert_eq!(result.cpu_name, "Test CPU");
         assert_eq!(result.cpu_count, 8);
@@ -174,7 +181,7 @@ mod tests {
             system: None,
         };
 
-        let result = HostSystemMapper::map_for_watch_tower(empty, None);
+        let result = HostSystemMapper::map_for_watch_tower(empty, None, None);
 
         assert_eq!(result.cpu_name, "");
         assert_eq!(result.cpu_count, 0);
@@ -192,6 +199,34 @@ mod tests {
         assert_eq!(result.hostname, None);
         assert!(result.disks.is_empty());
         assert!(result.speedtest_result.is_none());
+    }
+
+    #[test]
+    fn maps_speedtest_result_when_present() {
+        use crate::subsystem::speedtest::SpeedtestMetrics;
+
+        let speedtest = SpeedtestMetrics {
+            download_mbps: Some(100.0),
+            upload_mbps: Some(50.0),
+            ping_ms: Some(12.0),
+        };
+
+        let empty = HostMetrics {
+            cpu: None,
+            memory: None,
+            disks: None,
+            network: None,
+            system: None,
+        };
+
+        let result = HostSystemMapper::map_for_watch_tower(empty, None, Some(speedtest));
+
+        let st = result
+            .speedtest_result
+            .expect("speedtest_result should be Some");
+        assert!((st.download_mbps - 100.0).abs() < f64::EPSILON);
+        assert!((st.upload_mbps - 50.0).abs() < f64::EPSILON);
+        assert!((st.ping_ms - 12.0).abs() < f64::EPSILON);
     }
 }
 

@@ -1,5 +1,6 @@
 use crate::scheduling::scheduler::{Scheduler, SchedulerKind};
 use crate::{config::get_config, subsystem::host_metrics_collector::HostMetrics};
+use crate::subsystem::speedtest::SpeedtestMetrics;
 
 pub struct SchedulingMaster {}
 
@@ -13,6 +14,15 @@ impl SchedulingMaster {
             15,
         );
 
-        metric_scheduler.run(|| HostMetrics::run()).await;
+        let mut speetest_scheduler = Scheduler::new(
+            SchedulerKind::SpeedtestCollection,
+            config.intervals.speedtest_secs,
+            15,
+        );
+
+        tokio::join!(
+            metric_scheduler.run(|| HostMetrics::run()),
+            speetest_scheduler.run(|| SpeedtestMetrics::run()),
+        );
     }
 }

@@ -64,6 +64,7 @@ impl HostMetrics {
 
     pub async fn run() -> Result<(), CollectionError> {
         let metrics = HostMetrics::collect().await;
+        let speedtest = crate::subsystem::speedtest::get_last_metrics().await;
 
         debug!("Host metrics collected: {:?}", metrics);
 
@@ -71,6 +72,7 @@ impl HostMetrics {
         let mapped_metrics = HostSystemMapper::map_for_watch_tower(
             metrics,
             last_metrics().read().await.clone(),
+            speedtest,
         );
         return HostSystemMetricsSender::send(mapped_metrics).await;
     }
