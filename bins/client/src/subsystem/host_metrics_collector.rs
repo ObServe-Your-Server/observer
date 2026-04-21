@@ -64,6 +64,7 @@ impl HostMetrics {
 
     pub async fn run() -> Result<(), CollectionError> {
         let metrics = HostMetrics::collect().await;
+        let speedtest = crate::subsystem::speedtest::get_last_metrics().await;
 
         debug!("Host metrics collected: {:?}", metrics);
 
