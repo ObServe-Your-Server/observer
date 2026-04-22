@@ -1,3 +1,4 @@
+use std::any::type_name;
 use crate::{config::get_config, scheduling::collection_error::CollectionError};
 use log::{debug, info};
 use reqwest::Client;
@@ -13,7 +14,7 @@ impl MetricsSender {
     {
         let config = get_config();
 
-        debug!("Payload to send: {:?}", payload);
+        debug!("[{}] Payload to send: {:?}", type_name::<T>(), payload);
 
         let result = Client::new()
             .post(&metrics_url)
@@ -25,7 +26,8 @@ impl MetricsSender {
         match result {
             Ok(resp) if resp.status().is_success() => {
                 info!(
-                    "Metrics sent ({}) http version: {:?}",
+                    "[{}] Metrics sent ({}) http version: {:?}",
+                    type_name::<T>(),
                     resp.status(),
                     resp.version()
                 );

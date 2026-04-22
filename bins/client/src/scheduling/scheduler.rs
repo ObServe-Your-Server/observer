@@ -25,6 +25,7 @@ pub fn get_state() -> &'static SubsystemState {
 pub enum SchedulerKind {
     MetricCollection,
     SpeedtestCollection,
+    DockerCollection,
 }
 
 impl SchedulerKind {
@@ -32,6 +33,7 @@ impl SchedulerKind {
         match self {
             SchedulerKind::MetricCollection => "metric-collection",
             SchedulerKind::SpeedtestCollection => "speedtest-collection",
+            SchedulerKind::DockerCollection => "docker-collection",
         }
     }
 
@@ -40,6 +42,7 @@ impl SchedulerKind {
         match self {
             SchedulerKind::MetricCollection => *state.metrics_enabled.read().await,
             SchedulerKind::SpeedtestCollection => *state.metrics_enabled.read().await,
+            SchedulerKind::DockerCollection => *state.metrics_enabled.read().await,
         }
     }
 }

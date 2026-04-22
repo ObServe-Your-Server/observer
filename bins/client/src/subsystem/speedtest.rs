@@ -50,6 +50,7 @@ impl SpeedtestMetrics {
 mod tests {
     use super::*;
 
+    #[ignore = "due to external network dependency"] // This test is ignored because it relies on external network conditions and may fail unpredictably
     #[tokio::test]
     async fn test_speedtest_metrics_collection() {
         let metrics = SpeedtestMetrics::collect()
