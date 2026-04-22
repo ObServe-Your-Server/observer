@@ -1,0 +1,51 @@
+version = 1
+revision = 3
+requires-python = ">=3.14"
+
+[[package]]
+name = "gpu-test"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "pyamdgpuinfo" },
+    { name = "pynvml" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pyamdgpuinfo", specifier = ">=2.1.8" },
+    { name = "pynvml", specifier = ">=13.0.1" },
+]
+
+[[package]]
+name = "nvidia-ml-py"
+version = "13.595.45"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ce/49/c29f6e30d8662d2e94fef17739ea7309cc76aba269922ae999e4cc07f268/nvidia_ml_py-13.595.45.tar.gz", hash = "sha256:c9f34897fe0441ff35bc8f35baf80f830a20b0f4e6ce71e0a325bc0e66acf079", size = 50780, upload-time = "2026-03-19T16:59:44.956Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8a/24/fc256107d23597fa33d319505ce77160fa1a2349c096d01901ffc7cb7fc4/nvidia_ml_py-13.595.45-py3-none-any.whl", hash = "sha256:b65a7977f503d56154b14d683710125ef93594adb63fbf7e559336e3318f1376", size = 51776, upload-time = "2026-03-19T16:59:43.603Z" },
+]
+
+[[package]]
+name = "pyamdgpuinfo"
+version = "2.1.8"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/61/b1/399158002f4246d54d2757021544dea89038ecd320cc8ea1db36bdddac23/pyamdgpuinfo-2.1.8.tar.gz", hash = "sha256:e389981f00bf42fde41233958a21c6288853a46c7dfe7b062b2abe054cfb1d7b", size = 21876, upload-time = "2026-03-28T14:06:08.416Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a4/c8/0b7414944bc6a3e8da931684a15dc5dc8f775f7d6a72082ad009ab386783/pyamdgpuinfo-2.1.8-cp314-cp314-manylinux_2_28_x86_64.whl", hash = "sha256:1ae569bd3d9e7305f1f542bdd1e0b2b8746fd454d43272b385da72af2144769f", size = 372823, upload-time = "2026-03-28T14:08:55.456Z" },
+    { url = "https://files.pythonhosted.org/packages/2d/85/4caac5ce82a1d3b2264ede98905513cf1ab8540015e9e9b0c2fb4b193b7d/pyamdgpuinfo-2.1.8-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:b78dcc38876a192bfeea986aa33256ae25445f47909cf060938581384ae16da1", size = 361630, upload-time = "2026-03-28T14:08:56.673Z" },
+    { url = "https://files.pythonhosted.org/packages/cc/ba/93055b30af897cf01de03d93d91ea1be4d9d7a691be8fe8cbf6d02ba6dbe/pyamdgpuinfo-2.1.8-cp314-cp314t-manylinux_2_28_x86_64.whl", hash = "sha256:0ac59065ffe1303f4887b1b0b6d16e836e90005e14c4a7a48feecfd5fc382f77", size = 390597, upload-time = "2026-03-28T14:08:57.992Z" },
+    { url = "https://files.pythonhosted.org/packages/bd/a0/f4e951f64468ce4adbc063f856cf1419f587e3bc77087bc9651cee9f9326/pyamdgpuinfo-2.1.8-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:f614089edbb674020946a6f63a7f7f501303d08ccb32e92008544b089865b969", size = 374945, upload-time = "2026-03-28T14:08:59.14Z" },
+]
+
+[[package]]
+name = "pynvml"
+version = "13.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "nvidia-ml-py" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5c/57/da7dc63a79f59e082e26a66ac02d87d69ea316b35b35b7a00d82f3ce3d2f/pynvml-13.0.1.tar.gz", hash = "sha256:1245991d9db786b4d2f277ce66869bd58f38ac654e38c9397d18f243c8f6e48f", size = 35226, upload-time = "2025-09-05T20:33:25.377Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d7/4a/cac76c174bb439a0c46c9a4413fcbea5c6cabfb01879f7bbdb9fdfaed76c/pynvml-13.0.1-py3-none-any.whl", hash = "sha256:e2b20e0a501eeec951e2455b7ab444759cf048e0e13a57b08049fa2775266aa8", size = 28810, upload-time = "2025-09-05T20:33:24.13Z" },
+]
