@@ -72,8 +72,12 @@ impl HostMetrics {
             last_metrics().read().await.clone(),
             speedtest,
         );
-        return MetricsSender::send(mapped_metrics, config.server.base_metrics_url.to_string())
-            .await;
+        return MetricsSender::send(
+            mapped_metrics,
+            config.server.base_metrics_url.to_string(),
+            "host",
+        )
+        .await;
     }
 }
 

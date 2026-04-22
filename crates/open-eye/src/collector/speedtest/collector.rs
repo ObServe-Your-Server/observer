@@ -231,6 +231,8 @@ pub async fn run() -> Result<SpeedtestResult, SpeedtestError> {
 mod tests {
     use super::*;
 
+    #[ignore = "due to external network dependency"]
+    // could fail due to external network
     // multi_thread is required: tokio::spawn needs real OS threads so each
     // download stream has its own thread and doesn't starve the others.
     #[tokio::test(flavor = "multi_thread")]

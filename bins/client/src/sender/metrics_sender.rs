@@ -7,13 +7,13 @@ use std::fmt::Debug;
 pub struct MetricsSender {}
 
 impl MetricsSender {
-    pub async fn send<T>(payload: T, metrics_url: String) -> Result<(), CollectionError>
+    pub async fn send<T>(payload: T, metrics_url: String, name: &str) -> Result<(), CollectionError>
     where
         T: Debug + Serialize,
     {
         let config = get_config();
 
-        debug!("Payload to send: {:?}", payload);
+        debug!("[{}] Payload to send: {:?}", name, payload);
 
         let result = Client::new()
             .post(&metrics_url)
@@ -25,7 +25,8 @@ impl MetricsSender {
         match result {
             Ok(resp) if resp.status().is_success() => {
                 info!(
-                    "Metrics sent ({}) http version: {:?}",
+                    "[{}] Metrics sent ({}) http version: {:?}",
+                    name,
                     resp.status(),
                     resp.version()
                 );
