@@ -1,0 +1,31 @@
+[package]
+name = "open-eye"
+version = "0.1.1"
+description = "Metrics collection library for the Observe server monitoring application"
+repository = "https://github.com/ObServe-Your-Server/observer/tree/standalone/crates/open-eye"
+edition = "2021"
+keywords = ["observe", "system", "metrics", "cpu", "memory"]
+documentation = "https://docs.rs/open-eye"
+homepage = "https://observe.vision"
+readme = "README.md"
+authors = ["Marco Brandt mail@marco-brandt.com"]
+license-file = "../../LICENSE"
+
+
+[lib]
+name = "open_eye"
+path = "src/lib.rs"
+
+[dependencies]
+log = "0.4.29"
+env_logger = "0.11.10"
+serde = {version = "1.0.228", features = ["derive"]}
+serde_json = "1"
+sysinfo = "0.38.4"
+tokio = { version = "1.50.0", features = ["full"] }
+local-ip-address = "0.6"
+docker-api = "0.14.0"
+futures-util = "0.3.32"
+nix = { version = "0.31.2", features = ["fs", "user"] }
+reqwest = { version = "0.12", features = ["stream", "rustls-tls", "json", "http2"], default-features = false }
+chrono = { version = "0.4.44", features = ["serde"] }
