@@ -1,23 +1,27 @@
+use crate::{config::get_config, scheduling::collection_error::CollectionError};
 use log::{debug, info};
 use reqwest::Client;
+use serde::Serialize;
+use std::fmt::Debug;
 
-use crate::{config::get_config, mapper::host_metrics_models::mapped_host_system_metrics::MappedHostSystemMetrics, scheduling::collection_error::CollectionError};
+pub struct MetricsSender {}
 
-pub struct HostSystemMetricsSender{}
-
-impl HostSystemMetricsSender {
-    pub async fn send(mapped_host_system_metrics: MappedHostSystemMetrics) -> Result<(), CollectionError>{
+impl MetricsSender {
+    pub async fn send<T>(payload: T, metrics_url: String) -> Result<(), CollectionError>
+    where
+        T: Debug + Serialize,
+    {
         let config = get_config();
-    
-        debug!("Payload to send: {:?}", mapped_host_system_metrics);
-    
+
+        debug!("Payload to send: {:?}", payload);
+
         let result = Client::new()
-            .post(&config.server.base_metrics_url)
+            .post(&metrics_url)
             .header("X-Api-Key", &config.server.api_key)
-            .json(&mapped_host_system_metrics)
+            .json(&payload)
             .send()
             .await;
-    
+
         match result {
             Ok(resp) if resp.status().is_success() => {
                 info!(

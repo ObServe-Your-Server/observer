@@ -1,6 +1,6 @@
+use log::{debug, error};
 use std::sync::OnceLock;
 use tokio::sync::RwLock;
-use log::{debug, error};
 
 use open_eye::collector::{
     cpu::collector::CpuStats,
@@ -11,11 +11,10 @@ use open_eye::collector::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::config::get_config;
 use crate::{
-    mapper::{
-        host_metrics_mapper::HostSystemMapper, host_metrics_models::mapped_host_system_metrics,
-    },
-    scheduling::collection_error::CollectionError, sender::host_system_metrics_sender::HostSystemMetricsSender,
+    mapper::host_metrics_mapper::HostSystemMapper, scheduling::collection_error::CollectionError,
+    sender::metrics_sender::MetricsSender,
 };
 
 static LAST_METRICS: OnceLock<RwLock<Option<HostMetrics>>> = OnceLock::new();
@@ -44,9 +43,7 @@ impl HostMetrics {
         );
 
         HostMetrics {
-            cpu: cpu
-                .map_err(|e| error!("cpu collector panicked: {e}"))
-                .ok(),
+            cpu: cpu.map_err(|e| error!("cpu collector panicked: {e}")).ok(),
             memory: memory
                 .map_err(|e| error!("memory collector panicked: {e}"))
                 .ok(),
@@ -63,6 +60,7 @@ impl HostMetrics {
     }
 
     pub async fn run() -> Result<(), CollectionError> {
+        let config = get_config();
         let metrics = HostMetrics::collect().await;
         let speedtest = crate::subsystem::speedtest::get_last_metrics().await;
 
@@ -74,7 +72,8 @@ impl HostMetrics {
             last_metrics().read().await.clone(),
             speedtest,
         );
-        return HostSystemMetricsSender::send(mapped_metrics).await;
+        return MetricsSender::send(mapped_metrics, config.server.base_metrics_url.to_string())
+            .await;
     }
 }
 

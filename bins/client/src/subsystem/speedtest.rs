@@ -1,11 +1,9 @@
-use std::sync::OnceLock;
 use log::debug;
 use serde::{Deserialize, Serialize};
+use std::sync::OnceLock;
 use tokio::sync::RwLock;
 
-use open_eye::collector::{
-    speedtest::collector::{SpeedtestError, SpeedtestResult},
-};
+use open_eye::collector::speedtest::collector::SpeedtestError;
 
 static LAST_METRICS: OnceLock<RwLock<Option<SpeedtestMetrics>>> = OnceLock::new();
 
@@ -54,7 +52,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_speedtest_metrics_collection() {
-        let metrics = SpeedtestMetrics::collect().await.expect("Failed to collect speedtest metrics");
+        let metrics = SpeedtestMetrics::collect()
+            .await
+            .expect("Failed to collect speedtest metrics");
         println!("Collected Speedtest Metrics: {:?}", metrics);
         assert!(metrics.download_mbps.is_some());
         assert!(metrics.upload_mbps.is_some());

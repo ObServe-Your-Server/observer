@@ -1,5 +1,5 @@
-use std::env;
 use log::debug;
+use std::env;
 
 // the init should be done either from a top level crate and
 // then the value for the logging configuration should pe set.

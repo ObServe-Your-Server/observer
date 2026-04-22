@@ -1,5 +1,5 @@
-use std::env;
 use log::debug;
+use std::env;
 
 pub enum LogTarget {
     MetricCollection,

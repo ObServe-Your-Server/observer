@@ -1,4 +1,4 @@
-use std::fmt::{self, write};
+use std::fmt::{self};
 
 #[derive(Debug)]
 pub enum CollectionError {
@@ -6,7 +6,7 @@ pub enum CollectionError {
     PullFailed(reqwest::Error),
     ServerRejected(reqwest::StatusCode),
     PaarsingFailed(reqwest::Error),
-    ContainerSocketUnavailable(String)
+    ContainerSocketUnavailable(String),
 }
 
 impl std::fmt::Display for CollectionError {
@@ -16,7 +16,7 @@ impl std::fmt::Display for CollectionError {
             Self::PullFailed(e) => write!(f, "Pull failed: {}", e),
             Self::ServerRejected(e) => write!(f, "Server rejected metrics: {}", e),
             Self::PaarsingFailed(e) => write!(f, "The parsing failed: {}", e),
-            Self::ContainerSocketUnavailable(e) => write!(f, "Container socket unavailable: {}", e)
+            Self::ContainerSocketUnavailable(e) => write!(f, "Container socket unavailable: {}", e),
         }
     }
 }

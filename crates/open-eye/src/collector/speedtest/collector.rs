@@ -1,5 +1,5 @@
-use log::{debug, info};
 use futures_util::StreamExt;
+use log::{debug, info};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::sync::{
@@ -68,8 +68,16 @@ async fn measure_ping(client: &Client) -> Result<f64, SpeedtestError> {
 
 /// Single download stream: pulls bytes until `stop` fires, adds to `counter`.
 /// Gets its own Client so it has an independent TCP connection + congestion window.
-async fn download_stream(stop: Arc<AtomicBool>, counter: Arc<AtomicU64>, measure_flag: Arc<AtomicBool>) {
-    let client = match Client::builder().no_gzip().pool_max_idle_per_host(0).build() {
+async fn download_stream(
+    stop: Arc<AtomicBool>,
+    counter: Arc<AtomicU64>,
+    measure_flag: Arc<AtomicBool>,
+) {
+    let client = match Client::builder()
+        .no_gzip()
+        .pool_max_idle_per_host(0)
+        .build()
+    {
         Ok(c) => c,
         Err(_) => return,
     };
@@ -107,8 +115,16 @@ async fn download_stream(stop: Arc<AtomicBool>, counter: Arc<AtomicU64>, measure
 }
 
 /// Single upload stream: POSTs chunks until `stop` fires, adds to `counter`.
-async fn upload_stream(stop: Arc<AtomicBool>, counter: Arc<AtomicU64>, measure_flag: Arc<AtomicBool>) {
-    let client = match Client::builder().no_gzip().pool_max_idle_per_host(0).build() {
+async fn upload_stream(
+    stop: Arc<AtomicBool>,
+    counter: Arc<AtomicU64>,
+    measure_flag: Arc<AtomicBool>,
+) {
+    let client = match Client::builder()
+        .no_gzip()
+        .pool_max_idle_per_host(0)
+        .build()
+    {
         Ok(c) => c,
         Err(_) => return,
     };
@@ -152,7 +168,13 @@ where
     let measure_flag = Arc::new(AtomicBool::new(false));
 
     let handles: Vec<_> = (0..PARALLEL_STREAMS)
-        .map(|_| tokio::spawn(make_fut(Arc::clone(&stop), Arc::clone(&counter), Arc::clone(&measure_flag))))
+        .map(|_| {
+            tokio::spawn(make_fut(
+                Arc::clone(&stop),
+                Arc::clone(&counter),
+                Arc::clone(&measure_flag),
+            ))
+        })
         .collect();
 
     tokio::time::sleep(Duration::from_secs(WARMUP_SECS)).await;
@@ -195,9 +217,7 @@ pub async fn run() -> Result<SpeedtestResult, SpeedtestError> {
 
     info!(
         "Speedtest: ↓ {:.1} Mbit/s  ↑ {:.1} Mbit/s  ping {:.1} ms",
-        download_mbps,
-        upload_mbps,
-        ping_ms
+        download_mbps, upload_mbps, ping_ms
     );
 
     Ok(SpeedtestResult {

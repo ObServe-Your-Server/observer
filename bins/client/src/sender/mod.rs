@@ -1,1 +1,1 @@
-pub mod host_system_metrics_sender;
+pub mod metrics_sender;

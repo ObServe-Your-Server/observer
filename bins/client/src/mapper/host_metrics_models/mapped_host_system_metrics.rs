@@ -4,7 +4,7 @@ use crate::mapper::host_metrics_models::{disk_info::DiskInfo, speed_test_result:
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct MappedHostSystemMetrics{
+pub struct MappedHostSystemMetrics {
     pub cpu_usage_percent: f32,
     pub cpu_count: usize,
     pub cpu_name: String,

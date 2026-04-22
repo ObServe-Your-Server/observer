@@ -1,6 +1,6 @@
-use log::debug;
 use docker_api::opts::ContainerListOpts;
 use futures_util::StreamExt;
+use log::debug;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt,

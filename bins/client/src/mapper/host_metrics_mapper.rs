@@ -1,8 +1,7 @@
 use crate::mapper::host_metrics_models::speed_test_result::SpeedtestResult;
 use crate::{
     mapper::host_metrics_models::{
-        disk_info::DiskInfo,
-        mapped_host_system_metrics::MappedHostSystemMetrics,
+        disk_info::DiskInfo, mapped_host_system_metrics::MappedHostSystemMetrics,
     },
     subsystem::host_metrics_collector::HostMetrics,
     subsystem::speedtest::SpeedtestMetrics,
@@ -51,9 +50,7 @@ impl HostSystemMapper {
             ram_used_bytes: memory.map(|m| m.used_memory_in_byte).unwrap_or(0),
             ram_total_bytes: memory.map(|m| m.total_memory_in_byte).unwrap_or(0),
             uptime_secs: sysinfo::System::uptime(),
-            cpu_temp_celsius: cpu
-                .map(|c| c.cpu_temperature_celsius)
-                .filter(|&t| t != 0.0),
+            cpu_temp_celsius: cpu.map(|c| c.cpu_temperature_celsius).filter(|&t| t != 0.0),
             os_name: system.and_then(|s| s.os_name.clone()),
             kernel_version: system.map(|s| s.kernel_version.clone()),
             net_bytes_received,
@@ -229,4 +226,3 @@ mod tests {
         assert!((st.ping_ms - 12.0).abs() < f64::EPSILON);
     }
 }
-

@@ -1,13 +1,12 @@
 use chrono::{DateTime, Utc};
 use log::{error, info, warn};
 use std::sync::{Arc, OnceLock};
-use tokio::sync::RwLock;
 use std::time::Duration;
+use tokio::sync::RwLock;
 use tokio::time;
 use tokio::time::MissedTickBehavior;
 
 use crate::scheduling::collection_error::CollectionError;
-
 
 pub struct SubsystemState {
     pub metrics_enabled: RwLock<bool>,
@@ -115,8 +114,7 @@ impl Scheduler {
                         self.increment_error_count();
 
                         if self.error_level == ErrorLevel::ErrorCount(self.max_error_count) {
-                            
-                            // if the container socket is unavailable then just 
+                            // if the container socket is unavailable then just
                             // stop this job and not exit in a whole
                             if matches!(
                                 collection_error,
@@ -128,7 +126,7 @@ impl Scheduler {
                                 );
                                 return;
                             }
-                            
+
                             // exit the application if it is another error
                             panic!(
                                 "Scheduler [{}] max error count reached: {}. The last error was: {}",

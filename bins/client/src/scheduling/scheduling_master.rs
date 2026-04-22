@@ -1,6 +1,6 @@
 use crate::scheduling::scheduler::{Scheduler, SchedulerKind};
-use crate::{config::get_config, subsystem::host_metrics_collector::HostMetrics};
 use crate::subsystem::speedtest::SpeedtestMetrics;
+use crate::{config::get_config, subsystem::host_metrics_collector::HostMetrics};
 
 pub struct SchedulingMaster {}
 

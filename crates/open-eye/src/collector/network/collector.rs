@@ -1,5 +1,5 @@
-use log::debug;
 use local_ip_address::local_ip;
+use log::debug;
 use serde::{Deserialize, Serialize};
 use sysinfo::Networks;
 
