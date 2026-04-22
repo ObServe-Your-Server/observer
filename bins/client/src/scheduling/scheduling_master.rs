@@ -26,11 +26,19 @@ impl SchedulingMaster {
             config.intervals.docker_secs as u32,
             15,
         );
+        let docker_future = async move {
+            if config.intervals.enable_docker_socket {
+                docker_scheduler
+                    .run(move || {
+                        DockerMetrics::run()
+                    }).await;
+            }
+        };
 
         tokio::join!(
             metric_scheduler.run(|| HostMetrics::run()),
             speetest_scheduler.run(|| SpeedtestMetrics::run()),
-            docker_scheduler.run(|| DockerMetrics::run())
+            docker_future,
         );
     }
 }
