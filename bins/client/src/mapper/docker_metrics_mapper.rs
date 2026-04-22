@@ -7,26 +7,24 @@ pub struct DockerMapper {}
 
 impl DockerMapper {
     pub fn map_for_watch_tower(current: DockerMetrics) -> MappedDockerMetrics {
-        match current.docker {
-            None => vec![],
-            Some(stats) => stats
-                .container_stats
-                .into_iter()
-                .map(|c| MappedContainerStats {
-                    container_runtime: c.container_runtime.to_string(),
-                    id: c.id,
-                    host_name: c.host_name,
-                    created_at: c.created_at,
-                    status: c.status,
-                    running: c.running,
-                    running_for_seconds: c.running_for_seconds,
-                    image_name: c.image_name,
-                    networks: c.networks,
-                    cpu_usage_percent: c.cpu_usage_percent,
-                    memory_usage_bytes: c.memory_usage_bytes,
-                })
-                .collect(),
-        }
+        current
+            .docker
+            .container_stats
+            .into_iter()
+            .map(|c| MappedContainerStats {
+                container_runtime: c.container_runtime.to_string(),
+                id: c.id,
+                host_name: c.host_name,
+                created_at: c.created_at,
+                status: c.status,
+                running: c.running,
+                running_for_seconds: c.running_for_seconds,
+                image_name: c.image_name,
+                networks: c.networks,
+                cpu_usage_percent: c.cpu_usage_percent,
+                memory_usage_bytes: c.memory_usage_bytes,
+            })
+            .collect()
     }
 }
 
@@ -59,30 +57,29 @@ mod tests {
         }
     }
 
+    fn make_metrics(container_stats: Vec<ContainerStats>) -> DockerMetrics {
+        DockerMetrics {
+            docker: ContainerRuntimeStats {
+                collected_at: Utc::now(),
+                container_stats,
+            },
+        }
+    }
+
     #[test]
     fn maps_container_runtime_to_string() {
-        let metrics = DockerMetrics {
-            docker: Some(ContainerRuntimeStats {
-                collected_at: Utc::now(),
-                container_stats: vec![make_container(ContainerRuntime::Docker, "abc", true)],
-            }),
-        };
-
-        let result = DockerMapper::map_for_watch_tower(metrics);
+        let result = DockerMapper::map_for_watch_tower(make_metrics(vec![
+            make_container(ContainerRuntime::Docker, "abc", true),
+        ]));
 
         assert_eq!(result[0].container_runtime, "docker socket");
     }
 
     #[test]
     fn maps_all_container_fields() {
-        let metrics = DockerMetrics {
-            docker: Some(ContainerRuntimeStats {
-                collected_at: Utc::now(),
-                container_stats: vec![make_container(ContainerRuntime::Docker, "abc123", true)],
-            }),
-        };
-
-        let result = DockerMapper::map_for_watch_tower(metrics);
+        let result = DockerMapper::map_for_watch_tower(make_metrics(vec![
+            make_container(ContainerRuntime::Docker, "abc123", true),
+        ]));
 
         assert_eq!(result.len(), 1);
         let c = &result[0];
@@ -99,27 +96,18 @@ mod tests {
     }
 
     #[test]
-    fn maps_none_docker_to_empty_list() {
-        let metrics = DockerMetrics { docker: None };
-
-        let result = DockerMapper::map_for_watch_tower(metrics);
+    fn maps_empty_container_list() {
+        let result = DockerMapper::map_for_watch_tower(make_metrics(vec![]));
 
         assert!(result.is_empty());
     }
 
     #[test]
     fn maps_multiple_containers() {
-        let metrics = DockerMetrics {
-            docker: Some(ContainerRuntimeStats {
-                collected_at: Utc::now(),
-                container_stats: vec![
-                    make_container(ContainerRuntime::Docker, "c1", true),
-                    make_container(ContainerRuntime::Podman, "c2", false),
-                ],
-            }),
-        };
-
-        let result = DockerMapper::map_for_watch_tower(metrics);
+        let result = DockerMapper::map_for_watch_tower(make_metrics(vec![
+            make_container(ContainerRuntime::Docker, "c1", true),
+            make_container(ContainerRuntime::Podman, "c2", false),
+        ]));
 
         assert_eq!(result.len(), 2);
         assert_eq!(result[1].container_runtime, "podman socket");
