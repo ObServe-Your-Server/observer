@@ -14,7 +14,7 @@ impl MetricsSender {
     {
         let config = get_config();
 
-        debug!("[{}] Payload to send: {:?}", type_name::<T>(), payload);
+        debug!("[{}] Payload to send: {:?}", tynm::type_name::<T>(), payload);
 
         let result = Client::new()
             .post(&metrics_url)
@@ -27,7 +27,7 @@ impl MetricsSender {
             Ok(resp) if resp.status().is_success() => {
                 info!(
                     "[{}] Metrics sent ({}) http version: {:?}",
-                    type_name::<T>(),
+                    tynm::type_name::<T>(),
                     resp.status(),
                     resp.version()
                 );

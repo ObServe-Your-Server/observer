@@ -31,3 +31,4 @@ docker-api = "0.14"
 local-ip-address = "0.6"
 chrono = { version = "0.4.44", features = ["serde"] }
 open-eye = { path = "../../crates/open-eye" }
+tynm = "0.2.0"
