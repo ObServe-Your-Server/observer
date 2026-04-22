@@ -41,8 +41,7 @@ impl DockerMetrics {
         let mapped_metrics = DockerMapper::map_for_watch_tower(docker_metrics);
         MetricsSender::send(
             mapped_metrics,
-            config.server.base_docker_url.to_string(),
-            "docker",
+            config.server.base_docker_url.to_string()
         )
         .await
     }

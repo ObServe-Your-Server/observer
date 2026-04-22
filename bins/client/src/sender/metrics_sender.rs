@@ -1,3 +1,4 @@
+use std::any::type_name;
 use crate::{config::get_config, scheduling::collection_error::CollectionError};
 use log::{debug, info};
 use reqwest::Client;
@@ -7,13 +8,13 @@ use std::fmt::Debug;
 pub struct MetricsSender {}
 
 impl MetricsSender {
-    pub async fn send<T>(payload: T, metrics_url: String, name: &str) -> Result<(), CollectionError>
+    pub async fn send<T>(payload: T, metrics_url: String) -> Result<(), CollectionError>
     where
         T: Debug + Serialize,
     {
         let config = get_config();
 
-        debug!("[{}] Payload to send: {:?}", name, payload);
+        debug!("[{}] Payload to send: {:?}", type_name::<T>(), payload);
 
         let result = Client::new()
             .post(&metrics_url)
@@ -26,7 +27,7 @@ impl MetricsSender {
             Ok(resp) if resp.status().is_success() => {
                 info!(
                     "[{}] Metrics sent ({}) http version: {:?}",
-                    name,
+                    type_name::<T>(),
                     resp.status(),
                     resp.version()
                 );
