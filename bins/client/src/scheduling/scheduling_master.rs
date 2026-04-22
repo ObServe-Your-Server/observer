@@ -1,3 +1,4 @@
+use log::info;
 use crate::scheduling::scheduler::{Scheduler, SchedulerKind};
 use crate::subsystem::docker_metrics_collector::DockerMetrics;
 use crate::subsystem::speedtest::SpeedtestMetrics;
@@ -32,6 +33,8 @@ impl SchedulingMaster {
                     .run(move || {
                         DockerMetrics::run()
                     }).await;
+            } else {
+                info!("Docker socket collection is disabled, skipping docker metrics collection");
             }
         };
 
