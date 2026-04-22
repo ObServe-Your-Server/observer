@@ -55,7 +55,7 @@ enum ErrorLevel {
 
 pub struct Scheduler {
     kind: SchedulerKind,
-    interval_secs: Arc<RwLock<u32>>,
+    interval_secs: u32,
     error_level: ErrorLevel,
     max_error_count: u8,
 }
@@ -64,7 +64,7 @@ impl Scheduler {
     pub fn new(kind: SchedulerKind, interval_secs: u32, max_error_count: u8) -> Self {
         Self {
             kind,
-            interval_secs: Arc::new(RwLock::new(interval_secs)),
+            interval_secs,
             error_level: ErrorLevel::HealthyJob,
             max_error_count,
         }
@@ -76,7 +76,7 @@ impl Scheduler {
         Fut: std::future::Future<Output = Result<(), E>>,
         E: std::error::Error + 'static,
     {
-        let duration = Duration::from_secs(*self.interval_secs.read().await as u64);
+        let duration = Duration::from_secs(self.interval_secs as u64);
         let mut interval = time::interval(duration);
         // skip if the execution took too long or other issues
         interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
@@ -84,7 +84,7 @@ impl Scheduler {
         info!(
             "Scheduler [{}] starting, running every {}s",
             self.kind.as_str(),
-            *self.interval_secs.read().await
+            self.interval_secs
         );
 
         loop {
@@ -146,7 +146,7 @@ impl Scheduler {
                         "Scheduler [{}] job exceeded interval ({}s), cancelled.
                         You may need to increase the metrics collection interval.",
                         name,
-                        *self.interval_secs.read().await
+                        self.interval_secs
                     );
                 }
             }
