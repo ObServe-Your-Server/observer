@@ -50,7 +50,7 @@ impl NetworkStats {
         let total_packets_received = networks
             .iter()
             .filter(|(name, _)| is_physical(name))
-            .map(|(_, n)| n.total_packets_transmitted())
+            .map(|(_, n)| n.total_packets_received())
             .sum::<u64>();
 
         let local_ip = match local_ip() {
