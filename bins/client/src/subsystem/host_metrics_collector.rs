@@ -66,18 +66,16 @@ impl HostMetrics {
 
         debug!("Host metrics collected: {:?}", metrics);
 
-        // first map then send the metrics
+        let last = last_metrics().read().await.clone();
         let mapped_metrics = HostSystemMapper::map_for_watch_tower(
-            metrics,
-            last_metrics().read().await.clone(),
+            metrics.clone(),
+            last,
             speedtest,
         );
-        return MetricsSender::send(
-            mapped_metrics,
-            config.server.base_metrics_url.to_string(),
-            "host",
-        )
-        .await;
+
+        *last_metrics().write().await = Some(metrics);
+
+        return MetricsSender::send(mapped_metrics, config.server.base_metrics_url.to_string(), "host").await;
     }
 }
 
