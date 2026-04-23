@@ -5,6 +5,6 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "pyamdgpuinfo>=2.1.8",
+    "pyamdgpuinfo>=2.1.8; sys_platform == 'linux'",
     "nvidia-ml-py>=12.560.30",
 ]

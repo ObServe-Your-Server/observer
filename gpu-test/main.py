@@ -4,7 +4,10 @@ import os
 import subprocess
 
 import pynvml
-import pyamdgpuinfo
+try:
+    import pyamdgpuinfo
+except ImportError:
+    pyamdgpuinfo = None
 
 
 def sysfs(path):
@@ -134,6 +137,9 @@ def get_nvidia_info() -> dict | None:
 
 
 def get_amd_info() -> list[dict] | None:
+    if pyamdgpuinfo is None:
+        return None
+
     try:
         count = pyamdgpuinfo.detect_gpus()
     except Exception:
