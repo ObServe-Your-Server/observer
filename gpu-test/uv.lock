@@ -8,13 +8,13 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "nvidia-ml-py" },
-    { name = "pyamdgpuinfo" },
+    { name = "pyamdgpuinfo", marker = "sys_platform == 'linux'" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "nvidia-ml-py", specifier = ">=12.560.30" },
-    { name = "pyamdgpuinfo", specifier = ">=2.1.8" },
+    { name = "pyamdgpuinfo", marker = "sys_platform == 'linux'", specifier = ">=2.1.8" },
 ]
 
 [[package]]
