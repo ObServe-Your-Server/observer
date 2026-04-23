@@ -70,7 +70,7 @@ impl Scheduler {
         }
     }
 
-    pub async fn run<F, Fut, E>(&mut self, job: F)
+    pub async fn run<F, Fut, E>(mut self, job: F)
     where
         F: Fn() -> Fut,
         Fut: std::future::Future<Output = Result<(), E>>,
@@ -145,8 +145,7 @@ impl Scheduler {
                     error!(
                         "Scheduler [{}] job exceeded interval ({}s), cancelled.
                         You may need to increase the metrics collection interval.",
-                        name,
-                        self.interval_secs
+                        name, self.interval_secs
                     );
                 }
             }

@@ -3,8 +3,8 @@ use crate::mapper::docker_metrics_mapper::DockerMapper;
 use crate::scheduling::collection_error::CollectionError;
 use crate::sender::metrics_sender::MetricsSender;
 use log::{debug, error};
-use open_eye::collector::docker::collector::check_runtime_availability;
 use open_eye::collector::docker::collector::ContainerRuntimeStats;
+use open_eye::collector::docker::collector::check_runtime_availability;
 use open_eye::collector::docker::collector::get_current_stats;
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -39,10 +39,6 @@ impl DockerMetrics {
         debug!("Docker metrics collected: {:?}", docker_metrics);
 
         let mapped_metrics = DockerMapper::map_for_watch_tower(docker_metrics);
-        MetricsSender::send(
-            mapped_metrics,
-            config.server.base_docker_url.to_string()
-        )
-        .await
+        MetricsSender::send(mapped_metrics, config.server.base_docker_url.to_string()).await
     }
 }

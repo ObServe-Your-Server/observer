@@ -1,8 +1,8 @@
-use std::any::type_name;
 use crate::{config::get_config, scheduling::collection_error::CollectionError};
 use log::{debug, info};
 use reqwest::Client;
 use serde::Serialize;
+use std::any::type_name;
 use std::fmt::Debug;
 
 pub struct MetricsSender {}
@@ -14,7 +14,11 @@ impl MetricsSender {
     {
         let config = get_config();
 
-        debug!("[{}] Payload to send: {:?}", tynm::type_name::<T>(), payload);
+        debug!(
+            "[{}] Payload to send: {:?}",
+            tynm::type_name::<T>(),
+            payload
+        );
 
         let result = Client::new()
             .post(&metrics_url)
