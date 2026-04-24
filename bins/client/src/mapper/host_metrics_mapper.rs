@@ -123,6 +123,7 @@ mod tests {
             }),
             system: Some(SystemStats {
                 os_name: Some("Linux 6.1".to_string()),
+                uptime_seconds: 1000,
                 host_name: Some("test-host".to_string()),
                 kernel_version: "6.1.0".to_string(),
             }),
