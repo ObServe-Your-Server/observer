@@ -4,6 +4,7 @@ use sysinfo::System;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SystemStats {
     pub os_name: Option<String>,
+    pub uptime_seconds: u64,
     pub host_name: Option<String>,
     pub kernel_version: String,
 }
@@ -22,6 +23,7 @@ impl SystemStats {
     pub fn get_current_stats() -> SystemStats {
         SystemStats {
             os_name: System::long_os_version(),
+            uptime_seconds: System::uptime(),
             host_name: System::host_name(),
             kernel_version: System::kernel_long_version(),
         }
