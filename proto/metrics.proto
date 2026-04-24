@@ -1,0 +1,58 @@
+syntax = "proto3";
+package metrics;
+
+message FullMetrics {
+  repeated Cpu metrics = 1;
+  Memory memory = 2;
+  repeated Disk disk = 3;
+  Network network = 4;
+  SystemStats system_stats = 5;
+  
+}
+
+message Cpu {
+  string cpu_name = 1;
+  uint32 cpu_count = 2;
+  uint32 cpu_physical_count = 3;
+  double cpu_usage_percent = 4;
+  double cpu_temperature_celsius = 5;
+  repeated Core cores = 6;
+}
+
+message Core {
+  string core_name = 1;
+  double core_usage_percent = 2;
+  double core_frequency_mhz = 3;
+}
+
+message Memory {
+  uint64 total_memory_in_byte = 1;
+  uint64 available_memory_in_byte = 2;
+  uint64 used_memory_in_byte = 3;
+  uint64 total_swap_in_byte = 4;
+  uint64 used_swap_in_byte = 5;
+}
+
+message Disk {
+  string name = 1;
+  uint64 total_bytes = 2;
+  uint64 used_bytes = 3;
+  uint64 available_bytes = 4;
+  uint64 used_blocks = 5;
+  uint64 available_blocks = 6;
+  uint64 block_size = 7;
+}
+
+message Network {
+  string local_ip = 1;
+  uint64 total_bytes_transmitted = 2;
+  uint64 total_bytes_received = 3;
+  uint64 total_packets_transmitted = 4;
+  uint64 total_packets_received = 5;
+}
+
+message SystemStats {
+  optional string os_name = 1;
+  optional string hostname = 2;
+  optional string kernel_version = 3;
+}
