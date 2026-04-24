@@ -30,3 +30,12 @@ target
 observer.toml
 !observer.toml.example
 .idea
+
+# gpu-test Python project artifacts
+gpu-test/__pycache__/
+gpu-test/**/__pycache__/
+gpu-test/*.py[cod]
+gpu-test/.pytest_cache/
+gpu-test/dist/
+gpu-test/build/
+gpu-test/*.egg-info/

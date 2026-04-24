@@ -68,18 +68,22 @@ mod tests {
 
     #[test]
     fn maps_container_runtime_to_string() {
-        let result = DockerMapper::map_for_watch_tower(make_metrics(vec![
-            make_container(ContainerRuntime::Docker, "abc", true),
-        ]));
+        let result = DockerMapper::map_for_watch_tower(make_metrics(vec![make_container(
+            ContainerRuntime::Docker,
+            "abc",
+            true,
+        )]));
 
         assert_eq!(result[0].container_runtime, "docker socket");
     }
 
     #[test]
     fn maps_all_container_fields() {
-        let result = DockerMapper::map_for_watch_tower(make_metrics(vec![
-            make_container(ContainerRuntime::Docker, "abc123", true),
-        ]));
+        let result = DockerMapper::map_for_watch_tower(make_metrics(vec![make_container(
+            ContainerRuntime::Docker,
+            "abc123",
+            true,
+        )]));
 
         assert_eq!(result.len(), 1);
         let c = &result[0];
