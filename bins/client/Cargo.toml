@@ -26,9 +26,12 @@ env_logger = "0.11"
 tokio = { version = "1", features = ["rt-multi-thread", "time", "macros"] }
 sysinfo = "0.38.4"
 reqwest = { version = "0.12", features = ["stream", "rustls-tls", "json", "http2"], default-features = false }
-futures-util = "0.3.32"
-docker-api = "0.14"
-local-ip-address = "0.6"
 chrono = { version = "0.4.44", features = ["serde"] }
 open-eye = { path = "../../crates/open-eye" }
 tynm = "0.2.0"
+prost = "0.14"
+prost-types = "0.14"
+
+[build-dependencies]
+tonic-prost-build = "0.14.5"
+protoc-bin-vendored = "3"
