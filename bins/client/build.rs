@@ -6,6 +6,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::env::set_var("PROTOC", protoc);
         std::env::set_var("PROTOC_INCLUDE", include);
     }
-    tonic_prost_build::compile_protos("proto/metrics.proto")?;
+    tonic_prost_build::compile_protos("proto/host-metrics.proto")?;
     Ok(())
 }

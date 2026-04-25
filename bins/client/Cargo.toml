@@ -33,7 +33,7 @@ tynm = "0.2.0"
 
 prost = "0.14"# protobuf message serialization/deserialization
 prost-types = "0.14"# well-known proto types (e.g. Timestamp)
-tonic = "0.14"# gRPC runtime: transports, service traits, request/response wrappers
+tonic = { version = "0.14", features = ["tls-native-roots"] }# gRPC runtime: transports, service traits, request/response wrappers
 tonic-prost = "0.14"# ProstCodec used by the generated client/server stubs to encode proto messages over gRPC
 
 [build-dependencies]
