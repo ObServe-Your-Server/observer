@@ -1,7 +1,7 @@
 use crate::subsystem::host_metrics_collector::HostMetrics;
-use super::metrics_proto::{Cpu, Core, Disk, FullMetrics, Memory, Network, SystemStats};
+use super::metrics_proto::{Cpu, Core, Disk, Metrics, Memory, Network, SystemStats};
 
-pub fn to_full_metrics(host: HostMetrics) -> FullMetrics {
+pub fn to_full_metrics(host: HostMetrics) -> Metrics {
     let now = prost_types::Timestamp::from(std::time::SystemTime::now());
 
     let cpu_vec = host.cpu.map(|c| Cpu {
@@ -56,12 +56,12 @@ pub fn to_full_metrics(host: HostMetrics) -> FullMetrics {
         recorded_at: Some(now.clone()),
     });
 
-    FullMetrics {
+    Metrics {
         metrics: cpu_vec,
-        memory,
+        memory: memory.into_iter().collect(),
         disk,
-        network,
-        system_stats,
+        network: network.into_iter().collect(),
+        system_stats: system_stats.into_iter().collect(),
         recorded_at: Some(now),
     }
 }

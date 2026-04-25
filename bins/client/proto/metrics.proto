@@ -3,12 +3,12 @@ package metrics;
 
 import "google/protobuf/timestamp.proto";
 
-message FullMetrics {
+message Metrics {
   repeated Cpu metrics = 1;
-  Memory memory = 2;
+  repeated Memory memory = 2;
   repeated Disk disk = 3;
-  Network network = 4;
-  SystemStats system_stats = 5;
+  repeated Network network = 4;
+  repeated SystemStats system_stats = 5;
   google.protobuf.Timestamp recorded_at = 6;
 }
 
@@ -64,4 +64,13 @@ message SystemStats {
   optional string kernel_version = 3;
   optional uint64 uptime_in_seconds = 4;
   google.protobuf.Timestamp recorded_at = 5;
+}
+
+message GetMetricsRequest {
+  google.protobuf.Timestamp start_time = 1;
+  google.protobuf.Timestamp end_time = 2;
+}
+
+service MetricsService {
+  rpc GetMetrics (GetMetricsRequest) returns (Metrics);
 }

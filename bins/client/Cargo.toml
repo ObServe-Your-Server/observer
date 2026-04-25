@@ -29,9 +29,13 @@ reqwest = { version = "0.12", features = ["stream", "rustls-tls", "json", "http2
 chrono = { version = "0.4.44", features = ["serde"] }
 open-eye = { path = "../../crates/open-eye" }
 tynm = "0.2.0"
-prost = "0.14"
-prost-types = "0.14"
+
+
+prost = "0.14"# protobuf message serialization/deserialization
+prost-types = "0.14"# well-known proto types (e.g. Timestamp)
+tonic = "0.14"# gRPC runtime: transports, service traits, request/response wrappers
+tonic-prost = "0.14"# ProstCodec used by the generated client/server stubs to encode proto messages over gRPC
 
 [build-dependencies]
-tonic-prost-build = "0.14.5"
-protoc-bin-vendored = "3"
+tonic-prost-build = "0.14.5"# generates Rust structs and gRPC service stubs from .proto files at build time
+protoc-bin-vendored = "3"# bundles a precompiled protoc binary so no system protoc install is needed
