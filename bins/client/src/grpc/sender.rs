@@ -1,5 +1,6 @@
 use std::time::Duration;
 use tonic::transport::{Channel, ClientTlsConfig};
+use crate::grpc::metrics_proto::{Metrics, metrics_service_client::MetricsServiceClient};
 
 pub struct Sender {
     url: &'static str,
@@ -42,6 +43,11 @@ impl Sender {
         Err(last_err.unwrap())
     }
 
+    pub async fn push_metrics(&self, metrics: Metrics) -> Result<(), tonic::Status> {
+        let mut client = MetricsServiceClient::new(self.channel.clone());
+        client.push_metrics(metrics).await.map(|_| ())
+    }
+
     async fn connect_socket(url: &'static str) -> Result<Channel, tonic::transport::Error> {
         let endpoint = Channel::from_static(url)
             .keep_alive_while_idle(true)
@@ -64,8 +70,28 @@ mod tests {
     use super::*;
 
     #[ignore = "requires a grpc server running"]
-    #[test]
-    fn test_connection() {
+    #[tokio::test]
+    async fn test_connection() {
+        let sender = Sender::new("http://localhost:50051", Some(1)).await;
+        assert!(sender.is_ok(), "failed to connect: {:?}", sender.err());
+    }
 
+    #[ignore = "requires a grpc server running"]
+    #[tokio::test]
+    async fn test_push_metrics() {
+        let sender = Sender::new("http://localhost:50051", Some(1)).await
+            .expect("failed to connect");
+
+        let metrics = Metrics {
+            metrics: vec![],
+            memory: vec![],
+            disk: vec![],
+            network: vec![],
+            system_stats: vec![],
+            recorded_at: Some(prost_types::Timestamp::from(std::time::SystemTime::now())),
+        };
+
+        let result = sender.push_metrics(metrics).await;
+        assert!(result.is_ok(), "failed to push metrics: {:?}", result.err());
     }
 }

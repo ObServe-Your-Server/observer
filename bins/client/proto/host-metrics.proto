@@ -2,6 +2,7 @@ syntax = "proto3";
 package metrics;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
 message Metrics {
   repeated Cpu metrics = 1;
@@ -73,4 +74,5 @@ message GetMetricsRequest {
 
 service MetricsService {
   rpc GetMetrics (GetMetricsRequest) returns (Metrics);
+  rpc PushMetrics (Metrics) returns (google.protobuf.Empty);
 }
