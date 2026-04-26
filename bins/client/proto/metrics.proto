@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package connection;
+
+option go_package = "github.com/ObserveYourServer/grpc-server/internal/gen/metrics";
+
+import "google/protobuf/timestamp.proto";
+
+message MetricsResponse {
+  string request_id = 1;
+  float cpu_usage_percent = 2;
+}
+
+message TimeRangeRequest {
+  google.protobuf.Timestamp from = 1;
+  google.protobuf.Timestamp to = 2;
+}
+
+message LastNRequest {
+  int32 count = 1;
+}
+
+// RequestData is sent by the server to ask the machine for metrics.
+message RequestData {
+  string request_id = 1;
+  google.protobuf.Timestamp requested_at = 2;
+  oneof request_type {
+    TimeRangeRequest time_range = 3;
+    LastNRequest last_n = 4;
+  }
+}
+
+service MetricsService {
+  // Machine sends status updates or metrics responses to the server.
+  // Server sends RequestData to trigger metric collection from the machine.
+  rpc BaseTransfer (stream MetricsResponse) returns (stream RequestData);
+}

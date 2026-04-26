@@ -1,8 +1,7 @@
-pub mod metrics_proto {
-    include!(concat!(env!("OUT_DIR"), "/metrics.rs"));
+pub mod connection_proto {
+    include!(concat!(env!("OUT_DIR"), "/connection.rs"));
 }
 
-mod proto_mapper;
 mod sender;
 
-pub use proto_mapper::to_full_metrics;
+pub use sender::Sender;

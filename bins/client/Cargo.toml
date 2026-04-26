@@ -11,6 +11,7 @@ path = "src/main.rs"
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }
 tempfile = "3"
+tokio-stream = { version = "0.1", features = ["net"] }
 
 # tells cargo about our bench file, harness=false means criterion manages the runner
 #[[bench]]
@@ -34,6 +35,7 @@ tynm = "0.2.0"
 prost = "0.14"# protobuf message serialization/deserialization
 prost-types = "0.14"# well-known proto types (e.g. Timestamp)
 tonic = { version = "0.14", features = ["tls-native-roots"] }# gRPC runtime: transports, service traits, request/response wrappers
+tokio-stream = { version = "0.1", features = ["net"] }# async stream utilities used by gRPC bidi streaming
 tonic-prost = "0.14"# ProstCodec used by the generated client/server stubs to encode proto messages over gRPC
 
 [build-dependencies]
