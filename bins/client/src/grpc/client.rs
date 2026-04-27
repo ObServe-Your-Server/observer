@@ -5,20 +5,19 @@ use tokio_stream::StreamExt;
 use tonic::{metadata::MetadataValue, transport::{Channel, ClientTlsConfig}, Request};
 
 use crate::grpc::connection_proto::{
-    MetricsResponse, RequestData,
+    MetricsResponse,
     metrics_service_client::MetricsServiceClient,
 };
-use crate::subsystem::host_metrics_collector::HostMetrics;
 
 
-pub struct Sender {
+pub struct Client {
     url: &'static str,
     api_key: String,
     connection_retries: u8,
     channel: Channel,
 }
 
-impl Sender {
+impl Client {
     pub async fn new(
         url: &'static str,
         api_key: String,
@@ -27,7 +26,7 @@ impl Sender {
         let mut last_err = None;
         
         // attempt to connect
-        for attempt in 1..=connection_retries {
+        for _attempt in 1..=connection_retries {
             match Self::connect_socket(url).await {
                 Ok(channel) => {
                     log::info!("Connected to the server at {}", url);
@@ -47,9 +46,12 @@ impl Sender {
         // create a new client instance
         let mut client = MetricsServiceClient::new(self.channel.clone());
 
+        // creates the tx and rx for the metrics
         let (tx, rx) = mpsc::channel::<MetricsResponse>(16);
+        // wrappes it into a stream to hand to watch-tower
         let outbound = ReceiverStream::new(rx);
 
+        // creates the request with the api key
         let mut request = Request::new(outbound);
         request.metadata_mut().insert(
             "api_key",
@@ -57,9 +59,27 @@ impl Sender {
                 .map_err(|e| tonic::Status::invalid_argument(format!("invalid api_key: {e}")))?,
         );
 
+        // send our receiver stream info to watch-tower
         let response = client.base_transfer(request).await?;
+        // get the inner stream to receive the request data
         let mut inbound = response.into_inner();
 
+        while let Some(result) = inbound.next().await{
+            let request_date = result.expect("Error on receive message");
+            // TODO: implememtn the reschedule for message or error handling
+            log::debug!("received request data {:?}", request_date);
+
+            // logic to send back the metrics response
+            tx.send(MetricsResponse{
+                request_id: request_date.request_id.clone(),
+                cpu_usage_percent: 10.0
+            }).await.map_err(|_| {
+                log::error!("response channel failed to send data");
+                tonic::Status::internal("response channel failed to send data")
+            })?;
+        }
+
+        // return because server closed the stream (for now) should retry to establish the connection and start the server again
         Ok(())
     }
     
