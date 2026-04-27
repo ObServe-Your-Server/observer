@@ -26,7 +26,7 @@ services:
       - DB_PORT=DB_PORT #optional
       - IPINFO_APIKEY=ACCESS_TOKEN #optional
     volumes:
-      - ./config:/config
+      - ./libre-speed-config:/config
     ports:
       - 80:80
     restart: unless-stopped
