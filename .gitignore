@@ -39,3 +39,6 @@ gpu-test/.pytest_cache/
 gpu-test/dist/
 gpu-test/build/
 gpu-test/*.egg-info/
+
+# libre speed config
+libre-speed-config
