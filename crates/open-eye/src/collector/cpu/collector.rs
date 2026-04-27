@@ -70,7 +70,7 @@ fn get_core_information(sys: &System) -> Vec<Core> {
             core_frequency_mhz: c.frequency(),
         });
     }
-    return res;
+    res
 }
 
 fn get_cpu_temperature() -> Option<f32> {

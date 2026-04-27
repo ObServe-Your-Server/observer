@@ -1,10 +1,7 @@
 use nix::sys::statvfs::statvfs;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use std::process::Command;
 
-#[cfg(not(target_os = "linux"))]
-use sysinfo::Disks;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -178,10 +175,10 @@ mod linux {
 
 #[cfg(target_os = "macos")]
 mod macos {
-    use super::{collect_zpools, statvfs_info, DiskInfo};
+    use super::{collect_zpools, DiskInfo};
     use log::debug;
     use std::collections::HashSet;
-    use std::fs;
+    
 
     const SKIP_PREFIXES: &[&str] = &["/System/Volumes/", "/private/var/folders", "/dev", "/proc"];
 

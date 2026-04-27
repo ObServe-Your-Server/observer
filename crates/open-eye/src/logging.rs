@@ -4,6 +4,7 @@ use std::env;
 // the init should be done either from a top level crate and
 // then the value for the logging configuration should pe set.
 // It is also possible to run this in a test and have logging there
+#[allow(dead_code)]
 pub fn init_logging() {
     let level = env::var("OPEN_EYE_LOG_LEVEL")
         .unwrap_or_else(|_| "info".to_string())
