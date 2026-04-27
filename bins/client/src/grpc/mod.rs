@@ -2,6 +2,5 @@ pub mod connection_proto {
     include!(concat!(env!("OUT_DIR"), "/connection.rs"));
 }
 
-mod sender;
+mod client;
 
-pub use sender::Sender;
