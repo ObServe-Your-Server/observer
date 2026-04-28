@@ -2,7 +2,6 @@ use crate::{config::get_config, scheduling::collection_error::CollectionError};
 use log::{debug, info};
 use reqwest::Client;
 use serde::Serialize;
-use std::any::type_name;
 use std::fmt::Debug;
 
 pub struct MetricsSender {}

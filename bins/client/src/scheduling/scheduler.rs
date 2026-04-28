@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use log::{error, info, warn};
-use std::sync::{Arc, OnceLock};
+use std::sync::OnceLock;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time;
