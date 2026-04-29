@@ -14,38 +14,18 @@ pub struct Client {
     url: &'static str,
     api_key: String,
     connection_retries: u8,
-    channel: Channel,
 }
 
 impl Client {
-    pub async fn new(
-        url: &'static str,
-        api_key: String,
-    ) -> Result<Self, tonic::transport::Error> {
-        let connection_retries = 5;
-        let mut last_err = None;
-        
-        // attempt to connect
-        for _attempt in 1..=connection_retries {
-            match Self::connect_socket(url).await {
-                Ok(channel) => {
-                    log::info!("Connected to the server at {}", url);
-                    return Ok(Self { url, api_key, channel, connection_retries })
-                },
-                Err(e) => {
-                    log::error!("Error connecting to grpc server: {} with error: {}", url, e);
-                    last_err = Some(e);
-                    // short backoff to don't run in the same issue
-                    tokio::time::sleep(Duration::from_secs(5)).await;
-                }
-            }
-        }
-        Err(last_err.unwrap())
+    pub fn new(url: &'static str, api_key: String) -> Self {
+        Self { url, api_key, connection_retries: 5 }
     }
-    
+
     pub async fn run(&self) -> Result<(), tonic::Status> {
-        // create a new client instance
-        let mut client = MetricsServiceClient::new(self.channel.clone());
+        let channel = self.connect_with_retries().await
+            .map_err(|e| tonic::Status::unavailable(e.to_string()))?;
+
+        let mut client = MetricsServiceClient::new(channel);
 
         // creates the tx and rx for the metrics
         let (tx, rx) = mpsc::channel::<MetricsResponse>(16);
@@ -88,6 +68,24 @@ impl Client {
         Ok(())
     }
     
+    async fn connect_with_retries(&self) -> Result<Channel, tonic::transport::Error> {
+        let mut last_err = None;
+        for _attempt in 1..=self.connection_retries {
+            match Self::connect_socket(self.url).await {
+                Ok(channel) => {
+                    log::info!("Connected to the server at {}", self.url);
+                    return Ok(channel);
+                }
+                Err(e) => {
+                    log::error!("Error connecting to grpc server: {} with error: {}", self.url, e);
+                    last_err = Some(e);
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                }
+            }
+        }
+        Err(last_err.unwrap())
+    }
+
     async fn connect_socket(url: &'static str) -> Result<Channel, tonic::transport::Error> {
         let endpoint = Channel::from_static(url)
             .keep_alive_while_idle(true)
@@ -171,9 +169,8 @@ mod tests {
     async fn run_grpc_client() {
         init_logging();
         let system_time = SystemTime::now();
-        let client = Client::new(SERVER_URL, "test-key".to_string()).await.expect("failed to create and connect grpc client");
+        let client = Client::new(SERVER_URL, "KNlj1kJhA1pa8cj6DAmlLyvO4XRhOY2tC0HwNeKMh4o".to_string());
         let time = system_time.elapsed().unwrap();
-        log::info!("connection established in: {:?}", time);
         let res = client.run().await;
         let time = system_time.elapsed().unwrap();
         log::info!("elapsed time: {:?}", time);
