@@ -35,6 +35,7 @@ impl Client {
                 Err(e) => {
                     log::error!("Error connecting to grpc server: {} with error: {}", url, e);
                     last_err = Some(e);
+                    // short backoff to don't run in the same issue
                     tokio::time::sleep(Duration::from_secs(5)).await;
                 }
             }
@@ -65,18 +66,22 @@ impl Client {
         let mut inbound = response.into_inner();
 
         while let Some(result) = inbound.next().await{
-            let request_date = result.expect("Error on receive message");
-            // TODO: implememtn the reschedule for message or error handling
-            log::debug!("received request data {:?}", request_date);
-
-            // logic to send back the metrics response
-            tx.send(MetricsResponse{
-                request_id: request_date.request_id.clone(),
-                cpu_usage_percent: 10.0
-            }).await.map_err(|_| {
-                log::error!("response channel failed to send data");
-                tonic::Status::internal("response channel failed to send data")
-            })?;
+            match result {
+                Ok(req_data) => {
+                    log::debug!("received request: {:?}", req_data);
+                    if tx.send(MetricsResponse{
+                        request_id: req_data.request_id.clone(),
+                        cpu_usage_percent: 10.0
+                    }).await.is_err() {
+                        log::error!("response channel failed to send data");
+                        break;
+                    }
+                }
+                Err(e) => {
+                    log::error!("Error receiving metrics response: {}", e);
+                    return Err(tonic::Status::internal(e.to_string()))
+                },
+            }
         }
 
         // return because server closed the stream (for now) should retry to establish the connection and start the server again
@@ -88,7 +93,8 @@ impl Client {
             .keep_alive_while_idle(true)
             .http2_keep_alive_interval(Duration::from_secs(15))
             .keep_alive_timeout(Duration::from_secs(5))
-            .connect_timeout(Duration::from_secs(15));
+            .connect_timeout(Duration::from_secs(15))
+            .buffer_size(256);
 
         let endpoint = if url.starts_with("https://") {
             endpoint.tls_config(ClientTlsConfig::new().with_native_roots())?
@@ -102,6 +108,7 @@ impl Client {
 
 #[cfg(test)]
 mod tests {
+    use std::time::SystemTime;
     use super::*;
     use tokio::sync::mpsc;
     use tokio_stream::{wrappers::ReceiverStream, StreamExt};
@@ -110,6 +117,7 @@ mod tests {
         MetricsResponse,
         metrics_service_client::MetricsServiceClient,
     };
+    use crate::logging::init_logging;
 
     const SERVER_URL: &str = "http://localhost:50051";
 
@@ -157,5 +165,18 @@ mod tests {
 
         tokio::time::sleep(Duration::from_secs(1)).await;
         println!("Sent MetricsResponse for request_id={}", request_data.request_id);
+    }
+
+    #[tokio::test]
+    async fn run_grpc_client() {
+        init_logging();
+        let system_time = SystemTime::now();
+        let client = Client::new(SERVER_URL, "test-key".to_string()).await.expect("failed to create and connect grpc client");
+        let time = system_time.elapsed().unwrap();
+        log::info!("connection established in: {:?}", time);
+        let res = client.run().await;
+        let time = system_time.elapsed().unwrap();
+        log::info!("elapsed time: {:?}", time);
+        assert!(res.is_ok());
     }
 }
