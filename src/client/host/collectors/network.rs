@@ -1,4 +1,3 @@
-use local_ip_address::local_ip;
 use sysinfo::Networks;
 
 #[derive(Debug)]
@@ -8,11 +7,7 @@ pub struct NetworkInfo {
     pub local_ip: Option<String>,
 }
 
-impl NetworkInfo {
-    pub fn local_ip() -> Option<String> {
-        local_ip().ok().map(|ip| ip.to_string())
-    }
-}
+impl NetworkInfo {}
 
 pub fn collect() -> NetworkInfo {
     let networks = Networks::new_with_refreshed_list();
@@ -29,10 +24,16 @@ pub fn collect() -> NetworkInfo {
         .filter(|(name, _)| is_physical(name))
         .map(|(_, n)| n.total_transmitted())
         .sum();
+    let local_ip = networks
+        .iter()
+        .filter(|(name, _)| is_physical(name))
+        .flat_map(|(_, n)| n.ip_networks())
+        .find(|ip| ip.addr.is_ipv4())
+        .map(|ip| ip.addr.to_string());
 
     NetworkInfo {
         bytes_received,
         bytes_transmitted,
-        local_ip: NetworkInfo::local_ip(),
+        local_ip,
     }
 }
