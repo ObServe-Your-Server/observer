@@ -1404,7 +1404,6 @@ dependencies = [
  "docker-api",
  "env_logger",
  "futures-util",
- "local-ip-address",
  "log",
  "nix",
  "reqwest",
