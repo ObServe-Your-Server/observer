@@ -12,7 +12,10 @@ use observer::system_health::HostSytemHealth;
 use std::env;
 
 #[tokio::main]
+#[hotpath::main]
 async fn main() {
+    hotpath::tokio_runtime!();
+
     init_logging();
 
     let config_path = env::var("OBSERVER_CONFIG").unwrap_or_else(|_| "observer.toml".to_string());

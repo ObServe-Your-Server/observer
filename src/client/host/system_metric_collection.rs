@@ -55,6 +55,7 @@ pub struct Metrics {
 }
 
 impl Metrics {
+    #[hotpath::measure]
     pub fn collect() -> Option<Self> {
         let (tx, rx) = mpsc::channel();
 

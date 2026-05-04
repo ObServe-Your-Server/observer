@@ -102,6 +102,7 @@ async fn measure_upload(client: &Client) -> Result<f64, String> {
 }
 
 // TODO: Add error handling
+#[hotpath::measure]
 pub async fn run() -> Result<(), CollectionError> {
     info!(
         "Starting speedtest against Cloudflare ({} download rounds)...",

@@ -76,6 +76,7 @@ impl Scheduler {
         }
     }
 
+    #[hotpath::measure]
     pub async fn run<F, Fut, E>(&mut self, job: F)
     where
         F: Fn() -> Fut,

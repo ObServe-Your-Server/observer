@@ -4,6 +4,7 @@ use reqwest::Client;
 use super::system_metric_collection::Metrics;
 use crate::{client::metric_collection_errors::CollectionError, config::get_config};
 
+#[hotpath::measure]
 pub async fn send(client: &Client, metrics: &Metrics) -> Result<(), CollectionError> {
     let config = get_config();
 

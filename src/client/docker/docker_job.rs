@@ -8,6 +8,7 @@ use super::collector::list_containers;
 use super::docker_metric_sender::send;
 
 // TODO: Error handling
+#[hotpath::measure]
 pub async fn collect(host_sytem_health: HostSytemHealth) -> Result<(), CollectionError> {
     let containers = match list_containers(host_sytem_health).await {
         Ok(Some(c)) => c,

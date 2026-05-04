@@ -61,7 +61,7 @@ pub async fn list_containers(
 ) -> Result<Option<Vec<ContainerStats>>, CollectionError> {
     log::debug!("Docker: attempting to connect to unix:///var/run/docker.sock");
 
-    let docker = match docker_api::Docker::new("unix:///var/run/docker.sock") {
+    let docker = match docker_api::Docker::new("unix:///var/run/docker.sock/false-socket") {
         Ok(d) => {
             log::debug!("Docker: client created successfully");
             d
