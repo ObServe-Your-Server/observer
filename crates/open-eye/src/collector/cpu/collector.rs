@@ -44,9 +44,11 @@ impl CpuStats {
             None => "Not found".to_string(),
         };
         let cpu_count = sys.cpus().iter().count() as u16;
+        #[allow(clippy::clone_on_copy)]
         let cpu_physical_count = System::physical_core_count().get_or_insert(0).clone() as u16;
         let cpu_usage_percent =
             sys.cpus().iter().map(|c| c.cpu_usage()).sum::<f32>() / sys.cpus().len() as f32;
+        #[allow(clippy::clone_on_copy)]
         let cpu_temperature_celsius = get_cpu_temperature().get_or_insert(0.0).clone();
         let core_information = get_core_information(&sys);
 

@@ -72,8 +72,8 @@ impl HostMetrics {
 
         *last_metrics().write().await = Some(metrics);
 
-        return MetricsSender::send(mapped_metrics, config.server.base_metrics_url.to_string())
-            .await;
+        MetricsSender::send(mapped_metrics, config.server.base_metrics_url.to_string())
+            .await
     }
 }
 

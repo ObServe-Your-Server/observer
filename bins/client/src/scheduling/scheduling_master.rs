@@ -16,7 +16,7 @@ impl SchedulingMaster {
                 config.intervals.metric_secs as u32,
                 15,
             )
-            .run(|| HostMetrics::run()),
+            .run(HostMetrics::run),
         );
 
         let speedtest = tokio::spawn(
@@ -25,7 +25,7 @@ impl SchedulingMaster {
                 config.intervals.speedtest_secs,
                 15,
             )
-            .run(|| SpeedtestMetrics::run()),
+            .run(SpeedtestMetrics::run),
         );
 
         let docker = tokio::spawn(async move {
@@ -35,7 +35,7 @@ impl SchedulingMaster {
                     config.intervals.docker_secs as u32,
                     15,
                 )
-                .run(|| DockerMetrics::run())
+                .run(DockerMetrics::run)
                 .await;
             } else {
                 info!("Docker socket collection is disabled, skipping docker metrics collection");
