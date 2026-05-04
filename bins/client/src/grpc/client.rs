@@ -165,6 +165,7 @@ mod tests {
         println!("Sent MetricsResponse for request_id={}", request_data.request_id);
     }
 
+    #[ignore = "requires a grpc server running"]
     #[tokio::test]
     async fn run_grpc_client() {
         init_logging();
