@@ -145,8 +145,7 @@ impl Scheduler {
                     error!(
                         "Scheduler [{}] job exceeded interval ({}s), cancelled.
                         You may need to increase the metrics collection interval.",
-                        name,
-                        self.interval_secs
+                        name, self.interval_secs
                     );
                 }
             }

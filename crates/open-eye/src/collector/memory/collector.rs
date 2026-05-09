@@ -1,3 +1,4 @@
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sysinfo::System;
 
@@ -9,6 +10,7 @@ pub struct MemoryStats {
     pub total_swap_in_byte: u64,
     pub available_swap_in_byte: u64,
     pub used_swap_in_byte: u64,
+    pub collected_at: chrono::DateTime<Utc>,
 }
 
 impl MemoryStats {
@@ -23,6 +25,7 @@ impl MemoryStats {
             total_swap_in_byte: sys.total_swap(),
             available_swap_in_byte: sys.free_swap(),
             used_swap_in_byte: sys.used_swap(),
+            collected_at: Utc::now(),
         }
     }
 }

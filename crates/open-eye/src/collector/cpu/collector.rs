@@ -1,6 +1,6 @@
-use std::time::Duration;
-
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use sysinfo::{Components, System};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -11,6 +11,7 @@ pub struct CpuStats {
     pub cpu_usage_percent: f32,
     pub cpu_temperature_celsius: f32,
     pub core_information: Vec<Core>,
+    pub collected_at: chrono::DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -57,6 +58,7 @@ impl CpuStats {
             cpu_usage_percent,
             cpu_temperature_celsius,
             core_information,
+            collected_at: Utc::now(),
         }
     }
 }
@@ -70,7 +72,7 @@ fn get_core_information(sys: &System) -> Vec<Core> {
             core_frequency_mhz: c.frequency(),
         });
     }
-    return res;
+    res
 }
 
 fn get_cpu_temperature() -> Option<f32> {

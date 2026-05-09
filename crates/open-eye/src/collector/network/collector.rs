@@ -1,3 +1,4 @@
+use chrono::Utc;
 use log::debug;
 use serde::{Deserialize, Serialize};
 use sysinfo::Networks;
@@ -9,6 +10,7 @@ pub struct NetworkStats {
     pub total_bytes_received: u64,
     pub total_packets_transmitted: u64,
     pub total_packets_received: u64,
+    pub collected_at: chrono::DateTime<Utc>,
 }
 
 impl NetworkStats {
@@ -66,6 +68,7 @@ impl NetworkStats {
             total_bytes_received,
             total_packets_transmitted,
             total_packets_received,
+            collected_at: Utc::now(),
         }
     }
 }

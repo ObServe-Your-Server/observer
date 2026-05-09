@@ -1,8 +1,8 @@
-use log::info;
 use crate::scheduling::scheduler::{Scheduler, SchedulerKind};
 use crate::subsystem::docker_metrics_collector::DockerMetrics;
 use crate::subsystem::speedtest::SpeedtestMetrics;
 use crate::{config::get_config, subsystem::host_metrics_collector::HostMetrics};
+use log::info;
 
 pub struct SchedulingMaster {}
 
@@ -29,10 +29,7 @@ impl SchedulingMaster {
         );
         let docker_future = async move {
             if config.intervals.enable_docker_socket {
-                docker_scheduler
-                    .run(move || {
-                        DockerMetrics::run()
-                    }).await;
+                docker_scheduler.run(move || DockerMetrics::run()).await;
             } else {
                 info!("Docker socket collection is disabled, skipping docker metrics collection");
             }

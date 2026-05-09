@@ -1,3 +1,4 @@
+use chrono::Utc;
 use docker_api::opts::ContainerListOpts;
 use futures_util::StreamExt;
 use log::debug;
@@ -26,6 +27,7 @@ pub struct ContainerStats {
     pub networks: Vec<String>,
     pub cpu_usage_percent: f64,
     pub memory_usage_bytes: u64,
+    pub collected_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -228,6 +230,7 @@ pub async fn get_current_stats() -> Result<Option<ContainerRuntimeStats>, docker
                     networks,
                     cpu_usage_percent,
                     memory_usage_bytes,
+                    collected_at: Utc::now(),
                 });
             }
             Ok(container_stats)
