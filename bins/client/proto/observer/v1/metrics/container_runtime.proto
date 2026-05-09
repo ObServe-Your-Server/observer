@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package observer.v1.metrics;
+
+import "google/protobuf/timestamp.proto";
+
+message ContainerRuntimeStats {
+  repeated ContainerStats containers = 1;
+  google.protobuf.Timestamp collected_at = 2;
+}
+
+message ContainerStats {
+  string container_runtime = 1;
+  string id = 2;
+  string host_name = 3;
+  string created_at = 4;
+  string status = 5;
+  bool running = 6;
+  uint64 running_for_seconds = 7;
+  string image_name = 8;
+  repeated string networks = 9;
+  uint32 cpu_usage_percent = 10;
+  uint64 memory_usage_bytes = 11;
+  google.protobuf.Timestamp collected_at = 12;
+}

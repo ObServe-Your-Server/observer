@@ -2,6 +2,20 @@ syntax = "proto3";
 
 package observer.v1.metrics;
 
+import "google/protobuf/timestamp.proto";
+
 message CpuMetrics {
-  float usage_percent = 1;
+  string name = 1;
+  uint32 count = 2;
+  uint32 physical_count = 3;
+  float temperature_celsius = 4;
+  repeated CoreMetrics cores = 5;
+  google.protobuf.Timestamp collected_at = 6;
+}
+
+message CoreMetrics {
+  string name = 1;
+  float usage_percent = 2;
+  float frequency_mhz = 3;
+  google.protobuf.Timestamp collected_at = 4;
 }
