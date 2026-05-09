@@ -3,9 +3,9 @@ use crate::mapper::docker_metrics_mapper::DockerMapper;
 use crate::scheduling::collection_error::CollectionError;
 use crate::sender::metrics_sender::MetricsSender;
 use log::{debug, error};
-use open_eye::collector::docker::collector::check_runtime_availability;
-use open_eye::collector::docker::collector::ContainerRuntimeStats;
-use open_eye::collector::docker::collector::get_current_stats;
+use open_eye::collector::container_runtime::collector::check_runtime_availability;
+use open_eye::collector::container_runtime::collector::ContainerRuntimeStats;
+use open_eye::collector::container_runtime::collector::get_current_stats;
 
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct DockerMetrics {

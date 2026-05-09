@@ -33,7 +33,7 @@ mod tests {
     use super::DockerMapper;
     use crate::subsystem::docker_metrics_collector::DockerMetrics;
     use chrono::Utc;
-    use open_eye::collector::docker::collector::{
+    use open_eye::collector::container_runtime::collector::{
         ContainerRuntime, ContainerRuntimeStats, ContainerStats,
     };
 
