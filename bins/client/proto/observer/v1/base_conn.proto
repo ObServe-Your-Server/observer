@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package observer.v1;
+
+import "google/protobuf/timestamp.proto";
+import "observer/v1/metrics/cpu.proto";
+import "observer/v1/metrics/memory.proto";
+
+enum MetricsType {
+  CPU = 0;
+  MEMORY = 1;
+  DISK = 2;
+  NETWORK = 3;
+  DOCKER = 4;
+  PROCESS = 5;
+  FULL = 6;
+}
+
+message MetricsRequest {
+  string request_id = 1;
+  MetricsType type = 2;
+  google.protobuf.Timestamp requested_at = 3;
+}
+
+message MetricsResponse {
+  string request_id = 1;
+  oneof response {
+    observer.v1.metrics.CpuMetrics cpu_metrics = 2;
+  }
+}
+
+service MetricsTunnel {
+  rpc BaseTransfer (stream MetricsResponse) returns (stream MetricsRequest);
+}

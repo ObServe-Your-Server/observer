@@ -81,6 +81,7 @@ impl HostMetrics {
 mod tests {
     use crate::subsystem::host_metrics_collector::HostMetrics;
 
+    #[ignore = "just collects host metrics"]
     #[tokio::test]
     async fn run_test() {
         let metrics = HostMetrics::collect().await;

@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package observer.v1.metrics;
+
+message CpuMetrics {
+  float usage_percent = 1;
+}

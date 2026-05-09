@@ -4,10 +4,13 @@ use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 use tonic::{metadata::MetadataValue, transport::{Channel, ClientTlsConfig}, Request};
 
-use crate::grpc::connection_proto::{
+use crate::grpc::observer::v1::{
+    MetricsRequest,
     MetricsResponse,
-    metrics_service_client::MetricsServiceClient,
+    metrics_tunnel_client::MetricsTunnelClient,
 };
+
+
 
 
 pub struct Client {
@@ -25,11 +28,11 @@ impl Client {
         let channel = self.connect_with_retries().await
             .map_err(|e| tonic::Status::unavailable(e.to_string()))?;
 
-        let mut client = MetricsServiceClient::new(channel);
+        let mut client = MetricsTunnelClient::new(channel);
 
-        // creates the tx and rx for the metrics
+        // creates the tx and rx for the metrics responses we send back to the server
         let (tx, rx) = mpsc::channel::<MetricsResponse>(16);
-        // wrappes it into a stream to hand to watch-tower
+        // wraps it into a stream to hand to the server
         let outbound = ReceiverStream::new(rx);
 
         // creates the request with the api key
@@ -40,31 +43,31 @@ impl Client {
                 .map_err(|e| tonic::Status::invalid_argument(format!("invalid api_key: {e}")))?,
         );
 
-        // send our receiver stream info to watch-tower
+        // open the bidi stream — server sends MetricsRequest, we send MetricsResponse back
         let response = client.base_transfer(request).await?;
-        // get the inner stream to receive the request data
+        // get the inner stream to receive incoming requests from the server
         let mut inbound = response.into_inner();
 
-        while let Some(result) = inbound.next().await{
+        while let Some(result) = inbound.next().await {
             match result {
                 Ok(req_data) => {
                     log::debug!("received request: {:?}", req_data);
-                    if tx.send(MetricsResponse{
+                    if tx.send(MetricsResponse {
                         request_id: req_data.request_id.clone(),
-                        cpu_usage_percent: 10.0
+                        response: None,
                     }).await.is_err() {
-                        log::error!("response channel failed to send data");
+                        log::error!("response channel closed");
                         break;
                     }
                 }
                 Err(e) => {
-                    log::error!("Error receiving metrics response: {}", e);
+                    log::error!("Error receiving metrics request: {}", e);
                     return Err(tonic::Status::internal(e.to_string()))
                 },
             }
         }
 
-        // return because server closed the stream (for now) should retry to establish the connection and start the server again
+        // server closed the stream — should reconnect and restart
         Ok(())
     }
     
@@ -111,9 +114,9 @@ mod tests {
     use tokio::sync::mpsc;
     use tokio_stream::{wrappers::ReceiverStream, StreamExt};
     use tonic::{metadata::MetadataValue, Request};
-    use crate::grpc::connection_proto::{
+    use crate::grpc::observer::v1::{
         MetricsResponse,
-        metrics_service_client::MetricsServiceClient,
+        metrics_tunnel_client::MetricsTunnelClient,
     };
     use crate::logging::init_logging;
 
@@ -128,7 +131,7 @@ mod tests {
             .await
             .expect("failed to connect to server");
 
-        let mut client = MetricsServiceClient::new(channel);
+        let mut client = MetricsTunnelClient::new(channel);
 
         let (resp_tx, resp_rx) = mpsc::channel(4);
         let outbound = ReceiverStream::new(resp_rx);
@@ -156,7 +159,7 @@ mod tests {
         resp_tx
             .send(MetricsResponse {
                 request_id: request_data.request_id.clone(),
-                cpu_usage_percent: 12.3,
+                response: None,
             })
             .await
             .expect("failed to send response");
