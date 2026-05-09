@@ -24,6 +24,7 @@ pub struct DiskInfo {
 #[cfg(target_os = "linux")]
 mod linux {
     use super::{collect_zpools, DiskInfo};
+    use chrono::Utc;
     use log::{debug, warn};
     use serde::Deserialize;
     use std::process::Command;
