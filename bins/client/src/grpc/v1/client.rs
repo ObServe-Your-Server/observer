@@ -117,19 +117,6 @@ mod tests {
 
     const SERVER_URL: &str = "http://localhost:50051";
 
-    async fn create_grpc_server() -> tokio::task::JoinHandle<()> {
-        use crate::grpc::v1::metrics_tunnel_server::MetricsTunnelServer;
-        use crate::grpc::v1::metrics::server::ClientServer;
-
-        tokio::spawn(async {
-            Server::builder()
-                .add_service(MetricsTunnelServer::new(ClientServer))
-                .serve("127.0.0.1:50051".parse().unwrap())
-                .await
-                .unwrap();
-        })
-    }
-
     #[ignore = "requires a grpc server running"]
     #[tokio::test]
     async fn test_base_transfer_with_server() {
