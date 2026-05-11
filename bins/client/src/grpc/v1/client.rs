@@ -2,7 +2,8 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
-use tonic::{metadata::MetadataValue, transport::{Channel, ClientTlsConfig}, Request};
+use tonic::{metadata::MetadataValue, transport::{ClientTlsConfig}, Request};
+use tonic::transport::Channel;
 use crate::grpc::v1::metrics_tunnel_client::MetricsTunnelClient;
 use crate::grpc::v1::MetricsResponse;
 
@@ -18,6 +19,7 @@ impl Client {
     }
 
     pub async fn run(&self) -> Result<(), tonic::Status> {
+        // first connect our channel
         let channel = self.connect_with_retries().await
             .map_err(|e| tonic::Status::unavailable(e.to_string()))?;
 
@@ -41,6 +43,7 @@ impl Client {
         // get the inner stream to receive incoming requests from the server
         let mut inbound = response.into_inner();
 
+        // TODO: logic for receiving requests and send responses -> when an error occurs reconnect first
         while let Some(result) = inbound.next().await {
             match result {
                 Ok(req_data) => {
@@ -67,6 +70,7 @@ impl Client {
     async fn connect_with_retries(&self) -> Result<Channel, tonic::transport::Error> {
         let mut last_err = None;
         for _attempt in 1..=self.connection_retries {
+            // connect the socket to the given url
             match Self::connect_socket(self.url).await {
                 Ok(channel) => {
                     log::info!("Connected to the server at {}", self.url);
@@ -83,13 +87,14 @@ impl Client {
     }
 
     async fn connect_socket(url: &'static str) -> Result<Channel, tonic::transport::Error> {
-        let endpoint = Channel::from_static(url)
+        let endpoint = tonic::transport::Channel::from_static(url)
             .keep_alive_while_idle(true)
             .http2_keep_alive_interval(Duration::from_secs(15))
             .keep_alive_timeout(Duration::from_secs(5))
             .connect_timeout(Duration::from_secs(15))
             .buffer_size(256);
 
+        // if the url starts with https then connect with tls
         let endpoint = if url.starts_with("https://") {
             endpoint.tls_config(ClientTlsConfig::new().with_native_roots())?
         } else {
@@ -107,10 +112,23 @@ mod tests {
     use tokio::sync::mpsc;
     use tokio_stream::{wrappers::ReceiverStream, StreamExt};
     use tonic::{metadata::MetadataValue, Request};
-
+    use tonic::transport::Server;
     use crate::logging::init_logging;
 
     const SERVER_URL: &str = "http://localhost:50051";
+
+    async fn create_grpc_server() -> tokio::task::JoinHandle<()> {
+        use crate::grpc::v1::metrics_tunnel_server::MetricsTunnelServer;
+        use crate::grpc::v1::metrics::server::ClientServer;
+
+        tokio::spawn(async {
+            Server::builder()
+                .add_service(MetricsTunnelServer::new(ClientServer))
+                .serve("127.0.0.1:50051".parse().unwrap())
+                .await
+                .unwrap();
+        })
+    }
 
     #[ignore = "requires a grpc server running"]
     #[tokio::test]
