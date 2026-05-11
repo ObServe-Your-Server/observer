@@ -1,3 +1,4 @@
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, sqlx::FromRow)]
@@ -8,6 +9,7 @@ struct Cpu {
     pub cpu_usage_percent: f32,
     pub cpu_temperature_celsius: f32,
     pub core_information: Vec<Core>,
+    pub collected_at: chrono::DateTime<Utc>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Core {

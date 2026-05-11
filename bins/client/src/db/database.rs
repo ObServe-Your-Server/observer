@@ -8,6 +8,7 @@ pub struct Db{
 impl Db{
     pub async fn new(database_url: String) -> Self {
         let pool = SqlitePool::connect(&database_url).await.expect("Couldn't create database connection pool.");
+
         match Db::db_migration(&pool).await {
             Ok(_) => log::info!("Database migration successful."),
             Err(e) => {
