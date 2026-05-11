@@ -3,15 +3,8 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 use tonic::{metadata::MetadataValue, transport::{Channel, ClientTlsConfig}, Request};
-
-use crate::grpc::observer::v1::{
-    MetricsRequest,
-    MetricsResponse,
-    metrics_tunnel_client::MetricsTunnelClient,
-};
-
-
-
+use crate::grpc::v1::metrics_tunnel_client::MetricsTunnelClient;
+use crate::grpc::v1::MetricsResponse;
 
 pub struct Client {
     url: &'static str,
@@ -114,10 +107,7 @@ mod tests {
     use tokio::sync::mpsc;
     use tokio_stream::{wrappers::ReceiverStream, StreamExt};
     use tonic::{metadata::MetadataValue, Request};
-    use crate::grpc::observer::v1::{
-        MetricsResponse,
-        metrics_tunnel_client::MetricsTunnelClient,
-    };
+
     use crate::logging::init_logging;
 
     const SERVER_URL: &str = "http://localhost:50051";

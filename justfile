@@ -1,3 +1,7 @@
+run-dev:
+    @echo "Running development server..."
+    cargo run -p observer-client
+
 test:
     @echo "Running tests..."
     cargo nextest run
