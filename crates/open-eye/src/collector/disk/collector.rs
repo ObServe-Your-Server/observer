@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use nix::sys::statvfs::statvfs;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
@@ -13,6 +14,7 @@ pub struct DiskInfo {
     pub used_blocks: u64,
     pub available_blocks: u64,
     pub block_size: u64,
+    pub collected_at: chrono::DateTime<Utc>,
 }
 
 // ── Linux ─────────────────────────────────────────────────────────────────────
@@ -20,6 +22,7 @@ pub struct DiskInfo {
 #[cfg(target_os = "linux")]
 mod linux {
     use super::{collect_zpools, DiskInfo};
+    use chrono::Utc;
     use log::{debug, warn};
     use serde::Deserialize;
     use std::process::Command;
@@ -161,6 +164,7 @@ mod linux {
                     used_blocks: used_bytes / block_size,
                     available_blocks: available_bytes / block_size,
                     block_size,
+                    collected_at: Utc::now(),
                 }
             })
             .collect();
@@ -178,7 +182,7 @@ mod macos {
     use super::{collect_zpools, DiskInfo};
     use log::debug;
     use std::collections::HashSet;
-    
+
 
     const SKIP_PREFIXES: &[&str] = &["/System/Volumes/", "/private/var/folders", "/dev", "/proc"];
 
@@ -279,6 +283,7 @@ fn statvfs_info(mount_point: &str, label: &str) -> Option<DiskInfo> {
         used_blocks: total_blocks.saturating_sub(free_blocks),
         available_blocks: avail_blocks,
         block_size,
+        collected_at: Utc::now(),
     })
 }
 
@@ -317,6 +322,7 @@ fn collect_zpools() -> Vec<DiskInfo> {
                 used_blocks: used_bytes / block_size,
                 available_blocks: free_bytes / block_size,
                 block_size,
+                collected_at: Utc::now(),
             })
         })
         .collect()

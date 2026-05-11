@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sysinfo::System;
 
@@ -7,6 +8,7 @@ pub struct SystemStats {
     pub uptime_seconds: u64,
     pub host_name: Option<String>,
     pub kernel_version: String,
+    pub collected_at: chrono::DateTime<Utc>,
 }
 
 impl SystemStats {
@@ -26,6 +28,7 @@ impl SystemStats {
             uptime_seconds: System::uptime(),
             host_name: System::host_name(),
             kernel_version: System::kernel_long_version(),
+            collected_at: Utc::now(),
         }
     }
 }

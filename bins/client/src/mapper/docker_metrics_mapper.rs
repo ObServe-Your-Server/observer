@@ -33,7 +33,7 @@ mod tests {
     use super::DockerMapper;
     use crate::subsystem::docker_metrics_collector::DockerMetrics;
     use chrono::Utc;
-    use open_eye::collector::docker::collector::{
+    use open_eye::collector::container_runtime::collector::{
         ContainerRuntime, ContainerRuntimeStats, ContainerStats,
     };
 
@@ -54,6 +54,7 @@ mod tests {
             networks: vec!["bridge".to_string()],
             cpu_usage_percent: 1.5,
             memory_usage_bytes: 104857600,
+            collected_at: Utc::now(),
         }
     }
 

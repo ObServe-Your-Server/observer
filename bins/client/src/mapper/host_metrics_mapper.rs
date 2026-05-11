@@ -96,6 +96,7 @@ mod tests {
                     core_usage_percent: 42.5,
                     core_frequency_mhz: 3200,
                 }],
+                collected_at: chrono::Utc::now(),
             }),
             memory: Some(MemoryStats {
                 total_memory_in_byte: 16_000_000_000,
@@ -104,6 +105,7 @@ mod tests {
                 total_swap_in_byte: 4_000_000_000,
                 available_swap_in_byte: 4_000_000_000,
                 used_swap_in_byte: 0,
+                collected_at: chrono::Utc::now(),
             }),
             disks: Some(vec![CollectorDiskInfo {
                 name: "sda".to_string(),
@@ -113,6 +115,7 @@ mod tests {
                 used_blocks: 390_625_000,
                 available_blocks: 585_937_500,
                 block_size: 512,
+                collected_at: chrono::Utc::now(),
             }]),
             network: Some(NetworkStats {
                 local_ip: "192.168.1.100".to_string(),
@@ -120,12 +123,14 @@ mod tests {
                 total_bytes_received: 10_000_000,
                 total_packets_transmitted: 5000,
                 total_packets_received: 10000,
+                collected_at: chrono::Utc::now(),
             }),
             system: Some(SystemStats {
                 os_name: Some("Linux 6.1".to_string()),
                 uptime_seconds: 1000,
                 host_name: Some("test-host".to_string()),
                 kernel_version: "6.1.0".to_string(),
+                collected_at: chrono::Utc::now(),
             }),
         }
     }
@@ -142,6 +147,7 @@ mod tests {
                 total_bytes_received: 9_000_000,
                 total_packets_transmitted: 4000,
                 total_packets_received: 9000,
+                collected_at: chrono::Utc::now(),
             }),
             system: None,
         };

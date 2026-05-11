@@ -1,4 +1,4 @@
-use local_ip_address::local_ip;
+use chrono::Utc;
 use log::debug;
 use serde::{Deserialize, Serialize};
 use sysinfo::Networks;
@@ -10,6 +10,7 @@ pub struct NetworkStats {
     pub total_bytes_received: u64,
     pub total_packets_transmitted: u64,
     pub total_packets_received: u64,
+    pub collected_at: chrono::DateTime<Utc>,
 }
 
 impl NetworkStats {
@@ -53,13 +54,13 @@ impl NetworkStats {
             .map(|(_, n)| n.total_packets_received())
             .sum::<u64>();
 
-        let local_ip = match local_ip() {
-            Ok(ip) => ip.to_string(),
-            Err(err) => {
-                debug!("Error during gathering of local ip {}", err);
-                "not-found".to_string()
-            }
-        };
+        let local_ip = networks
+            .iter()
+            .filter(|(name, _)| is_physical(name))
+            .flat_map(|(_, n)| n.ip_networks())
+            .find(|ip| ip.addr.is_ipv4())
+            .map(|ip| ip.addr.to_string());
+        let local_ip = local_ip.unwrap_or_else(|| "not-found".to_string());
 
         NetworkStats {
             local_ip,
@@ -67,6 +68,7 @@ impl NetworkStats {
             total_bytes_received,
             total_packets_transmitted,
             total_packets_received,
+            collected_at: Utc::now(),
         }
     }
 }

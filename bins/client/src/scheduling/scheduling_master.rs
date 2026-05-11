@@ -1,3 +1,4 @@
+use log::info;
 use crate::scheduling::scheduler::{Scheduler, SchedulerKind};
 use crate::subsystem::docker_metrics_collector::DockerMetrics;
 use crate::subsystem::speedtest::SpeedtestMetrics;
