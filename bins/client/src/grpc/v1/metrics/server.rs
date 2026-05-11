@@ -1,17 +1,28 @@
-use std::sync::{Arc, Mutex};
+use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{async_trait, Request, Response, Status, Streaming};
-use tonic::metadata::{Ascii, MetadataValue};
-use tonic::transport::Server;
 use crate::grpc::v1::metrics_tunnel_server::MetricsTunnel;
-use crate::grpc::v1::{MetricsRequest, MetricsResponse, MetricsType};
+use crate::grpc::v1::{MetricsRequest, MetricsResponse};
 
-#[derive(Debug)]
-pub struct ClientServer{
-    address: String,
-    cmd_tx: tokio::sync::mpsc::Sender<MetricsRequest>,
-    resp_tx:
+// What external code receives per connected client.
+// cmd_tx  → push MetricsRequests to this client
+// resp_rx → read MetricsResponses back from this client
+pub struct ConnectionHandle {
+    pub client_id: String,
+    pub cmd_tx: mpsc::Sender<MetricsRequest>,
+    pub resp_rx: mpsc::Receiver<MetricsResponse>,
+}
+
+pub struct ClientServer {
+    new_conn_tx: mpsc::Sender<ConnectionHandle>,
+}
+
+impl ClientServer {
+    pub fn new() -> (Self, mpsc::Receiver<ConnectionHandle>) {
+        let (new_conn_tx, new_conn_rx) = mpsc::channel(16);
+        (Self { new_conn_tx }, new_conn_rx)
+    }
 }
 
 #[async_trait]
@@ -22,54 +33,43 @@ impl MetricsTunnel for ClientServer {
         &self,
         request: Request<Streaming<MetricsResponse>>,
     ) -> Result<Response<Self::BaseTransferStream>, Status> {
-        let (tx, rx) = tokio::sync::mpsc::channel(4);
+        let client_id = request
+            .metadata()
+            .get("api_key")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("unknown")
+            .to_string();
 
+        // all three channel pairs are per-connection
+        let (cmd_tx, mut cmd_rx) = mpsc::channel::<MetricsRequest>(16);
+        let (resp_tx, resp_rx) = mpsc::channel::<MetricsResponse>(16);
+        let (stream_tx, stream_rx) = mpsc::channel::<Result<MetricsRequest, Status>>(16);
+
+        // hand the outward-facing ends to whoever is managing connections
+        self.new_conn_tx
+            .send(ConnectionHandle { client_id, cmd_tx, resp_rx })
+            .await
+            .ok();
+
+        // bridge inbound wire -> resp_tx (responses from client to external handler)
         let mut inbound = request.into_inner();
-        // receive metrics coming back from the client
         tokio::spawn(async move {
-            while let Some(result) = inbound.next().await {
-                match result {
-                    Ok(response) => { /* store, forward, log, etc. */ }
-                    Err(e) => break,
+            while let Some(Ok(resp)) = inbound.next().await {
+                if resp_tx.send(resp).await.is_err() {
+                    break;
                 }
             }
         });
 
+        // bridge cmd_rx -> outbound wire (commands from external code to client)
         tokio::spawn(async move {
-            // send a metrics request
-            tx.send(Ok(MetricsRequest {
-                request_id: "test-request-id".to_string(),
-                r#type: MetricsType::Cpu as i32,
-                requested_at: Some(prost_types::Timestamp::date_time(2000, 1, 1,1,1, 1).unwrap()),
-            }))
-            .await
-            .ok();
-        });
-        Ok(Response::new(ReceiverStream::new(rx)))
-    }
-}
-
-async fn create_grpc_server(url: &'static str) -> tokio::task::JoinHandle<()> {
-    use crate::grpc::v1::metrics_tunnel_server::MetricsTunnelServer;
-    use crate::grpc::v1::metrics::server::ClientServer;
-
-    tokio::spawn(async {
-        Server::builder()
-            .add_service(MetricsTunnelServer::with_interceptor(ClientServer, auth_interceptor))
-            .serve(url.parse().unwrap())
-            .await
-            .unwrap();
-    })
-}
-
-fn auth_interceptor(request: Request<()>) -> Result<Request<()>, Status> {
-    match request.metadata().get("api_key") {
-        Some(key) => {
-            if key == "test-key" {
-                return Ok(request);
+            while let Some(req) = cmd_rx.recv().await {
+                if stream_tx.send(Ok(req)).await.is_err() {
+                    break;
+                }
             }
-            Err(Status::unauthenticated("Invalid API key"))
-        }
-        _ => Err(Status::unauthenticated("Missing API key")),
+        });
+
+        Ok(Response::new(ReceiverStream::new(stream_rx)))
     }
 }
