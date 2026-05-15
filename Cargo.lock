@@ -1384,6 +1384,7 @@ name = "observer-client"
 version = "1.2.5"
 dependencies = [
  "chrono",
+ "crc32fast",
  "criterion",
  "env_logger",
  "log",
