@@ -4,15 +4,15 @@ use crate::data_storage::file_format::header::Header;
 pub mod header;
 mod block;
 
-pub struct MetricsFile{
+pub struct MetricsFileFormat {
     header: Header,
     blocks: Option<Vec<Block>>,
     checksum: u32,
 }
 
-impl MetricsFile {
+impl MetricsFileFormat {
     pub fn default() -> Self {
-        let mut mf = MetricsFile{
+        let mut mf = MetricsFileFormat {
             header: Header::default(),
             blocks: None,
             checksum: 0,
@@ -32,5 +32,25 @@ impl MetricsFile {
             }
         }
         hasher.finalize()
+    }
+
+    pub fn add_block() {
+        todo!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::data_storage::file_format::MetricsFileFormat;
+
+    #[test]
+    fn test_default_generation(){
+        let bare_bone = MetricsFileFormat::default();
+
+        let header_magic = vec![b'O', b'B', b'S', b'E', b'R', b'V', b'E', b'R'];
+        assert_eq!(header_magic, bare_bone.header.magic);
+
+        assert_eq!(bare_bone.checksum, 558161692);
+        assert!(bare_bone.blocks.is_none());
     }
 }

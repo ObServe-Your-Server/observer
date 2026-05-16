@@ -43,6 +43,7 @@ tonic-prost = "0.14"# ProstCodec used by the generated client/server stubs to en
 
 
 
+
 [build-dependencies]
 tonic-prost-build = "0.14.5"# generates Rust structs and gRPC service stubs from .proto files at build time
 protoc-bin-vendored = "3"# bundles a precompiled protoc binary so no system protoc install is needed

@@ -1,9 +1,9 @@
 pub struct Header{
-    magic: [u8; 8],
-    version: u8,
-    pad: [u8; 4],
-    block_count: u32,
-    checksum: u32
+    pub magic: [u8; 8],
+    pub version: u8,
+    pub pad: [u8; 4],
+    pub block_count: u32,
+    pub checksum: u32
 }
 
 impl Header{
