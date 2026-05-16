@@ -3,6 +3,7 @@ use crate::data_storage::file_format::header::Header;
 
 pub mod header;
 mod block;
+mod error;
 
 pub struct MetricsFileFormat {
     header: Header,
@@ -35,7 +36,7 @@ impl MetricsFileFormat {
     }
 
     pub fn add_block() {
-        todo!()
+
     }
 }
 
