@@ -121,7 +121,7 @@ mod tests {
         let data = vec![1,2,3,4,5];
         let block = Block::with_data(data.clone()).unwrap();
         assert_eq!(block.data_size, 5);
-        assert_eq!(block.data_type, 603738619104706216);
+        assert_eq!(block.data_type, Block::calculate_data_type::<Vec<u8>>());
         assert_eq!(block.data, data);
         assert_eq!(block.checksum, block.compute_checksum());
     }
@@ -132,7 +132,7 @@ mod tests {
         let data = vec![0,1,2,3,4,5,6,7,8,9];
         block.set_data(data.clone()).unwrap();
         assert_eq!(block.data_size, 10);
-        assert_eq!(block.data_type, 603738619104706216);
+        assert_eq!(block.data_type, Block::calculate_data_type::<Vec<u8>>());
         assert_eq!(block.data, data);
         assert_eq!(block.checksum, block.compute_checksum());
     }
