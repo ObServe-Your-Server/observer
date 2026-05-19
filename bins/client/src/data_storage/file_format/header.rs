@@ -82,3 +82,23 @@ impl Header{
         self.checksum == self.compute_checksum()
     }
 }
+
+#[cfg(test)]
+pub mod tests {
+    use crate::data_storage::file_format::header::Header;
+
+    #[test]
+    fn default_test(){
+        let header = Header::default();
+        let header_magic = vec![b'O', b'B', b'S', b'E', b'R', b'V', b'E', b'R'];
+
+        assert_eq!(header_magic, header.magic);
+        assert_eq!(header.version, 1);
+        assert_eq!(header.pad, [0,0,0,0]);
+        assert_eq!(header.block_count, 0);
+        assert_eq!(header.first_metric_timestamp, None);
+        assert_eq!(header.last_metric_timestamp, None);
+        assert_eq!(header.checksum, 371124639);
+        assert_eq!(header.checksum, header.compute_checksum());
+    }
+}
