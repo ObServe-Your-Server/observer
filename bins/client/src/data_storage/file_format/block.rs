@@ -4,6 +4,7 @@ use std::num::TryFromIntError;
 use chrono::{DateTime, Utc};
 use prost_types::Type;
 use serde::{Deserialize, Serialize};
+use crate::data_storage::calculate_data_type;
 use crate::data_storage::file_format::error::MetricsFileFormatError;
 // the datasize could be calculated over the data length, but then it can be forgotten.
 // i am not sure if this is the right way. for now, it seems right. fix in the future if
@@ -61,17 +62,10 @@ impl Block {
         // set size before set data otherwise data is moved
         self.data_size = u32::try_from(data.len())?;
         self.data = data;
-        self.data_type = Self::calculate_data_type::<D>();
+        self.data_type = calculate_data_type::<D>();
         self.checksum = self.compute_checksum();
         Ok(())
     }
-
-    fn calculate_data_type<D: 'static>() -> u64 {
-        let mut hasher = DefaultHasher::new();
-        TypeId::of::<D>().hash(&mut hasher);
-        hasher.finish()
-    }
-
 
     pub fn data_size(&self) -> u32 {
         self.data_size
@@ -96,6 +90,7 @@ impl Block {
 
 #[cfg(test)]
 mod tests {
+    use crate::data_storage::calculate_data_type;
     use crate::data_storage::file_format::block::Block;
 
     #[test]
@@ -112,7 +107,7 @@ mod tests {
         let data = vec![1,2,3,4,5];
         let block = Block::with_data(data.clone()).unwrap();
         assert_eq!(block.data_size, 5);
-        assert_eq!(block.data_type, Block::calculate_data_type::<Vec<u8>>());
+        assert_eq!(block.data_type, calculate_data_type::<Vec<u8>>());
         assert_eq!(block.data, data);
         assert_eq!(block.checksum, block.compute_checksum());
     }
@@ -123,7 +118,7 @@ mod tests {
         let data = vec![0,1,2,3,4,5,6,7,8,9];
         block.set_data(data.clone()).unwrap();
         assert_eq!(block.data_size, 10);
-        assert_eq!(block.data_type, Block::calculate_data_type::<Vec<u8>>());
+        assert_eq!(block.data_type, calculate_data_type::<Vec<u8>>());
         assert_eq!(block.data, data);
         assert_eq!(block.checksum, block.compute_checksum());
     }

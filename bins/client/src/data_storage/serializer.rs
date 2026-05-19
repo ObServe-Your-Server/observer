@@ -3,7 +3,6 @@ use std::io::Write;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use crate::data_storage::BinStoreError;
 
 pub struct Serializer {}
 
@@ -27,10 +26,8 @@ impl Serializer {
 
 #[cfg(test)]
 mod tests {
-    use tempdir::TempDir;
     use open_eye::collector::cpu::collector::CpuStats;
     use crate::data_storage::serializer::Serializer;
-    use crate::data_storage::BinStoreError;
 
     #[test]
     fn serialize_deserialize_cpu_metrics_test() {
