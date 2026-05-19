@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-pub struct StorageHandler{
+pub struct StorageEngine {
     pub save_to_file_interval: u32,
     pub storage_channels: u32
 }
 
-impl StorageHandler {
+impl StorageEngine {
     pub fn default() -> Self{
-        StorageHandler{
+        StorageEngine {
             save_to_file_interval: 60,
             storage_channels: 1,
         }

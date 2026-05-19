@@ -68,6 +68,7 @@ impl MetricsFile {
 
 #[cfg(test)]
 mod tests {
+    use crate::data_storage::file_format::header::Header;
     use crate::data_storage::file_format::MetricsFile;
 
     #[test]
@@ -103,5 +104,14 @@ mod tests {
         let blocks = file.blocks.as_ref().unwrap();
         assert_eq!(blocks[0].data_type(), blocks[1].data_type());
         assert_eq!(blocks[1].data_type(), blocks[2].data_type());
+    }
+
+    #[test]
+    fn default_test(){
+        let file = MetricsFile::default().unwrap();
+        let default_header = Header::default();
+        assert_eq!(file.header, default_header);
+        assert_eq!(file.blocks, None);
+        assert_eq!(file.checksum, 3852221886);
     }
 }
