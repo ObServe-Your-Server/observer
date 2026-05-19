@@ -3,6 +3,7 @@ use std::slice::Iter;
 use crate::data_storage::file_format::block::Block;
 use crate::data_storage::file_format::error::MetricsFileFormatError;
 use crate::data_storage::file_format::header::Header;
+use crate::data_storage::serializer::Serializer;
 
 pub mod header;
 mod block;
@@ -16,20 +17,20 @@ pub struct MetricsFile {
 }
 
 impl MetricsFile {
-    pub fn default() -> Self {
+    pub fn default() -> Result<Self, rmp_serde::encode::Error> {
         let mut mf = MetricsFile {
             header: Header::default(),
             blocks: None,
             checksum: 0,
         };
-        mf.checksum = mf.compute_checksum();
-        mf
+        mf.checksum = mf.compute_checksum()?;
+        Ok(mf)
     }
 
     pub fn with_data<D>(data: Vec<D>) -> Result<Self, MetricsFileFormatError>
     where D: Into<Vec<u8>> + 'static
     {
-        let mut file = MetricsFile::default();
+        let mut file = MetricsFile::default()?;
         data.into_iter().map(|d| file.add_data_block(d)).collect::<Result<(), _>>()?;
         Ok(file)
     }
@@ -48,17 +49,20 @@ impl MetricsFile {
         Ok(())
     }
 
-    pub fn compute_checksum(&self) -> u32 {
+    /// Computes the checksum by first serializing the datablocks.
+    /// Then it all adds it to the hasher and generates the u32.
+    /// The error comes from serializing
+    pub fn compute_checksum(&self) -> Result<u32, rmp_serde::encode::Error> {
         let mut hasher = crc32fast::Hasher::new();
         // hash the header bytes
-        hasher.update(&self.header.to_bytes());
+        hasher.update(&Serializer::serialize(&self.header)?);
         // hash each block's bytes
         if let Some(blocks) = &self.blocks {
             for block in blocks {
-                hasher.update(&block.to_bytes());
+                hasher.update(&Serializer::serialize(&block)?);
             }
         }
-        hasher.finalize()
+        Ok(hasher.finalize())
     }
 }
 
@@ -68,12 +72,18 @@ mod tests {
 
     #[test]
     fn default_generation_test(){
-        let bare_bone = MetricsFile::default();
+        let bare_bone = MetricsFile::default().unwrap();
 
         let header_magic = vec![b'O', b'B', b'S', b'E', b'R', b'V', b'E', b'R'];
         assert_eq!(header_magic, bare_bone.header.magic());
+        assert_eq!(bare_bone.header.checksum().clone(), bare_bone.header.compute_checksum());
+        assert_eq!(bare_bone.header.block_count().clone(), 0);
+        assert_eq!(bare_bone.header.pad().clone(), [0,0,0,0]);
 
-        assert_eq!(bare_bone.checksum, 558161692);
+        assert_eq!(bare_bone.header.first_metric_timestamp(), None);
+        assert_eq!(bare_bone.header.last_metric_timestamp(), None);
+
+        assert_eq!(bare_bone.checksum, 3852221886);
         assert!(bare_bone.blocks.is_none());
     }
 

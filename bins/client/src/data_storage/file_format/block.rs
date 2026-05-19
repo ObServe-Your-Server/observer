@@ -3,6 +3,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use std::num::TryFromIntError;
 use chrono::{DateTime, Utc};
 use prost_types::Type;
+use serde::{Deserialize, Serialize};
 use crate::data_storage::file_format::error::MetricsFileFormatError;
 // the datasize could be calculated over the data length, but then it can be forgotten.
 // i am not sure if this is the right way. for now, it seems right. fix in the future if
@@ -11,7 +12,7 @@ use crate::data_storage::file_format::error::MetricsFileFormatError;
 // transformed to le bytes ready to store
 
 // important for me: low endian only applies to multy byte numerical numbers
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Block {
     data_size: u32,
     data_type: u64,
@@ -52,16 +53,6 @@ impl Block {
         hasher.finalize()
     }
 
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::new();
-        bytes.extend_from_slice(&self.data_size.to_le_bytes());
-        bytes.extend_from_slice(&self.data_type.to_le_bytes());
-        bytes.extend_from_slice(&self.data);
-        bytes.extend_from_slice(&self.created_at.to_le_bytes());
-        bytes.extend_from_slice(&self.checksum.to_le_bytes());
-        bytes
-    }
-
     /// this functions sets the data for one data block. Make sure to put in the correct data_type
     /// the type is calculated with a hash
     pub fn set_data<D: Into<Vec<u8>> + 'static>(&mut self, data: D) -> Result<(), TryFromIntError> {
@@ -91,7 +82,7 @@ impl Block {
     }
 
     pub fn data(&self) -> &[u8] {
-        &self.data
+        self.data.as_slice()
     }
 
     pub fn created_at(&self) -> i64 {
