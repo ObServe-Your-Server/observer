@@ -5,13 +5,15 @@ use std::num::TryFromIntError;
 pub enum MetricsFileFormatError {
     TryFromInt(TryFromIntError),
     SerdeEncode(rmp_serde::encode::Error),
+    ToManyBlocks(String),
 }
 
 impl std::fmt::Display for MetricsFileFormatError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::TryFromInt(e) => write!(f, "try from int error during data length calculation: {e}"),
+            Self::TryFromInt(e) => write!(f, "try from int error during data length calculation (maybe content was too long): {e}"),
             Self::SerdeEncode(e) => write!(f, "error during encoding: {e}"),
+            Self::ToManyBlocks(e) => write!(f, "you are trying to save too many blocks: {e}")
         }
     }
 }

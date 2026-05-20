@@ -7,6 +7,7 @@ use std::{
     fmt,
     time::{SystemTime, UNIX_EPOCH},
 };
+use crate::collector::DataCreationTime;
 
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct ContainerRuntimeStats {
@@ -35,6 +36,12 @@ pub enum ContainerRuntime {
     Docker,
     DockerDesktop,
     Podman,
+}
+
+impl DataCreationTime for ContainerRuntimeStats {
+    fn get_data_creation_time(&self) -> i64 {
+        self.collected_at.timestamp()
+    }
 }
 
 impl ContainerRuntime {

@@ -11,8 +11,10 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use chrono::Utc;
 use erased_serde::Serialize as ErasedSerialize;
+use serde_json::error::Category::Data;
 use crate::data_storage::calculate_data_type;
 use crate::data_storage::error::DataStorageError;
+use crate::data_storage::file_format::metrics_file::MetricsFile;
 
 pub trait DataBlockEntry: ErasedSerialize + Debug {}
 
@@ -63,14 +65,23 @@ impl StorageEngine {
         self.storage_channels.get(data_type_key)
     }
 
-    pub fn save_to_file(&self, data_type_key: &u64) -> Result<(),DataStorageError>{
+    pub fn save_to_file(&mut self, data_type_key: &u64) -> Result<(),DataStorageError>{
+        let elements = self.storage_channels.remove(data_type_key).ok_or(DataStorageError::NoDataForGivenDataId)?;
+
         let mut file_path = self.base_folder.get().ok_or(DataStorageError::EmptyBasePath(String::from("Base path was not initialised for Storage Engine")))?.clone();
         let current_time = Utc::now().timestamp();
         file_path.push(format!("{}.{}.{}", data_type_key, current_time, FILE_EXTENSION));
 
-        let file = File::create_new(file_path);
-        // TODO: hier weitermachen
-        todo!()
+        let file = File::create_new(file_path)?;
+
+        let serialized_content: Vec<Vec<u8>> = elements
+            .into_iter()
+            .map(|e| rmp_serde::to_vec(&e.data_block_entry as &dyn erased_serde::Serialize))
+            .collect::<Result<Vec<Vec<u8>>, _>>()?;
+
+        //let metrics_file_content = MetricsFile::with_data(serialized_content);
+
+        Ok(())
     }
 
     pub fn channel_key_for_data_type<D>() -> u64

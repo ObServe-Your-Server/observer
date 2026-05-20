@@ -1,7 +1,8 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use sysinfo::{Components, System};
+use sysinfo::{Components, Cpu, System};
+use crate::collector::DataCreationTime;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CpuStats {
@@ -19,6 +20,12 @@ pub struct Core {
     pub core_name: String,
     pub core_usage_percent: f32,
     pub core_frequency_mhz: u64,
+}
+
+impl DataCreationTime for CpuStats {
+    fn get_data_creation_time(&self) -> i64 {
+        self.collected_at.timestamp()
+    }
 }
 
 impl CpuStats {

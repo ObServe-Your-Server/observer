@@ -1,5 +1,6 @@
 use std::thread::sleep;
 use serde::{Deserialize, Serialize};
+use crate::data_storage::file_format::error::MetricsFileFormatError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Header{
@@ -7,8 +8,8 @@ pub struct Header{
     version: u8,
     pad: [u8; 4],
     block_count: u32,
-    first_metric_timestamp: Option<u64>,
-    last_metric_timestamp: Option<u64>,
+    pub first_metric_timestamp: Option<i64>,
+    pub last_metric_timestamp: Option<i64>,
     checksum: u32
 }
 
@@ -20,8 +21,8 @@ impl Header{
             pad: [0,0,0,0],
             block_count: 0,
             checksum: 0,
-            first_metric_timestamp: None,
-            last_metric_timestamp: None
+            first_metric_timestamp: None, //TODO
+            last_metric_timestamp: None //TODO
         };
         h.checksum = h.compute_checksum();
         h
@@ -44,10 +45,20 @@ impl Header{
         self.checksum
     }
 
-    pub fn increment_block_count(&mut self) -> u32 {
-        self.block_count += 1;
+    pub fn increment_block_count(&mut self, data_creation_time: i64) -> Result<(), MetricsFileFormatError> {
+        self.block_count = self.block_count.checked_add(1).ok_or(MetricsFileFormatError::ToManyBlocks(format!("You try to save too many elements in one file. There are already {}", self.block_count)))?;
+
+        self.first_metric_timestamp = Some(match self.first_metric_timestamp {
+            None => data_creation_time,
+            Some(existing) => existing.min(data_creation_time),
+        });
+        self.last_metric_timestamp = Some(match self.last_metric_timestamp {
+            None => data_creation_time,
+            Some(existing) => existing.max(data_creation_time),
+        });
+        
         self.update_checksum();
-        self.checksum()
+        Ok(())
     }
 
     pub fn magic(&self) -> [u8;8] {
@@ -66,14 +77,6 @@ impl Header{
         self.block_count
     }
 
-    pub fn first_metric_timestamp(&self) -> Option<u64> {
-        self.first_metric_timestamp
-    }
-
-    pub fn last_metric_timestamp(&self) -> Option<u64> {
-        self.last_metric_timestamp
-    }
-    
     pub fn checksum(&self) -> u32 {
         self.checksum
     }
