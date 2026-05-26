@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::data_storage::file_format::error::MetricsFileFormatError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(deepsize::DeepSizeOf))]
 pub struct Header{
     magic: [u8; 8],
     version: u8,

@@ -8,6 +8,7 @@ use crate::data_storage::file_format::header::Header;
 use crate::data_storage::serializer::Serializer;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(deepsize::DeepSizeOf))]
 pub struct MetricsFile {
     header: Header,
     blocks: Option<Vec<Block>>,
@@ -90,6 +91,7 @@ impl MetricsFile {
 #[cfg(test)]
 mod tests {
     use chrono::Utc;
+    use deepsize::DeepSizeOf;
     use serde::{Deserialize, Serialize};
     use open_eye::collector::cpu::collector::CpuStats;
     use open_eye::collector::DataCreationTime;
@@ -165,20 +167,33 @@ mod tests {
         assert_eq!(file.checksum, 3852221886);
     }
 
-   /* #[test]
-    fn serialization_deserialization_test(){
-        let cpu_data = CpuStats::get_current_stats();
-        let mut vec = Vec::new();
-        vec.push(cpu_data);
-        let file = MetricsFile::with_data(vec).unwrap();
-        println!("plain file: {:#?}", file);
+    #[test]
+    fn big_data_test(){
+        let mut data = Vec::new();
 
-        let serialized_file = Serializer::serialize(&file).unwrap();
-        println!("serialized file: {:#?}", serialized_file);
+        let block_count = 10000;
+        for i in 0..block_count {
+            let mut inner_data = Vec::new();
+            for j in 0..50 {
+                inner_data.push(j);
+            }
+            data.push(TestMetric{
+                data: inner_data,
+                creation_time: i,
+            });
+        }
 
-        let deserialized_file = Serializer::deserialize::<MetricsFile>(&serialized_file).unwrap();
-        println!("deserialized file: {:#?}", file);
+        let file = MetricsFile::with_data(data).unwrap();
 
-        assert_eq!(file, deserialized_file);
-    }*/
+        assert_eq!(file.header.first_metric_timestamp.unwrap(), 0);
+        assert_eq!(file.header.last_metric_timestamp.unwrap(), block_count - 1);
+
+        assert_eq!(file.header.block_count() as i64, block_count);
+
+        //println!("file: {:#?}", file);
+        println!("total blocks: {:?}", file.header.block_count());
+        println!("block size in bytes: {:?}", file.blocks.as_ref().unwrap().first().unwrap().deep_size_of());
+        //println!("first block: {:#?}", file.blocks.as_ref().unwrap().first());
+        println!("file-size in bytes: {:?}", file.deep_size_of())
+    }
 }

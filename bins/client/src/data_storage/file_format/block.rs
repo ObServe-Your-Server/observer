@@ -15,6 +15,7 @@ use open_eye::collector::DataCreationTime;
 
 // important for me: low endian only applies to multi byte numerical numbers
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[cfg_attr(test, derive(deepsize::DeepSizeOf))]
 pub struct Block{
     serialized_data_size: u32,
     data_type: u64,

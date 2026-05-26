@@ -12,7 +12,7 @@ path = "src/main.rs"
 criterion = { version = "0.8", features = ["html_reports"] }
 tempfile = "3"
 tokio-stream = { version = "0.1", features = ["net"] }
-tempdir = "0.3.7"
+deepsize = { version = "0.2", features = ["derive"] }
 
 # tells cargo about our bench file, harness=false means criterion manages the runner
 #[[bench]]
