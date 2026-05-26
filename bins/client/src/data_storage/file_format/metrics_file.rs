@@ -1,3 +1,4 @@
+use std::cmp::min;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use open_eye::collector::DataCreationTime;
@@ -50,6 +51,22 @@ impl MetricsFile {
                 Some(blocks)
             }
         };
+
+        let first_metric_timestamp = self.blocks.as_ref().ok_or(MetricsFileFormatError::HeaderDataTimeError("no data entry found (should not happen)".to_string()))?
+            .iter()
+            .map(|b| b.data_creation_time())
+            .min()
+            .ok_or(MetricsFileFormatError::HeaderDataTimeError("no first element found to set in the block header for first data block.".to_string()))?;
+
+        self.header.first_metric_timestamp = Some(first_metric_timestamp);
+
+        let last_metric_timestamp = self.blocks.as_ref().ok_or(MetricsFileFormatError::HeaderDataTimeError("no data entry found (should not happen)".to_string()))?
+            .iter()
+            .map(|b| b.data_creation_time())
+            .max()
+            .ok_or(MetricsFileFormatError::HeaderDataTimeError("no last element found to set in the block header for first data block.".to_string()))?;
+
+        self.header.last_metric_timestamp = Some(last_metric_timestamp);
         Ok(())
     }
 
@@ -133,8 +150,10 @@ mod tests {
         assert_eq!(blocks[0].data_type(), blocks[1].data_type());
         assert_eq!(blocks[1].data_type(), blocks[2].data_type());
 
-        assert_eq!(file.header.first_metric_timestamp, Some(0));
-        assert_eq!(file.header.last_metric_timestamp, Some(2));
+        assert_eq!(file.header.first_metric_timestamp.unwrap(), 0);
+        assert_eq!(file.header.last_metric_timestamp.unwrap(), 2);
+
+        println!("file: {:#?}", file);
     }
 
     #[test]

@@ -11,12 +11,15 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use chrono::Utc;
 use erased_serde::Serialize as ErasedSerialize;
+use open_eye::collector::DataCreationTime;
 use serde_json::error::Category::Data;
 use crate::data_storage::calculate_data_type;
 use crate::data_storage::error::DataStorageError;
 use crate::data_storage::file_format::metrics_file::MetricsFile;
 
-pub trait DataBlockEntry: ErasedSerialize + Debug {}
+// erasedserialize is needed because the serialization and deserialization size is not known at
+// compile time therefore -> needed for our trait object
+pub trait DataBlockEntry: ErasedSerialize + Debug + DataCreationTime{}
 
 // implement serialization again
 erased_serde::serialize_trait_object!(DataBlockEntry);
@@ -80,6 +83,7 @@ impl StorageEngine {
             .collect::<Result<Vec<Vec<u8>>, _>>()?;
 
         //let metrics_file_content = MetricsFile::with_data(serialized_content);
+        // TODO
 
         Ok(())
     }

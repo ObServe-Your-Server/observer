@@ -1,6 +1,7 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sysinfo::System;
+use crate::collector::DataCreationTime;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MemoryStats {
@@ -11,6 +12,12 @@ pub struct MemoryStats {
     pub available_swap_in_byte: u64,
     pub used_swap_in_byte: u64,
     pub collected_at: chrono::DateTime<Utc>,
+}
+
+impl DataCreationTime for MemoryStats {
+    fn get_data_creation_time(&self) -> i64 {
+        self.collected_at.timestamp()
+    }
 }
 
 impl MemoryStats {

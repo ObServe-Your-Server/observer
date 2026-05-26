@@ -10,10 +10,10 @@ use open_eye::collector::DataCreationTime;
 // the datasize could be calculated over the data length, but then it can be forgotten.
 // i am not sure if this is the right way. for now, it seems right. fix in the future if
 
-// the data first gets stored and during the serialisation or to bytes there the values get
+// the data first gets stored and during the serialization or to bytes there the values get
 // transformed to le bytes ready to store
 
-// important for me: low endian only applies to multy byte numerical numbers
+// important for me: low endian only applies to multi byte numerical numbers
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Block{
     serialized_data_size: u32,
@@ -66,6 +66,10 @@ impl Block {
 
     pub fn data(&self) -> &Vec<u8> {
         &self.serialized_data
+    }
+
+    pub fn data_creation_time(&self) -> i64 {
+        self.data_creation_time
     }
 
     pub fn created_at(&self) -> i64 {

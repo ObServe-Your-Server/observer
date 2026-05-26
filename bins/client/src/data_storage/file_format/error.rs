@@ -6,6 +6,7 @@ pub enum MetricsFileFormatError {
     TryFromInt(TryFromIntError),
     SerdeEncode(rmp_serde::encode::Error),
     ToManyBlocks(String),
+    HeaderDataTimeError(String),
 }
 
 impl std::fmt::Display for MetricsFileFormatError {
@@ -13,7 +14,8 @@ impl std::fmt::Display for MetricsFileFormatError {
         match self {
             Self::TryFromInt(e) => write!(f, "try from int error during data length calculation (maybe content was too long): {e}"),
             Self::SerdeEncode(e) => write!(f, "error during encoding: {e}"),
-            Self::ToManyBlocks(e) => write!(f, "you are trying to save too many blocks: {e}")
+            Self::ToManyBlocks(e) => write!(f, "you are trying to save too many blocks: {e}"),
+            Self::HeaderDataTimeError(e) => write!(f, "error: {e}"),
         }
     }
 }
