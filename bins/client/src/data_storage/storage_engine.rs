@@ -60,12 +60,12 @@ impl StorageEngine {
         self.storage_channels.entry(key).or_default().push(entry);
     }
 
-    pub fn remove_channel(&mut self, data_type_key: &u64) -> Option<Vec<ChannelEntry>> {
-        self.storage_channels.remove(data_type_key)
+    pub fn remove_channel<D: DataBlockEntry + 'static>(&mut self) -> Option<Vec<ChannelEntry>> {
+        self.storage_channels.remove(&calculate_data_type::<D>())
     }
 
-    pub fn get_channel_elements(&mut self, data_type_key: &u64) -> Option<&Vec<ChannelEntry>> {
-        self.storage_channels.get(data_type_key)
+    pub fn get_channel_elements<D: DataBlockEntry + 'static>(&mut self) -> Option<&Vec<ChannelEntry>> {
+        self.storage_channels.get(&calculate_data_type::<D>())
     }
 
     pub fn save_to_file(&mut self, data_type_key: &u64) -> Result<(),DataStorageError>{
@@ -104,6 +104,7 @@ mod tests {
     use open_eye::collector::cpu::collector::CpuStats;
     use open_eye::collector::memory::collector::MemoryStats;
     use crate::data_storage::storage_engine::StorageEngine;
+    use crate::system_health::HostComponent::Cpu;
 
     #[test]
     fn default_engine_test(){
@@ -112,14 +113,14 @@ mod tests {
     }
 
     #[test]
-    fn once_cell_cannot_be_set_twice() {
+    fn once_cell_cannot_be_set_twice_test() {
         let storage_engine = StorageEngine::default().unwrap();
         assert!(storage_engine.save_to_file_interval.set(99).is_err());
         assert!(storage_engine.base_folder.set(PathBuf::from(".")).is_err());
     }
 
     #[test]
-    fn add_one_data_to_one_channel(){
+    fn add_one_data_to_one_channel_test(){
         let mut storage_engine = StorageEngine::default().unwrap();
 
         let cpu_data = CpuStats::get_current_stats();
@@ -129,7 +130,7 @@ mod tests {
     }
 
     #[test]
-    fn add_multiple_data_to_one_channel(){
+    fn add_multiple_data_to_one_channel_test(){
         let mut storage_engine = StorageEngine::default().unwrap();
 
         let cpu_data = CpuStats::get_current_stats();
@@ -139,7 +140,7 @@ mod tests {
         storage_engine.add_data(cpu_data.clone());
         storage_engine.add_data(cpu_data);
 
-        let vec_length = storage_engine.get_channel_elements(&StorageEngine::channel_key_for_data_type::<CpuStats>()).unwrap().len();
+        let vec_length = storage_engine.get_channel_elements::<CpuStats>().unwrap().len();
         assert_eq!(vec_length, 5);
 
         println!("Vec length: {}", vec_length);
@@ -147,7 +148,7 @@ mod tests {
     }
 
     #[test]
-    fn add_multiple_data_to_multiple_channel(){
+    fn add_multiple_data_to_multiple_channel_test(){
         let mut storage_engine = StorageEngine::default().unwrap();
 
         let cpu_data = CpuStats::get_current_stats();
@@ -163,8 +164,8 @@ mod tests {
         storage_engine.add_data(memory_data.clone());
         storage_engine.add_data(memory_data.clone());
 
-        let vec_length_cpu = storage_engine.get_channel_elements(&StorageEngine::channel_key_for_data_type::<CpuStats>()).unwrap().len();
-        let vec_length_memory = storage_engine.get_channel_elements(&StorageEngine::channel_key_for_data_type::<MemoryStats>()).unwrap().len();
+        let vec_length_cpu = storage_engine.get_channel_elements::<CpuStats>().unwrap().len();
+        let vec_length_memory = storage_engine.get_channel_elements::<MemoryStats>().unwrap().len();
 
         assert_eq!(vec_length_cpu, 5);
         assert_eq!(vec_length_memory, 4);
@@ -173,5 +174,20 @@ mod tests {
         println!("Vec length CPU: {}", vec_length_cpu);
         println!("Vec length Memory: {}", vec_length_memory);
         println!("{:#?}", storage_engine);
+    }
+
+    #[test]
+    fn add_lots_of_data_to_multiple_channel_test(){
+        let mut storage_engine = StorageEngine::default().unwrap();
+
+        let cpu_data = CpuStats::get_current_stats();
+        for _i in 0..100 {
+            storage_engine.add_data(cpu_data.clone());
+        }
+
+        let memory_data = MemoryStats::get_current_stats();
+        for _i in 0..100 {
+            storage_engine.add_data(memory_data.clone());
+        }
     }
 }
