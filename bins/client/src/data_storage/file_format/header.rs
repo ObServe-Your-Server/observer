@@ -51,7 +51,7 @@ impl Header {
         self.block_count.checked_add(1).is_some()
     }
 
-    pub fn increment_block_count(
+    pub fn increment_block_count_and_update_timestamps(
         &mut self,
         first_metric_timestamp: i64,
         last_metric_timestamp: i64,

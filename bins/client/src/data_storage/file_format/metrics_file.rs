@@ -30,9 +30,7 @@ impl MetricsFile {
         D: Serialize + for<'de> Deserialize<'de> + 'static + DataCreationTime,
     {
         let mut file = MetricsFile::default()?;
-        data.into_iter()
-            .map(|d| file.add_data_block(d))
-            .collect::<Result<(), _>>()?;
+        data.into_iter().try_for_each(|d| file.add_data_block(d))?;
         Ok(file)
     }
 
@@ -85,11 +83,21 @@ impl MetricsFile {
                 "no last element found to set in the block header for first data block."
                     .to_string(),
             ))?;
-        self.header
-            .increment_block_count(first_metric_timestamp, last_metric_timestamp)?;
+        self.header.increment_block_count_and_update_timestamps(
+            first_metric_timestamp,
+            last_metric_timestamp,
+        )?;
 
         self.checksum = self.compute_checksum()?;
         Ok(())
+    }
+
+    // TODO: write a function which paralyzes the insertion
+    pub fn add_data_blocks<D>(&mut self, data: &[D]) -> Result<(), MetricsFileFormatError>
+    where
+        D: Serialize + for<'de> Deserialize<'de> + 'static + DataCreationTime + Clone,
+    {
+        todo!()
     }
 
     /// Computes the checksum by first serializing the datablocks.
