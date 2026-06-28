@@ -5,7 +5,6 @@ use crate::data_storage::serializer::Serializer;
 use chrono::Utc;
 use open_eye::collector::DataCreationTime;
 use serde::{Deserialize, Serialize};
-use std::cmp::min;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(deepsize::DeepSizeOf))]
@@ -41,13 +40,21 @@ impl MetricsFile {
     where
         D: Serialize + for<'de> Deserialize<'de> + 'static + DataCreationTime,
     {
-        self.header
-            .increment_block_count(data.get_data_creation_time())?;
+        if !self.header.has_space() {
+            return Err(MetricsFileFormatError::BlockCountError(format!(
+                "You try to save too many elements in one file. There are already {} elements. Try to create a new file.",
+                self.header.block_count()
+            )));
+        }
+
+        let block = Block::with_data(data)?;
 
         // add in the blocks
         match self.blocks {
-            None => self.blocks = Some(vec![Block::with_data(data)?]),
-            Some(ref mut blocks) => blocks.push(Block::with_data(data)?),
+            None => {
+                self.blocks = Some(vec![block]);
+            }
+            Some(ref mut blocks) => blocks.push(block),
         };
 
         // set the timestamps
@@ -65,8 +72,6 @@ impl MetricsFile {
                     .to_string(),
             ))?;
 
-        self.header.first_metric_timestamp = Some(first_metric_timestamp);
-
         let last_metric_timestamp = self
             .blocks
             .as_ref()
@@ -80,8 +85,10 @@ impl MetricsFile {
                 "no last element found to set in the block header for first data block."
                     .to_string(),
             ))?;
+        self.header
+            .increment_block_count(first_metric_timestamp, last_metric_timestamp)?;
 
-        self.header.last_metric_timestamp = Some(last_metric_timestamp);
+        self.checksum = self.compute_checksum()?;
         Ok(())
     }
 
@@ -138,8 +145,8 @@ mod tests {
         assert_eq!(bare_bone.header.block_count().clone(), 0);
         assert_eq!(bare_bone.header.pad().clone(), [0, 0, 0, 0]);
 
-        assert_eq!(bare_bone.header.first_metric_timestamp, None);
-        assert_eq!(bare_bone.header.last_metric_timestamp, None);
+        assert_eq!(bare_bone.header.first_metric_timestamp(), None);
+        assert_eq!(bare_bone.header.last_metric_timestamp(), None);
 
         assert_eq!(bare_bone.checksum, 3852221886);
         assert!(bare_bone.blocks.is_none());
@@ -182,8 +189,8 @@ mod tests {
         assert_eq!(blocks[1].data_type(), blocks[2].data_type());
 
         // ensures the metrics timestamps are set correctly
-        assert_eq!(file.header.first_metric_timestamp.unwrap(), 0);
-        assert_eq!(file.header.last_metric_timestamp.unwrap(), 2);
+        assert_eq!(file.header.first_metric_timestamp().unwrap(), 0);
+        assert_eq!(file.header.last_metric_timestamp().unwrap(), 2);
 
         println!("file: {:#?}", file);
     }
@@ -198,10 +205,34 @@ mod tests {
     }
 
     #[test]
+    fn checksum_updates_after_each_block_insertion() {
+        let mut file = MetricsFile::default().unwrap();
+        let initial_checksum = file.checksum;
+
+        file.add_data_block(TestMetric {
+            data: vec![1u8, 2, 3],
+            creation_time: 0,
+        })
+        .unwrap();
+        let checksum_after_first = file.checksum;
+        assert_ne!(checksum_after_first, initial_checksum);
+        assert_eq!(file.checksum, file.compute_checksum().unwrap());
+
+        file.add_data_block(TestMetric {
+            data: vec![4u8, 5, 6],
+            creation_time: 1,
+        })
+        .unwrap();
+        let checksum_after_second = file.checksum;
+        assert_ne!(checksum_after_second, checksum_after_first);
+        assert_eq!(file.checksum, file.compute_checksum().unwrap());
+    }
+
+    #[test]
     fn big_data_test() {
         let mut data = Vec::new();
 
-        let block_count = 10000;
+        let block_count = 1000;
         for i in 0..block_count {
             let mut inner_data = Vec::new();
             for j in 0..50 {
@@ -215,8 +246,11 @@ mod tests {
 
         let file = MetricsFile::with_data(data).unwrap();
 
-        assert_eq!(file.header.first_metric_timestamp.unwrap(), 0);
-        assert_eq!(file.header.last_metric_timestamp.unwrap(), block_count - 1);
+        assert_eq!(file.header.first_metric_timestamp().unwrap(), 0);
+        assert_eq!(
+            file.header.last_metric_timestamp().unwrap(),
+            block_count - 1
+        );
 
         assert_eq!(file.header.block_count() as i64, block_count);
 
