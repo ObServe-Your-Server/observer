@@ -97,6 +97,10 @@ impl MetricsFile {
     where
         D: Serialize + for<'de> Deserialize<'de> + 'static + DataCreationTime + Clone,
     {
+        if data.len() < 1000 {
+            data.iter().map(|e| self.add_data_block(e.clone()));
+        }
+        // TODO: the rest
         todo!()
     }
 
