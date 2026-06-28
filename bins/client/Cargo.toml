@@ -3,6 +3,9 @@ name = "observer-client"
 version = "1.2.5"
 edition = "2024"
 
+[lints.rust]
+unused = "allow"
+
 [[bin]]
 name = "observer_client"
 path = "src/main.rs"
