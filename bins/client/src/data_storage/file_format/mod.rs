@@ -8,5 +8,5 @@ use crate::data_storage::serializer::Serializer;
 
 pub mod header;
 mod block;
-mod error;
+pub mod error;
 pub mod metrics_file;

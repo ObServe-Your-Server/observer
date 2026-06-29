@@ -1,45 +1,41 @@
 use crate::data_storage::calculate_data_type;
 use crate::data_storage::error::DataStorageError;
 use crate::data_storage::file_format::metrics_file::MetricsFile;
+use crate::data_storage::serializer::Serializer;
 use chrono::Utc;
-use erased_serde::Serialize as ErasedSerialize;
 use open_eye::collector::DataCreationTime;
-use serde_json::error::Category::Data;
-use std::any::TypeId;
-use std::cell::{Cell, OnceCell};
+use serde::{Deserialize, Serialize};
+use std::any::Any;
+use std::cell::OnceCell;
 use std::collections::HashMap;
 use std::env::current_dir;
 use std::fmt::Debug;
 use std::fs::File;
-use std::hash::{DefaultHasher, Hash, Hasher};
-use std::io;
-use std::iter::Once;
-use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
-
-// erasedserialize is needed because the serialization and deserialization size is not known at
-// compile time therefore -> needed for our trait object
-pub trait DataBlockEntry: ErasedSerialize + Debug + DataCreationTime {}
-
-// implement serialization again
-erased_serde::serialize_trait_object!(DataBlockEntry);
-
-#[derive(Debug)]
-pub struct ChannelEntry {
-    data_block_entry: Box<dyn DataBlockEntry>,
-    inserted_at: chrono::DateTime<Utc>,
-}
+use std::io::{self, Write};
+use std::path::PathBuf;
 
 const FILE_EXTENSION: &str = "obs";
-#[derive(Debug)]
+
 pub struct StorageEngine {
-    storage_channels: HashMap<u64, Vec<ChannelEntry>>,
+    storage_channels: HashMap<u64, Box<dyn Any>>,
     save_to_file_interval: OnceCell<u16>,
     base_folder: OnceCell<PathBuf>,
 }
 
+impl Debug for StorageEngine {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StorageEngine")
+            .field(
+                "channel_keys",
+                &self.storage_channels.keys().collect::<Vec<_>>(),
+            )
+            .field("save_to_file_interval", &self.save_to_file_interval)
+            .field("base_folder", &self.base_folder)
+            .finish()
+    }
+}
+
 impl StorageEngine {
-    /// Start the storage engine
     pub fn default() -> Result<Self, io::Error> {
         Ok(StorageEngine {
             storage_channels: HashMap::default(),
@@ -48,33 +44,47 @@ impl StorageEngine {
         })
     }
 
-    // static because to calculate the datatype all data needs to be owned.
-    // (so not shared reference)
-    pub fn add_data<D: DataBlockEntry + 'static>(&mut self, data: D) {
+    pub fn add_data<D>(&mut self, data: D)
+    where
+        D: 'static + Serialize + for<'de> Deserialize<'de> + DataCreationTime,
+    {
         let key = calculate_data_type::<D>();
-        let entry = ChannelEntry {
-            data_block_entry: Box::new(data),
-            inserted_at: Utc::now(),
-        };
-        self.storage_channels.entry(key).or_default().push(entry);
+        self.storage_channels
+            .entry(key)
+            .or_insert_with(|| Box::new(Vec::<D>::new()))
+            .downcast_mut::<Vec<D>>()
+            .unwrap()
+            .push(data);
     }
 
-    pub fn remove_channel<D: DataBlockEntry + 'static>(&mut self) -> Option<Vec<ChannelEntry>> {
-        self.storage_channels.remove(&calculate_data_type::<D>())
+    pub fn remove_channel<D: 'static>(&mut self) -> Option<Vec<D>> {
+        self.storage_channels
+            .remove(&calculate_data_type::<D>())
+            .and_then(|b| b.downcast::<Vec<D>>().ok())
+            .map(|b| *b)
     }
 
-    pub fn get_channel_elements<D: DataBlockEntry + 'static>(
-        &mut self,
-    ) -> Option<&Vec<ChannelEntry>> {
-        self.storage_channels.get(&calculate_data_type::<D>())
+    pub fn get_channel_elements<D: 'static>(&self) -> Option<&Vec<D>> {
+        self.storage_channels
+            .get(&calculate_data_type::<D>())
+            .and_then(|b| b.downcast_ref::<Vec<D>>())
     }
 
-    // TODO: Should this optimise and save to file or just save to file
-    pub fn save_to_file(&mut self, data_type_key: &u64) -> Result<(), DataStorageError> {
-        let elements = self
+    pub fn save_to_file<D>(&mut self) -> Result<(), DataStorageError>
+    where
+        D: 'static + Serialize + for<'de> Deserialize<'de> + DataCreationTime,
+    {
+        let key = calculate_data_type::<D>();
+        let entries: Vec<D> = self
             .storage_channels
-            .remove(data_type_key)
-            .ok_or(DataStorageError::NoDataForGivenDataId)?;
+            .remove(&key)
+            .ok_or(DataStorageError::NoDataForGivenDataId)
+            .and_then(|b| {
+                // the downcast here is okay because I know what we saved in at the add_data function
+                b.downcast::<Vec<D>>()
+                    .map_err(|_| DataStorageError::NoDataForGivenDataId)
+            })
+            .map(|b| *b)?;
 
         let mut file_path = self
             .base_folder
@@ -84,28 +94,17 @@ impl StorageEngine {
             )))?
             .clone();
         let current_time = Utc::now().timestamp();
-        file_path.push(format!(
-            "{}.{}.{}",
-            data_type_key, current_time, FILE_EXTENSION
-        ));
+        file_path.push(format!("{}.{}.{}", key, current_time, FILE_EXTENSION));
 
-        let file = File::create_new(file_path)?;
-
-        let serialized_content: Vec<Vec<u8>> = elements
-            .into_iter()
-            .map(|e| rmp_serde::to_vec(&e.data_block_entry as &dyn erased_serde::Serialize))
-            .collect::<Result<Vec<Vec<u8>>, _>>()?;
-
-        //let metrics_file_content = MetricsFile::with_data(serialized_content);
-        // TODO
+        let metrics_file = MetricsFile::<D>::with_data(entries)?;
+        let bytes = Serializer::serialize(&metrics_file)?;
+        let mut file = File::create_new(file_path)?;
+        file.write_all(&bytes)?;
 
         Ok(())
     }
 
-    pub fn channel_key_for_data_type<D>() -> u64
-    where
-        D: 'static,
-    {
+    pub fn channel_key_for_data_type<D: 'static>() -> u64 {
         calculate_data_type::<D>()
     }
 }
@@ -113,12 +112,9 @@ impl StorageEngine {
 #[cfg(test)]
 mod tests {
     use crate::data_storage::storage_engine::StorageEngine;
-    use crate::system_health::HostComponent::Cpu;
     use open_eye::collector::cpu::collector::CpuStats;
     use open_eye::collector::memory::collector::MemoryStats;
-    use std::cell::OnceCell;
-    use std::path::{Path, PathBuf};
-    use std::sync::OnceLock;
+    use std::path::PathBuf;
 
     #[test]
     fn default_engine_test() {
@@ -211,5 +207,68 @@ mod tests {
         for _i in 0..100 {
             storage_engine.add_data(memory_data.clone());
         }
+
+        assert_eq!(storage_engine.get_channel_elements::<CpuStats>().unwrap().len(), 100);
+        assert_eq!(storage_engine.get_channel_elements::<MemoryStats>().unwrap().len(), 100);
+    }
+
+    #[test]
+    fn save_to_file_creates_file_with_data_test() {
+        let dir = tempfile::tempdir().unwrap();
+
+        let mut storage_engine = StorageEngine {
+            storage_channels: std::collections::HashMap::default(),
+            save_to_file_interval: std::cell::OnceCell::from(30),
+            base_folder: std::cell::OnceCell::from(dir.path().to_path_buf()),
+        };
+
+        let cpu_data = CpuStats::get_current_stats();
+        storage_engine.add_data(cpu_data.clone());
+        storage_engine.add_data(cpu_data.clone());
+        storage_engine.add_data(cpu_data);
+
+        storage_engine.save_to_file::<CpuStats>().unwrap();
+
+        let files: Vec<_> = std::fs::read_dir(dir.path())
+            .unwrap()
+            .map(|e| e.unwrap())
+            .collect();
+
+        assert_eq!(files.len(), 1);
+        assert!(files[0].file_name().to_str().unwrap().ends_with(".obs"));
+        assert!(files[0].metadata().unwrap().len() > 0);
+
+        // channel is drained after save
+        assert!(storage_engine.get_channel_elements::<CpuStats>().is_none());
+    }
+
+    #[test]
+    fn save_to_file_creates_file_with_big_junk_of_data_test() {
+        let dir = tempfile::tempdir().unwrap();
+
+        let mut storage_engine = StorageEngine {
+            storage_channels: std::collections::HashMap::default(),
+            save_to_file_interval: std::cell::OnceCell::from(30),
+            base_folder: std::cell::OnceCell::from(dir.path().to_path_buf()),
+        };
+
+        let cpu_data = CpuStats::get_current_stats();
+        for i in 0..1000 {
+            storage_engine.add_data(cpu_data.clone());
+        }
+
+        storage_engine.save_to_file::<CpuStats>().unwrap();
+
+        let files: Vec<_> = std::fs::read_dir(dir.path())
+            .unwrap()
+            .map(|e| e.unwrap())
+            .collect();
+
+        assert_eq!(files.len(), 1);
+        assert!(files[0].file_name().to_str().unwrap().ends_with(".obs"));
+        assert!(files[0].metadata().unwrap().len() > 0);
+
+        // channel is drained after save
+        assert!(storage_engine.get_channel_elements::<CpuStats>().is_none());
     }
 }

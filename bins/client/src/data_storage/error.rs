@@ -1,3 +1,4 @@
+use crate::data_storage::file_format::error::MetricsFileFormatError;
 use std::fmt::Formatter;
 use std::io;
 
@@ -7,15 +8,17 @@ pub enum DataStorageError {
     NoDataForGivenDataId,
     FileIo(io::Error),
     RmpSerdeEncodeError(rmp_serde::encode::Error),
+    MetricsFileFormat(MetricsFileFormatError),
 }
 
 impl std::fmt::Display for DataStorageError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self { 
+        match self {
             Self::EmptyBasePath(e) => write!(f, "empty base path for metrics file {e}"),
             Self::NoDataForGivenDataId => write!(f, "for the given data id was no data found to save"),
             Self::FileIo(e) => write!(f, "{e}"),
             Self::RmpSerdeEncodeError(e) => write!(f, "{e}"),
+            Self::MetricsFileFormat(e) => write!(f, "{e}"),
         }
     }
 }
@@ -31,5 +34,11 @@ impl From<io::Error> for DataStorageError{
 impl From<rmp_serde::encode::Error> for DataStorageError {
     fn from(value: rmp_serde::encode::Error) -> Self {
         DataStorageError::RmpSerdeEncodeError(value)
+    }
+}
+
+impl From<MetricsFileFormatError> for DataStorageError {
+    fn from(value: MetricsFileFormatError) -> Self {
+        DataStorageError::MetricsFileFormat(value)
     }
 }
