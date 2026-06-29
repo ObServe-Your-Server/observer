@@ -44,6 +44,14 @@ impl StorageEngine {
         })
     }
 
+    pub fn with_base_folder(path: PathBuf) -> Self {
+        StorageEngine {
+            storage_channels: HashMap::default(),
+            save_to_file_interval: OnceCell::from(30),
+            base_folder: OnceCell::from(path),
+        }
+    }
+
     pub fn add_data<D>(&mut self, data: D)
     where
         D: 'static + Serialize + for<'de> Deserialize<'de> + DataCreationTime,
@@ -96,8 +104,7 @@ impl StorageEngine {
         let current_time = Utc::now().timestamp();
         file_path.push(format!("{}.{}.{}", key, current_time, FILE_EXTENSION));
 
-        let metrics_file = MetricsFile::<D>::with_data(entries)?;
-        let bytes = Serializer::serialize(&metrics_file)?;
+        let bytes = MetricsFile::<D>::with_data(entries)?.to_bytes()?;
         let mut file = File::create_new(file_path)?;
         file.write_all(&bytes)?;
 
@@ -253,7 +260,7 @@ mod tests {
         };
 
         let cpu_data = CpuStats::get_current_stats();
-        for i in 0..1000 {
+        for i in 0..10000 {
             storage_engine.add_data(cpu_data.clone());
         }
 

@@ -10,17 +10,16 @@ unused = "allow"
 name = "observer_client"
 path = "src/main.rs"
 
-# criterion runs benchmarks and generates html timing reports
 [dev-dependencies]
-criterion = { version = "0.8", features = ["html_reports"] }
+criterion = { version = "0.5", features = ["html_reports"] }
+pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
 tempfile = "3"
 tokio-stream = { version = "0.1", features = ["net"] }
 deepsize = { version = "0.2", features = ["derive"] }
 
-# tells cargo about our bench file, harness=false means criterion manages the runner
-#[[bench]]
-#name = "metrics"
-#harness = false
+[[bench]]
+name = "storage_engine"
+harness = false
 
 [dependencies]
 toml = "1.1"

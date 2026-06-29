@@ -12,4 +12,4 @@ pub mod system_health;
 
 mod grpc;
 
-mod data_storage;
+pub mod data_storage;

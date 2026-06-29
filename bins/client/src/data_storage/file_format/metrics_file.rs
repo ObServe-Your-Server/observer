@@ -37,7 +37,12 @@ where
         Ok(file)
     }
 
-    pub fn add_data_block(&mut self, data: D) -> Result<(), MetricsFileFormatError> {
+    pub(in crate::data_storage) fn to_bytes(&mut self) -> Result<Vec<u8>, MetricsFileFormatError> {
+        self.checksum = self.compute_checksum()?;
+        Ok(Serializer::serialize(self)?)
+    }
+
+    fn add_data_block(&mut self, data: D) -> Result<(), MetricsFileFormatError> {
         if !self.header.has_space() {
             return Err(MetricsFileFormatError::BlockCountError(format!(
                 "You try to save too many elements in one file. There are already {} elements. Try to create a new file.",
@@ -88,7 +93,6 @@ where
             last_metric_timestamp,
         )?;
 
-        self.checksum = self.compute_checksum()?;
         Ok(())
     }
 
@@ -215,26 +219,14 @@ mod tests {
     }
 
     #[test]
-    fn checksum_updates_after_each_block_insertion() {
-        let mut file = MetricsFile::<TestMetric<Vec<u8>>>::default().unwrap();
-        let initial_checksum = file.checksum;
-
-        file.add_data_block(TestMetric {
-            data: vec![1u8, 2, 3],
-            creation_time: 0,
-        })
+    fn checksum_is_correct_after_with_data() {
+        let file = MetricsFile::with_data(vec![
+            TestMetric { data: vec![1u8, 2, 3], creation_time: 0 },
+            TestMetric { data: vec![4u8, 5, 6], creation_time: 1 },
+        ])
         .unwrap();
-        let checksum_after_first = file.checksum;
-        assert_ne!(checksum_after_first, initial_checksum);
-        assert_eq!(file.checksum, file.compute_checksum().unwrap());
 
-        file.add_data_block(TestMetric {
-            data: vec![4u8, 5, 6],
-            creation_time: 1,
-        })
-        .unwrap();
-        let checksum_after_second = file.checksum;
-        assert_ne!(checksum_after_second, checksum_after_first);
+        assert_ne!(file.checksum, 0);
         assert_eq!(file.checksum, file.compute_checksum().unwrap());
     }
 

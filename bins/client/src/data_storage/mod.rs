@@ -1,6 +1,6 @@
 pub mod serializer;
-mod file_format;
-mod storage_engine;
+pub mod file_format;
+pub mod storage_engine;
 mod entries;
 mod error;
 
