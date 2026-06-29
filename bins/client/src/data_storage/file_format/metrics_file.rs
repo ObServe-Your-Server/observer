@@ -38,7 +38,7 @@ where
     }
 
     pub(in crate::data_storage) fn to_bytes(&mut self) -> Result<Vec<u8>, MetricsFileFormatError> {
-        self.checksum = self.compute_checksum()?;
+        self.compute_checksum()?;
         Ok(Serializer::serialize(self)?)
     }
 
@@ -111,17 +111,16 @@ where
     /// Computes the checksum by first serializing the datablocks.
     /// Then it all adds it to the hasher and generates the u32.
     /// The error comes from serializing
-    pub fn compute_checksum(&self) -> Result<u32, rmp_serde::encode::Error> {
+    pub fn compute_checksum(&mut self) -> Result<u32, rmp_serde::encode::Error> {
         let mut hasher = crc32fast::Hasher::new();
-        // hash the header bytes
         hasher.update(&Serializer::serialize(&self.header)?);
-        // hash each block's bytes
         if let Some(blocks) = &self.blocks {
             for block in blocks {
                 hasher.update(&Serializer::serialize(&block)?);
             }
         }
-        Ok(hasher.finalize())
+        self.checksum = hasher.finalize();
+        Ok(self.checksum)
     }
 }
 
@@ -220,14 +219,16 @@ mod tests {
 
     #[test]
     fn checksum_is_correct_after_with_data() {
-        let file = MetricsFile::with_data(vec![
+        let mut file = MetricsFile::with_data(vec![
             TestMetric { data: vec![1u8, 2, 3], creation_time: 0 },
             TestMetric { data: vec![4u8, 5, 6], creation_time: 1 },
         ])
         .unwrap();
 
-        assert_ne!(file.checksum, 0);
-        assert_eq!(file.checksum, file.compute_checksum().unwrap());
+        let checksum = file.compute_checksum().unwrap();
+
+        assert_ne!(checksum, 0);
+        assert_eq!(file.checksum, checksum);
     }
 
     #[test]
