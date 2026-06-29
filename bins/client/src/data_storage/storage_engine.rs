@@ -69,6 +69,7 @@ impl StorageEngine {
         self.storage_channels.get(&calculate_data_type::<D>())
     }
 
+    // TODO: Should this optimise and save to file or just save to file
     pub fn save_to_file(&mut self, data_type_key: &u64) -> Result<(), DataStorageError> {
         let elements = self
             .storage_channels

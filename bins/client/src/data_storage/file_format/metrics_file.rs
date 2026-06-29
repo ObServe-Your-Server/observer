@@ -8,13 +8,19 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(deepsize::DeepSizeOf))]
-pub struct MetricsFile {
+pub struct MetricsFile<D>
+where
+    D: 'static + DataCreationTime,
+{
     header: Header,
-    blocks: Option<Vec<Block>>,
+    blocks: Option<Vec<Block<D>>>,
     checksum: u32,
 }
 
-impl MetricsFile {
+impl<D> MetricsFile<D>
+where
+    D: 'static + Serialize + for<'de> Deserialize<'de> + DataCreationTime,
+{
     pub fn default() -> Result<Self, rmp_serde::encode::Error> {
         let mut mf = MetricsFile {
             header: Header::default(),
@@ -25,19 +31,13 @@ impl MetricsFile {
         Ok(mf)
     }
 
-    pub fn with_data<D>(data: Vec<D>) -> Result<Self, MetricsFileFormatError>
-    where
-        D: Serialize + for<'de> Deserialize<'de> + 'static + DataCreationTime,
-    {
+    pub fn with_data(data: Vec<D>) -> Result<Self, MetricsFileFormatError> {
         let mut file = MetricsFile::default()?;
         data.into_iter().try_for_each(|d| file.add_data_block(d))?;
         Ok(file)
     }
 
-    pub fn add_data_block<D>(&mut self, data: D) -> Result<(), MetricsFileFormatError>
-    where
-        D: Serialize + for<'de> Deserialize<'de> + 'static + DataCreationTime,
-    {
+    pub fn add_data_block(&mut self, data: D) -> Result<(), MetricsFileFormatError> {
         if !self.header.has_space() {
             return Err(MetricsFileFormatError::BlockCountError(format!(
                 "You try to save too many elements in one file. There are already {} elements. Try to create a new file.",
@@ -93,9 +93,9 @@ impl MetricsFile {
     }
 
     // TODO: write a function which paralyzes the insertion
-    pub fn add_data_blocks<D>(&mut self, data: &[D]) -> Result<(), MetricsFileFormatError>
+    pub fn add_data_blocks(&mut self, data: &[D]) -> Result<(), MetricsFileFormatError>
     where
-        D: Serialize + for<'de> Deserialize<'de> + 'static + DataCreationTime + Clone,
+        D: Clone,
     {
         if data.len() < 1000 {
             data.iter().map(|e| self.add_data_block(e.clone()));
@@ -129,7 +129,8 @@ mod tests {
     use open_eye::collector::DataCreationTime;
     use serde::{Deserialize, Serialize};
 
-    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    #[cfg_attr(test, derive(deepsize::DeepSizeOf))]
     struct TestMetric<D> {
         pub data: D,
         pub creation_time: i64,
@@ -146,7 +147,7 @@ mod tests {
 
     #[test]
     fn default_generation_test() {
-        let bare_bone = MetricsFile::default().unwrap(); //any type can be used just a test
+        let bare_bone = MetricsFile::<TestMetric<Vec<u8>>>::default().unwrap();
 
         let header_magic = vec![b'O', b'B', b'S', b'E', b'R', b'V', b'E', b'R'];
         assert_eq!(header_magic, bare_bone.header.magic());
@@ -189,10 +190,7 @@ mod tests {
 
         // take the vec_data from before
         for (i, test_data_entry) in vec_data.iter().enumerate() {
-            // deserialize
-            let block_data: TestMetric<Vec<u8>> = rmp_serde::from_slice(blocks[i].data()).unwrap();
-
-            // check that block data is
+            let block_data = blocks[i].data();
             assert_eq!(block_data.data, test_data_entry.data);
             assert_eq!(block_data.creation_time, test_data_entry.creation_time);
         }
@@ -209,7 +207,7 @@ mod tests {
 
     #[test]
     fn default_test() {
-        let file = MetricsFile::default().unwrap();
+        let file = MetricsFile::<TestMetric<Vec<u8>>>::default().unwrap();
         let default_header = Header::default();
         assert_eq!(file.header, default_header);
         assert_eq!(file.blocks, None);
@@ -218,7 +216,7 @@ mod tests {
 
     #[test]
     fn checksum_updates_after_each_block_insertion() {
-        let mut file = MetricsFile::default().unwrap();
+        let mut file = MetricsFile::<TestMetric<Vec<u8>>>::default().unwrap();
         let initial_checksum = file.checksum;
 
         file.add_data_block(TestMetric {

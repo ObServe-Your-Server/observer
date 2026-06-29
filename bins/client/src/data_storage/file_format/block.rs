@@ -1,12 +1,12 @@
+use crate::data_storage::calculate_data_type;
+use crate::data_storage::file_format::error::MetricsFileFormatError;
+use chrono::{DateTime, Utc};
+use open_eye::collector::DataCreationTime;
+use prost_types::Type;
+use serde::{Deserialize, Serialize};
 use std::any::TypeId;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::num::TryFromIntError;
-use chrono::{DateTime, Utc};
-use prost_types::Type;
-use serde::{Deserialize, Serialize};
-use crate::data_storage::calculate_data_type;
-use crate::data_storage::file_format::error::MetricsFileFormatError;
-use open_eye::collector::DataCreationTime;
 // the datasize could be calculated over the data length, but then it can be forgotten.
 // i am not sure if this is the right way. for now, it seems right. fix in the future if
 
@@ -16,43 +16,45 @@ use open_eye::collector::DataCreationTime;
 // important for me: low endian only applies to multi byte numerical numbers
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 #[cfg_attr(test, derive(deepsize::DeepSizeOf))]
-pub struct Block{
+pub struct Block<Data> {
     serialized_data_size: u32,
     data_type: u64,
-    serialized_data: Vec<u8>,
+    serialized_data: Data,
     data_creation_time: i64,
     created_at: i64,
     checksum: u32,
 }
 
-impl Block {
+impl<Data> Block<Data>
+where
+    Data: 'static + Serialize + for<'de> Deserialize<'de> + DataCreationTime,
+{
     /// Accepts the data and will serialize it and save it
-    pub fn with_data<D>(data: D) -> Result<Block, MetricsFileFormatError> // error comes from serialization for data
-    where D: 'static + Serialize + for<'de> Deserialize<'de> + DataCreationTime// needs to be static for the data type hash
-    {
-        // serialize data
-        let serialized_data = rmp_serde::to_vec(&data)?;
-
-        // set size before set data otherwise data is moved
-        let serialized_data_size = u32::try_from(serialized_data.len())?;
-        let data_type = calculate_data_type::<D>();
+    pub fn with_data(data: Data) -> Result<Block<Data>, MetricsFileFormatError> {
+        // serialize once to measure size and compute checksum; data itself is stored unserialised
+        let temp_bytes = rmp_serde::to_vec(&data)?;
+        let serialized_data_size = u32::try_from(temp_bytes.len())?;
+        let data_type = calculate_data_type::<Data>();
         let created_at = Utc::now().timestamp();
-        let mut block = Block{
+        let data_creation_time = data.get_data_creation_time();
+        let mut block = Block {
             serialized_data_size,
-            data_type, serialized_data,
-            data_creation_time: data.get_data_creation_time(),
+            data_type,
+            serialized_data: data,
+            data_creation_time,
             created_at,
-            checksum: 0
+            checksum: 0,
         };
         block.checksum = block.compute_checksum()?;
         Ok(block)
     }
 
     pub fn compute_checksum(&self) -> Result<u32, rmp_serde::encode::Error> {
+        let serialized = rmp_serde::to_vec(&self.serialized_data)?;
         let mut hasher = crc32fast::Hasher::new();
         hasher.update(&self.serialized_data_size.to_le_bytes());
         hasher.update(&self.data_type.to_le_bytes());
-        hasher.update(&self.serialized_data);
+        hasher.update(&serialized);
         hasher.update(&self.created_at.to_le_bytes());
         Ok(hasher.finalize())
     }
@@ -65,7 +67,7 @@ impl Block {
         self.data_type
     }
 
-    pub fn data(&self) -> &Vec<u8> {
+    pub fn data(&self) -> &Data {
         &self.serialized_data
     }
 
@@ -84,20 +86,21 @@ impl Block {
 
 #[cfg(test)]
 mod tests {
-    use chrono::Utc;
-    use serde::{Deserialize, Serialize};
-    use open_eye::collector::DataCreationTime;
     use crate::data_storage::calculate_data_type;
     use crate::data_storage::file_format::block::Block;
+    use chrono::Utc;
+    use open_eye::collector::DataCreationTime;
+    use serde::{Deserialize, Serialize};
 
-    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     struct TestMetric<D> {
         pub data: D,
         pub creation_time: i64,
     }
 
     impl<D> DataCreationTime for TestMetric<D>
-    where D: Serialize + for<'de> Deserialize<'de> + 'static,
+    where
+        D: Serialize + for<'de> Deserialize<'de> + 'static,
     {
         fn get_data_creation_time(&self) -> i64 {
             self.creation_time
@@ -105,40 +108,46 @@ mod tests {
     }
 
     #[test]
-    fn creation_with_data_test(){
-        let data_vec: Vec<u8> = vec![1,2,3,4,5];
-        let data = TestMetric{
+    fn creation_with_data_test() {
+        let data_vec: Vec<u8> = vec![1, 2, 3, 4, 5];
+        let data = TestMetric {
             data: data_vec,
             creation_time: 0,
         };
 
         let block = Block::with_data(data.clone()).unwrap();
         assert_eq!(block.serialized_data_size, 8); //
-        assert_eq!(block.data_type, calculate_data_type::<TestMetric<Vec<u8>>>());
-        assert_eq!(block.serialized_data, rmp_serde::to_vec(&data).unwrap());
+        assert_eq!(
+            block.data_type,
+            calculate_data_type::<TestMetric<Vec<u8>>>()
+        );
+        assert_eq!(block.data(), &data);
         assert_eq!(block.checksum, block.compute_checksum().unwrap());
     }
 
     #[test]
-    fn set_data_later_test(){
-        let data_vec: Vec<u8> = vec![0,1,2,3,4,5,6,7,8,9];
-        let data = TestMetric{
+    fn set_data_later_test() {
+        let data_vec: Vec<u8> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        let data = TestMetric {
             data: data_vec,
             creation_time: 0,
         };
 
         let block = Block::with_data(data.clone()).unwrap();
         assert_eq!(block.serialized_data_size, 13); //because rmp serde inserts his parts up front
-        assert_eq!(block.data_type, calculate_data_type::<TestMetric<Vec<u8>>>());
-        assert_eq!(block.serialized_data, rmp_serde::to_vec(&data).unwrap());
+        assert_eq!(
+            block.data_type,
+            calculate_data_type::<TestMetric<Vec<u8>>>()
+        );
+        assert_eq!(block.data(), &data);
         assert_eq!(block.checksum, block.compute_checksum().unwrap());
     }
 
     #[test]
-    fn creation_with_big_data_test(){
+    fn creation_with_big_data_test() {
         // set_data calls u32::try_from(data.len()) — verify that error path is reachable.
         // On 64-bit, usize::MAX > u32::MAX, so try_from must fail.
-        let data = TestMetric{
+        let data = TestMetric {
             data: vec![0u8; u16::MAX as usize + 1],
             creation_time: 0,
         };
