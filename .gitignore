@@ -42,3 +42,5 @@ gpu-test/*.egg-info/
 
 # libre speed config
 libre-speed-config
+
+observer.db
