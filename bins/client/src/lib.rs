@@ -11,5 +11,3 @@ mod subsystem;
 pub mod system_health;
 
 mod grpc;
-
-pub mod data_storage;

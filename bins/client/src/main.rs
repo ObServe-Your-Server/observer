@@ -5,6 +5,9 @@ use observer_client::logging::init_logging;
 use observer_client::scheduling::scheduling_master::SchedulingMaster;
 
 use std::env;
+use std::time::Duration;
+use sea_orm::{ConnectOptions, Database};
+use migration::{Migrator, MigratorTrait};
 
 #[tokio::main]
 async fn main() {
@@ -21,11 +24,29 @@ async fn main() {
     };
 
     info!("Observer v{} started", config.version);
-    info!(
-        "Server: {} / {}",
-        config.server.base_metrics_url, config.server.base_commands_url
-    );
     info!("Application ready");
 
-    SchedulingMaster::register_and_start_background_jobs().await;
+    // connect to the database and run pending migrations
+    let db = connect_db(&config.server.database_url).await;
+    if let Err(e) = Migrator::up(&db, None).await {
+        error!("Database migration error: {}", e);
+        std::process::exit(1);
+    }
+
+    //SchedulingMaster::register_and_start_background_jobs().await;
+}
+
+async fn connect_db(db_place: &str) -> sea_orm::DatabaseConnection {
+    let mut opt = ConnectOptions::new(db_place);
+    opt.max_connections(100)
+        .min_connections(5)
+        .connect_timeout(Duration::from_secs(8))
+        .acquire_timeout(Duration::from_secs(8))
+        .idle_timeout(Duration::from_secs(8))
+        .max_lifetime(Duration::from_secs(8))
+        .sqlx_logging(false) // disable SQLx logging
+        .sqlx_logging_level(log::LevelFilter::Info);
+        //.set_schema_search_path("my_schema"); // set default Postgres schema
+
+    Database::connect(opt).await.unwrap()
 }

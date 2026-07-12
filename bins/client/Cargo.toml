@@ -11,15 +11,12 @@ name = "observer_client"
 path = "src/main.rs"
 
 [dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
-pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
 tempfile = "3"
 tokio-stream = { version = "0.1", features = ["net"] }
-deepsize = { version = "0.2", features = ["derive"] }
 
-[[bench]]
-name = "storage_engine"
-harness = false
+#[[bench]]
+#name = "storage_engine"
+#harness = false
 
 [dependencies]
 toml = "1.1"
@@ -35,7 +32,9 @@ open-eye = { path = "../../crates/open-eye" }
 tynm = "0.2.0"
 rmp-serde = "1.3.1"
 crc32fast = "1.5.0"
+sea-orm = { version = "2.0.0-rc", features = ["sqlx-sqlite", "runtime-tokio-rustls", "macros"] }
 
+migration = { path = "migration" }
 
 prost = "0.14"# protobuf message serialization/deserialization
 prost-types = "0.14"# well-known proto types (e.g. Timestamp)
