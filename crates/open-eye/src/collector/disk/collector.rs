@@ -3,7 +3,6 @@ use nix::sys::statvfs::statvfs;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiskInfo {
@@ -180,9 +179,8 @@ mod linux {
 #[cfg(target_os = "macos")]
 mod macos {
     use super::{collect_zpools, DiskInfo};
-    use log::debug;
+    use log::{debug, warn};
     use std::collections::HashSet;
-
 
     const SKIP_PREFIXES: &[&str] = &["/System/Volumes/", "/private/var/folders", "/dev", "/proc"];
 
@@ -199,9 +197,14 @@ mod macos {
 
     pub fn collect() -> Vec<DiskInfo> {
         // Parse /etc/fstab isn't reliable on macOS; use mount output instead
-        let output = std::process::Command::new("mount")
-            .output()
-            .unwrap_or_else(|_| panic!("failed to run mount"));
+        // TODO: consider falling back to statvfs on / or parsing diskutil info if mount fails
+        let output = match std::process::Command::new("mount").output() {
+            Ok(o) => o,
+            Err(e) => {
+                warn!("mount failed: {}", e);
+                return vec![];
+            }
+        };
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         let mut seen = HashSet::new();
