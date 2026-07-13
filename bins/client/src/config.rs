@@ -27,6 +27,7 @@ pub struct ServerConfig {
     pub base_notifier_url: String,
     pub database_url: String,
     pub api_key: String,
+    pub metrics_retention_time_hours: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -115,6 +116,7 @@ base_metrics_url  = "http://localhost:8080/v1/ingest"
 base_commands_url = "http://localhost:8080/api/commands"
 base_docker_url   = "http://localhost:8080/v1/docker"
 base_notifier_url = "http://localhost:8080/v1/ingest/notifier"
+database_url      = "sqlite://test.db"
 api_key           = "test-key"
 
 [intervals]

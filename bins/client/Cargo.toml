@@ -43,6 +43,7 @@ tokio-stream = { version = "0.1", features = ["net"] }# async stream utilities u
 tonic-prost = "0.14"# ProstCodec used by the generated client/server stubs to encode proto messages over gRPC
 erased-serde = "0.4.10"
 anyhow = "1.0.103"
+async-trait = "0.1.89"
 
 
 

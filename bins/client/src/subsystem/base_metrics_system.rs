@@ -1,7 +1,5 @@
+use crate::config::get_config;
 use log::{debug, error};
-use std::sync::OnceLock;
-use tokio::sync::RwLock;
-
 use open_eye::collector::{
     cpu::collector::CpuStats,
     disk::collector::{DiskInfo, DiskStats},
@@ -10,21 +8,18 @@ use open_eye::collector::{
     systemstats::collector::SystemStats,
 };
 use serde::{Deserialize, Serialize};
+use std::sync::OnceLock;
+use tokio::sync::RwLock;
+use anyhow::Result;
 
-use crate::config::get_config;
-use crate::{
-    mapper::host_metrics_mapper::HostSystemMapper, scheduling::collection_error::CollectionError,
-    sender::metrics_sender::MetricsSender,
-};
+static LAST_METRICS: OnceLock<RwLock<Option<BaseMetrics>>> = OnceLock::new();
 
-static LAST_METRICS: OnceLock<RwLock<Option<HostMetrics>>> = OnceLock::new();
-
-fn last_metrics() -> &'static RwLock<Option<HostMetrics>> {
+fn last_metrics() -> &'static RwLock<Option<BaseMetrics>> {
     LAST_METRICS.get_or_init(|| RwLock::new(None))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HostMetrics {
+pub struct BaseMetrics {
     pub cpu: Option<CpuStats>,
     pub memory: Option<MemoryStats>,
     pub disks: Option<Vec<DiskInfo>>,
@@ -32,8 +27,8 @@ pub struct HostMetrics {
     pub system: Option<SystemStats>,
 }
 
-impl HostMetrics {
-    pub async fn collect() -> HostMetrics {
+impl BaseMetrics {
+    pub async fn collect() -> BaseMetrics {
         let (cpu, memory, disks, network, system) = tokio::join!(
             tokio::task::spawn_blocking(CpuStats::get_current_stats),
             tokio::task::spawn_blocking(MemoryStats::get_current_stats),
@@ -42,7 +37,7 @@ impl HostMetrics {
             tokio::task::spawn_blocking(SystemStats::get_current_stats),
         );
 
-        HostMetrics {
+        BaseMetrics {
             cpu: cpu.map_err(|e| error!("cpu collector panicked: {e}")).ok(),
             memory: memory
                 .map_err(|e| error!("memory collector panicked: {e}"))
@@ -59,15 +54,13 @@ impl HostMetrics {
         }
     }
 
-    pub async fn run() -> Result<(), CollectionError> {
+    pub async fn run() -> Result<()> {
         let config = get_config();
-        let metrics = HostMetrics::collect().await;
+        let metrics = BaseMetrics::collect().await;
 
         debug!("Host metrics collected: {:?}", metrics);
 
         let last = last_metrics().read().await.clone();
-        let mapped_metrics =
-            HostSystemMapper::map_for_watch_tower(metrics.clone(), last, speedtest);
 
         *last_metrics().write().await = Some(metrics);
 
@@ -77,12 +70,12 @@ impl HostMetrics {
 
 #[cfg(test)]
 mod tests {
-    use crate::subsystem::host_metrics_collector::HostMetrics;
+    use crate::subsystem::base_metrics_system::BaseMetrics;
 
     #[ignore = "just collects host metrics"]
     #[tokio::test]
     async fn run_test() {
-        let metrics = HostMetrics::collect().await;
+        let metrics = BaseMetrics::collect().await;
 
         println!("Collected metrics: {:?}", metrics);
     }

@@ -6,25 +6,15 @@ use tokio::time;
 use tokio::time::MissedTickBehavior;
 use crate::scheduling::job::Job;
 
-#[derive(PartialEq)]
-enum ErrorLevel {
-    HealthyJob,
-    ErrorCount(u8),
-}
-
 pub struct Scheduler {
     interval_secs: u32,
 }
 
 impl Scheduler {
-    pub fn new(interval_secs: u32) -> Self {
-        Self {
-            interval_secs,
-        }
-    }
 
     pub async fn run<J: Job>(mut self, job: J)
     {
+        todo!();
         let duration = Duration::from_secs(self.interval_secs as u64);
         let mut interval = time::interval(duration);
         // skip if the execution took too long or other issues

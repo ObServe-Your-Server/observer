@@ -2105,6 +2105,7 @@ name = "observer-client"
 version = "1.2.5"
 dependencies = [
  "anyhow",
+ "async-trait",
  "chrono",
  "crc32fast",
  "env_logger",

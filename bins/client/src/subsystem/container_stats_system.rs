@@ -1,5 +1,4 @@
 use crate::config::get_config;
-use crate::mapper::docker_metrics_mapper::DockerMapper;
 use anyhow::{anyhow, Result};
 use log::{debug, error};
 use open_eye::collector::container_runtime::collector::check_runtime_availability;
@@ -30,7 +29,6 @@ impl ContainerStatsSystem {
 
         debug!("Docker metrics collected: {:?}", docker_metrics);
 
-        let mapped_metrics = DockerMapper::map_for_watch_tower(docker_metrics);
         todo!("Save to db")
     }
 }

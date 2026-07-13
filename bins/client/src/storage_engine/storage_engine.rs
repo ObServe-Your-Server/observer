@@ -1,21 +1,22 @@
-use std::iter::Once;
 use std::sync::OnceLock;
 use std::time::Duration;
-use sea_orm::{ConnectOptions, Database, DatabaseConnection};
+use sea_orm::{ActiveValue::Set, ColumnTrait, ConnectOptions, Database, DatabaseConnection, EntityTrait, QueryFilter};
 use anyhow::{anyhow, Result};
-use sea_orm::sqlx::encode::IsNull::No;
+use chrono::{DateTime, Utc};
 use migration::{Migrator, MigratorTrait};
+use crate::entities::{cpu_core_stats, cpu_stats, disk_stats, memory_stats, network_stats, system_stats};
+use crate::subsystem::base_metrics_system::BaseMetrics;
 
 pub struct StorageEngine{
     database_path: String,
-    db: OnceLock<DatabaseConnection>
+    db: OnceLock<DatabaseConnection>,
 }
 
 impl StorageEngine {
     pub fn new(database_path: String) -> StorageEngine {
         StorageEngine{
             database_path,
-            db: OnceLock::new()
+            db: OnceLock::new(),
         }
     }
 
@@ -37,5 +38,114 @@ impl StorageEngine {
         self.db.set(db_conn).map_err(|_| anyhow!("database connection already set"))?;
         log::debug!("Connected and migrated db at: {}", &self.database_path);
         Ok(self)
+    }
+
+    pub async fn cleanup_job(&self, clean_older_than: DateTime<Utc>) -> Result<()>{
+        let db = self
+            .db
+            .get()
+            .ok_or_else(|| anyhow!("database connection not initialized"))?;
+
+        // independent deletes, no shared state between them, so run them concurrently
+        // cpu_core_stats rows cascade-delete via the FK's on_delete = "Cascade"
+        tokio::try_join!(
+            cpu_stats::Entity::delete_many().filter(cpu_stats::Column::CollectedAt.lt(clean_older_than)).exec(db),
+            memory_stats::Entity::delete_many().filter(memory_stats::Column::CollectedAt.lt(clean_older_than)).exec(db),
+            disk_stats::Entity::delete_many().filter(disk_stats::Column::CollectedAt.lt(clean_older_than)).exec(db),
+            network_stats::Entity::delete_many().filter(network_stats::Column::CollectedAt.lt(clean_older_than)).exec(db),
+            system_stats::Entity::delete_many().filter(system_stats::Column::CollectedAt.lt(clean_older_than)).exec(db),
+        )?;
+
+        Ok(())
+    }
+
+    pub async fn save_base_metrics_to_db(&self, base_metrics: BaseMetrics) -> Result<()> {
+        let db = self
+            .db
+            .get()
+            .ok_or_else(|| anyhow!("database connection not initialized"))?;
+
+        if let Some(cpu) = base_metrics.cpu {
+            let model = cpu_stats::ActiveModel {
+                cpu_name: Set(cpu.cpu_name),
+                cpu_count: Set(cpu.cpu_count as i64),
+                cpu_physical_count: Set(cpu.cpu_physical_count as i64),
+                cpu_usage_percent: Set(cpu.cpu_usage_percent),
+                cpu_temperature_celsius: Set(cpu.cpu_temperature_celsius),
+                collected_at: Set(cpu.collected_at.into()),
+                ..Default::default() // leaves id NotSet so the db auto-generates it
+            };
+            //gets the id to reference it
+            let inserted = cpu_stats::Entity::insert(model).exec(db).await?;
+
+            for core in cpu.core_information {
+                let core_model = cpu_core_stats::ActiveModel {
+                    cpu_stats_id: Set(inserted.last_insert_id),
+                    core_name: Set(core.core_name),
+                    core_usage_percent: Set(core.core_usage_percent),
+                    core_frequency_mhz: Set(core.core_frequency_mhz as i64),
+                    ..Default::default()
+                };
+                cpu_core_stats::Entity::insert(core_model).exec(db).await?;
+            }
+        }
+
+        if let Some(memory) = base_metrics.memory {
+            let model = memory_stats::ActiveModel {
+                total_memory_in_byte: Set(memory.total_memory_in_byte as i64),
+                available_memory_in_byte: Set(memory.available_memory_in_byte as i64),
+                used_memory_in_byte: Set(memory.used_memory_in_byte as i64),
+                total_swap_in_byte: Set(memory.total_swap_in_byte as i64),
+                available_swap_in_byte: Set(memory.available_swap_in_byte as i64),
+                used_swap_in_byte: Set(memory.used_swap_in_byte as i64),
+                collected_at: Set(memory.collected_at.into()),
+                ..Default::default()
+            };
+            memory_stats::Entity::insert(model).exec(db).await?;
+        }
+
+        if let Some(disks) = base_metrics.disks {
+            for disk in disks {
+                let model = disk_stats::ActiveModel {
+                    name: Set(disk.name),
+                    total_bytes: Set(disk.total_bytes as i64),
+                    used_bytes: Set(disk.used_bytes as i64),
+                    available_bytes: Set(disk.available_bytes as i64),
+                    used_blocks: Set(disk.used_blocks as i64),
+                    available_blocks: Set(disk.available_blocks as i64),
+                    block_size: Set(disk.block_size as i64),
+                    collected_at: Set(disk.collected_at.into()),
+                    ..Default::default()
+                };
+                disk_stats::Entity::insert(model).exec(db).await?;
+            }
+        }
+
+        if let Some(network) = base_metrics.network {
+            let model = network_stats::ActiveModel {
+                local_ip: Set(network.local_ip),
+                total_bytes_transmitted: Set(network.total_bytes_transmitted as i64),
+                total_bytes_received: Set(network.total_bytes_received as i64),
+                total_packets_transmitted: Set(network.total_packets_transmitted as i64),
+                total_packets_received: Set(network.total_packets_received as i64),
+                collected_at: Set(network.collected_at.into()),
+                ..Default::default()
+            };
+            network_stats::Entity::insert(model).exec(db).await?;
+        }
+
+        if let Some(system) = base_metrics.system {
+            let model = system_stats::ActiveModel {
+                os_name: Set(system.os_name),
+                uptime_seconds: Set(system.uptime_seconds as i64),
+                host_name: Set(system.host_name),
+                kernel_version: Set(system.kernel_version),
+                collected_at: Set(system.collected_at.into()),
+                ..Default::default()
+            };
+            system_stats::Entity::insert(model).exec(db).await?;
+        }
+
+        Ok(())
     }
 }
