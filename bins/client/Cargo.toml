@@ -42,6 +42,7 @@ tonic = { version = "0.14", features = ["tls-native-roots"] }# gRPC runtime: tra
 tokio-stream = { version = "0.1", features = ["net"] }# async stream utilities used by gRPC bidi streaming
 tonic-prost = "0.14"# ProstCodec used by the generated client/server stubs to encode proto messages over gRPC
 erased-serde = "0.4.10"
+anyhow = "1.0.103"
 
 
 

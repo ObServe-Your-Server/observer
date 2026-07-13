@@ -2,5 +2,14 @@
 
 pub mod prelude;
 
+pub mod container_runtime_stats;
+pub mod container_stats;
 pub mod cpu_core_stats;
 pub mod cpu_stats;
+pub mod disk_stats;
+pub mod memory_stats;
+pub mod network_stats;
+pub mod process_stats;
+pub mod processes_stats;
+pub mod speedtest_stats;
+pub mod system_stats;

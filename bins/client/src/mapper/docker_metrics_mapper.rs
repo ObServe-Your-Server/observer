@@ -1,7 +1,7 @@
 use crate::mapper::docker_metrics_models::mapped_docker_metrics::{
     MappedContainerStats, MappedDockerMetrics,
 };
-use crate::subsystem::docker_metrics_collector::DockerMetrics;
+use crate::subsystem::container_stats_system::DockerMetrics;
 
 pub struct DockerMapper {}
 
@@ -31,7 +31,7 @@ impl DockerMapper {
 #[cfg(test)]
 mod tests {
     use super::DockerMapper;
-    use crate::subsystem::docker_metrics_collector::DockerMetrics;
+    use crate::subsystem::container_stats_system::DockerMetrics;
     use chrono::Utc;
     use open_eye::collector::container_runtime::collector::{
         ContainerRuntime, ContainerRuntimeStats, ContainerStats,

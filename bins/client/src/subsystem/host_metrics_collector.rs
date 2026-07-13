@@ -72,8 +72,7 @@ impl HostMetrics {
 
         *last_metrics().write().await = Some(metrics);
 
-        MetricsSender::send(mapped_metrics, config.server.base_metrics_url.to_string())
-            .await
+        todo!("save to db")
     }
 }
 

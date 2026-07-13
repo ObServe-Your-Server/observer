@@ -5,15 +5,6 @@ use tokio::sync::RwLock;
 
 use open_eye::collector::speedtest::collector::SpeedtestError;
 
-static LAST_METRICS: OnceLock<RwLock<Option<SpeedtestMetrics>>> = OnceLock::new();
-
-fn last_metrics() -> &'static RwLock<Option<SpeedtestMetrics>> {
-    LAST_METRICS.get_or_init(|| RwLock::new(None))
-}
-
-pub async fn get_last_metrics() -> Option<SpeedtestMetrics> {
-    last_metrics().read().await.clone()
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpeedtestMetrics {
@@ -32,10 +23,7 @@ impl SpeedtestMetrics {
             ping_ms: Some(result.ping_ms.round()),
         };
 
-        let mut last = last_metrics().write().await;
-        *last = Some(metrics.clone());
-
-        Ok(metrics)
+        todo!("save to db")
     }
 
     pub async fn run() -> Result<(), SpeedtestError> {

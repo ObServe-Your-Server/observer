@@ -1,8 +1,7 @@
-use crate::scheduling::scheduler::{Scheduler, SchedulerKind};
-use crate::subsystem::docker_metrics_collector::DockerMetrics;
+use anyhow::{anyhow, Context};
 use crate::subsystem::speedtest::SpeedtestMetrics;
 use crate::{config::get_config, subsystem::host_metrics_collector::HostMetrics};
-use log::info;
+use crate::storage_engine::storage_engine::StorageEngine;
 
 pub struct SchedulingMaster {}
 
@@ -10,15 +9,17 @@ impl SchedulingMaster {
     pub async fn register_and_start_background_jobs() {
         let config = get_config();
 
-        let metrics = tokio::spawn(
+        let storage_engine = StorageEngine::new(config.server.database_url.clone()).connect_to_db_and_migrate().await.unwrap();
+        log::info!("Database connected with no errors.")
+
+       /* let metrics = tokio::spawn(
             Scheduler::new(
-                SchedulerKind::MetricCollection,
                 config.intervals.metric_secs as u32,
-                15,
             )
             .run(HostMetrics::run),
-        );
+        );*/
 
+        /*
         let speedtest = tokio::spawn(
             Scheduler::new(
                 SchedulerKind::SpeedtestCollection,
@@ -40,8 +41,8 @@ impl SchedulingMaster {
             } else {
                 info!("Docker socket collection is disabled, skipping docker metrics collection");
             }
-        });
+        });*/
 
-        tokio::try_join!(metrics, speedtest, docker).unwrap();
+        //tokio::try_join!(metrics, speedtest, docker).unwrap();
     }
 }
