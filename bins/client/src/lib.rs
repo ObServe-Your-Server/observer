@@ -6,7 +6,6 @@ pub mod logging;
 mod mapper;
 pub mod metrics_sender;
 pub mod scheduling;
-mod sender;
 mod subsystem;
 pub mod system_health;
 
