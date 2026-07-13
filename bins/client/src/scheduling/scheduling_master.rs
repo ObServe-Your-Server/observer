@@ -12,6 +12,8 @@ impl SchedulingMaster {
     pub async fn register_and_start_background_jobs() {
         let config = get_config();
 
+        //TODO: implemement job registry where the error count etc. is managed not in the job
+
         // we can clone it around because the db connection is thread save and with the pool meant to be cloned
         let storage_engine = Arc::new(StorageEngine::new(config.server.database_url.clone()).connect_to_db_and_migrate().await.unwrap());
         log::info!("Database connected with no errors.");
