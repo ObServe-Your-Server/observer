@@ -3,7 +3,7 @@ use anyhow::{anyhow, Context};
 use chrono::Duration;
 use crate::subsystem::speedtest::SpeedtestMetrics;
 use crate::{config::get_config, subsystem::base_metrics_system::BaseMetrics};
-use crate::storage_engine::data_cleanup_job::DataCleanupJob;
+use crate::jobs::data_cleanup_job::DataCleanupJob;
 use crate::storage_engine::storage_engine::StorageEngine;
 
 pub struct SchedulingMaster {}
