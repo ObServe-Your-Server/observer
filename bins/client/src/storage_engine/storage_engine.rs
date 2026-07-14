@@ -1,6 +1,6 @@
 use std::sync::OnceLock;
 use std::time::Duration;
-use sea_orm::{ActiveValue::Set, ColumnTrait, ConnectOptions, Database, DatabaseConnection, DbErr, EntityTrait, QueryFilter, QueryOrder};
+use sea_orm::{ActiveValue::Set, ColumnTrait, ConnectOptions, Database, DatabaseConnection, DbErr, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use migration::{Migrator, MigratorTrait};
@@ -261,5 +261,105 @@ impl StorageEngine {
             .order_by_asc(speedtest_stats::Column::CollectedAt)
             .all(db)
             .await?)
+    }
+
+    pub async fn get_cpu_stats_latest(
+        &self,
+        last_n: u64,
+    ) -> Result<Vec<(cpu_stats::Model, Vec<cpu_core_stats::Model>)>> {
+        let db = self.db()?;
+        let mut rows = cpu_stats::Entity::find()
+            .order_by_desc(cpu_stats::Column::CollectedAt)
+            .limit(last_n)
+            .find_with_related(cpu_core_stats::Entity)
+            .all(db)
+            .await?;
+        rows.reverse();
+        Ok(rows)
+    }
+
+    pub async fn get_memory_stats_latest(&self, last_n: u64) -> Result<Vec<memory_stats::Model>> {
+        let db = self.db()?;
+        let mut rows = memory_stats::Entity::find()
+            .order_by_desc(memory_stats::Column::CollectedAt)
+            .limit(last_n)
+            .all(db)
+            .await?;
+        rows.reverse();
+        Ok(rows)
+    }
+
+    pub async fn get_disk_stats_latest(&self, last_n: u64) -> Result<Vec<disk_stats::Model>> {
+        let db = self.db()?;
+        let mut rows = disk_stats::Entity::find()
+            .order_by_desc(disk_stats::Column::CollectedAt)
+            .limit(last_n)
+            .all(db)
+            .await?;
+        rows.reverse();
+        Ok(rows)
+    }
+
+    pub async fn get_network_stats_latest(&self, last_n: u64) -> Result<Vec<network_stats::Model>> {
+        let db = self.db()?;
+        let mut rows = network_stats::Entity::find()
+            .order_by_desc(network_stats::Column::CollectedAt)
+            .limit(last_n)
+            .all(db)
+            .await?;
+        rows.reverse();
+        Ok(rows)
+    }
+
+    pub async fn get_system_stats_latest(&self, last_n: u64) -> Result<Vec<system_stats::Model>> {
+        let db = self.db()?;
+        let mut rows = system_stats::Entity::find()
+            .order_by_desc(system_stats::Column::CollectedAt)
+            .limit(last_n)
+            .all(db)
+            .await?;
+        rows.reverse();
+        Ok(rows)
+    }
+
+    pub async fn get_processes_stats_latest(
+        &self,
+        last_n: u64,
+    ) -> Result<Vec<(processes_stats::Model, Vec<process_stats::Model>)>> {
+        let db = self.db()?;
+        let mut rows = processes_stats::Entity::find()
+            .order_by_desc(processes_stats::Column::CollectedAt)
+            .limit(last_n)
+            .find_with_related(process_stats::Entity)
+            .all(db)
+            .await?;
+        rows.reverse();
+        Ok(rows)
+    }
+
+    pub async fn get_container_runtime_stats_latest(
+        &self,
+        last_n: u64,
+    ) -> Result<Vec<(container_runtime_stats::Model, Vec<container_stats::Model>)>> {
+        let db = self.db()?;
+        let mut rows = container_runtime_stats::Entity::find()
+            .order_by_desc(container_runtime_stats::Column::CollectedAt)
+            .limit(last_n)
+            .find_with_related(container_stats::Entity)
+            .all(db)
+            .await?;
+        rows.reverse();
+        Ok(rows)
+    }
+
+    pub async fn get_speedtest_stats_latest(&self, last_n: u64) -> Result<Vec<speedtest_stats::Model>> {
+        let db = self.db()?;
+        let mut rows = speedtest_stats::Entity::find()
+            .order_by_desc(speedtest_stats::Column::CollectedAt)
+            .limit(last_n)
+            .all(db)
+            .await?;
+        rows.reverse();
+        Ok(rows)
     }
 }

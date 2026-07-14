@@ -36,9 +36,9 @@ impl SchedulingMaster {
 
         let mut scheduler = Scheduler::new(vec![base_metric_collection_job]);
 
-        let scheduler_handle = tokio::spawn(async move {
+        /*let scheduler_handle = tokio::spawn(async move {
             scheduler.start_jobs_blocking().await.expect("Error during scheduling");
-        });
+        });*/
 
         // metrics grpc tunnel
         let metrics_tunnel_handle = tokio::spawn(async move {
@@ -49,9 +49,9 @@ impl SchedulingMaster {
 
         // whichever of the two terminates first (cleanly or not) brings the whole process down
         tokio::select! {
-            _ = scheduler_handle => {
+            /*_ = scheduler_handle => {
                 log::error!("scheduler terminated, shutting down");
-            }
+            }*/
             _ = metrics_tunnel_handle => {
                 log::error!("metrics tunnel terminated, shutting down");
             }

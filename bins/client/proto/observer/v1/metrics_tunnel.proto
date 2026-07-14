@@ -23,13 +23,21 @@ enum MetricsType {
   FULL = 8;
 }
 
+message TimeRange {
+  // inclusive start of the queried time range, unix timestamp (seconds)
+  int64 start = 1;
+  // inclusive end of the queried time range, unix timestamp (seconds)
+  int64 end = 2;
+}
+
 message MetricsRequest {
   string request_id = 1;
   MetricsType type = 2;
-  // inclusive start of the queried time range, unix timestamp (seconds)
-  int64 start = 3;
-  // inclusive end of the queried time range, unix timestamp (seconds)
-  int64 end = 4;
+  oneof query {
+    TimeRange range = 3;
+    // return only the most recent `last_n` entries, ordered oldest to newest
+    int64 last_n = 4;
+  }
 }
 
 message MetricsResponse {
