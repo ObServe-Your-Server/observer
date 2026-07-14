@@ -118,7 +118,7 @@ base_docker_url   = "http://localhost:8080/v1/docker"
 base_notifier_url = "http://localhost:8080/v1/ingest/notifier"
 database_url      = "sqlite://test.db"
 api_key           = "test-key"
-metrics_retention_time_hours = "24"
+metrics_retention_time_hours = 24
 
 [intervals]
 metric_secs          = 5
