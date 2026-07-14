@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package observer.v1;
 
-import "google/protobuf/timestamp.proto";
 import "observer/v1/metrics/cpu.proto";
 import "observer/v1/metrics/memory.proto";
 import "observer/v1/metrics/disk.proto";
@@ -27,33 +26,68 @@ enum MetricsType {
 message MetricsRequest {
   string request_id = 1;
   MetricsType type = 2;
-  google.protobuf.Timestamp requested_at = 3;
+  // inclusive start of the queried time range, unix timestamp (seconds)
+  int64 start = 3;
+  // inclusive end of the queried time range, unix timestamp (seconds)
+  int64 end = 4;
 }
 
 message MetricsResponse {
   string request_id = 1;
   oneof response {
-    observer.v1.metrics.CpuMetrics cpu_metrics = 2;
-    observer.v1.metrics.MemoryMetrics memory_metrics = 3;
-    observer.v1.metrics.DiskMetrics disk_metrics = 4;
-    observer.v1.metrics.NetworkMetrics network_metrics = 5;
-    observer.v1.metrics.SystemMetrics system_metrics = 6;
-    observer.v1.metrics.ProcessesStats process_metrics = 7;
-    observer.v1.metrics.ContainerRuntimeStats container_metrics = 8;
-    observer.v1.metrics.SpeedtestMetrics speedtest_metrics = 9;
+    CpuMetricsList cpu_metrics = 2;
+    MemoryMetricsList memory_metrics = 3;
+    DiskMetricsList disk_metrics = 4;
+    NetworkMetricsList network_metrics = 5;
+    SystemMetricsList system_metrics = 6;
+    ProcessesStatsList process_metrics = 7;
+    ContainerRuntimeStatsList container_metrics = 8;
+    SpeedtestMetricsList speedtest_metrics = 9;
     FullMetrics full_metrics = 10;
   }
 }
 
+message CpuMetricsList {
+  repeated observer.v1.metrics.CpuMetrics items = 1;
+}
+
+message MemoryMetricsList {
+  repeated observer.v1.metrics.MemoryMetrics items = 1;
+}
+
+message DiskMetricsList {
+  repeated observer.v1.metrics.DiskMetrics items = 1;
+}
+
+message NetworkMetricsList {
+  repeated observer.v1.metrics.NetworkMetrics items = 1;
+}
+
+message SystemMetricsList {
+  repeated observer.v1.metrics.SystemMetrics items = 1;
+}
+
+message ProcessesStatsList {
+  repeated observer.v1.metrics.ProcessesStats items = 1;
+}
+
+message ContainerRuntimeStatsList {
+  repeated observer.v1.metrics.ContainerRuntimeStats items = 1;
+}
+
+message SpeedtestMetricsList {
+  repeated observer.v1.metrics.SpeedtestMetrics items = 1;
+}
+
 message FullMetrics {
-  observer.v1.metrics.CpuMetrics cpu_metrics = 1;
-  observer.v1.metrics.MemoryMetrics memory_metrics = 2;
-  repeated observer.v1.metrics.DiskMetrics disk_metrics = 3;
-  observer.v1.metrics.NetworkMetrics network_metrics = 4;
-  observer.v1.metrics.SystemMetrics system_metrics = 5;
-  observer.v1.metrics.ProcessesStats process_metrics = 6;
-  observer.v1.metrics.ContainerRuntimeStats container_metrics = 7;
-  observer.v1.metrics.SpeedtestMetrics speedtest_metrics = 8;
+  CpuMetricsList cpu_metrics = 1;
+  MemoryMetricsList memory_metrics = 2;
+  DiskMetricsList disk_metrics = 3;
+  NetworkMetricsList network_metrics = 4;
+  SystemMetricsList system_metrics = 5;
+  ProcessesStatsList process_metrics = 6;
+  ContainerRuntimeStatsList container_metrics = 7;
+  SpeedtestMetricsList speedtest_metrics = 8;
 }
 
 service MetricsTunnel {

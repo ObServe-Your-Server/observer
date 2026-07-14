@@ -1,6 +1,13 @@
+use crate::grpc::v1::metrics_mapping;
+use crate::grpc::v1::metrics_response::Response as MetricsResponseKind;
 use crate::grpc::v1::metrics_tunnel_client::MetricsTunnelClient;
-use crate::grpc::v1::MetricsResponse;
+use crate::grpc::v1::{
+    ContainerRuntimeStatsList, CpuMetricsList, DiskMetricsList, FullMetrics, MemoryMetricsList,
+    MetricsRequest, MetricsResponse, MetricsType, NetworkMetricsList, ProcessesStatsList,
+    SpeedtestMetricsList, SystemMetricsList,
+};
 use crate::storage_engine::storage_engine::StorageEngine;
+use chrono::{TimeZone, Utc};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -8,6 +15,135 @@ use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 use tonic::transport::Channel;
 use tonic::{metadata::MetadataValue, transport::ClientTlsConfig, Request};
+
+/// Builds the `MetricsResponse` for `request` by querying `storage_engine` for
+/// rows collected between `request.start` and `request.end` (inclusive, unix
+/// seconds) and mapping them onto the matching proto list type. Query failures
+/// are logged and result in an empty `response` rather than dropping the connection.
+async fn build_response(request: &MetricsRequest, storage_engine: &StorageEngine) -> MetricsResponse {
+    let request_type = MetricsType::try_from(request.r#type).unwrap_or(MetricsType::Full);
+    let start = Utc.timestamp_opt(request.start, 0).single().unwrap_or_else(Utc::now);
+    let end = Utc.timestamp_opt(request.end, 0).single().unwrap_or_else(Utc::now);
+
+    let response = match request_type {
+        MetricsType::Cpu => match storage_engine.get_cpu_stats_between(start, end).await {
+            Ok(rows) => Some(MetricsResponseKind::CpuMetrics(CpuMetricsList {
+                items: rows.into_iter().map(metrics_mapping::cpu_metrics).collect(),
+            })),
+            Err(e) => {
+                log::error!("failed to query cpu stats: {e}");
+                None
+            }
+        },
+        MetricsType::Memory => match storage_engine.get_memory_stats_between(start, end).await {
+            Ok(rows) => Some(MetricsResponseKind::MemoryMetrics(MemoryMetricsList {
+                items: rows.into_iter().map(metrics_mapping::memory_metrics).collect(),
+            })),
+            Err(e) => {
+                log::error!("failed to query memory stats: {e}");
+                None
+            }
+        },
+        MetricsType::Disk => match storage_engine.get_disk_stats_between(start, end).await {
+            Ok(rows) => Some(MetricsResponseKind::DiskMetrics(DiskMetricsList {
+                items: rows.into_iter().map(metrics_mapping::disk_metrics).collect(),
+            })),
+            Err(e) => {
+                log::error!("failed to query disk stats: {e}");
+                None
+            }
+        },
+        MetricsType::Network => match storage_engine.get_network_stats_between(start, end).await {
+            Ok(rows) => Some(MetricsResponseKind::NetworkMetrics(NetworkMetricsList {
+                items: rows.into_iter().map(metrics_mapping::network_metrics).collect(),
+            })),
+            Err(e) => {
+                log::error!("failed to query network stats: {e}");
+                None
+            }
+        },
+        MetricsType::System => match storage_engine.get_system_stats_between(start, end).await {
+            Ok(rows) => Some(MetricsResponseKind::SystemMetrics(SystemMetricsList {
+                items: rows.into_iter().map(metrics_mapping::system_metrics).collect(),
+            })),
+            Err(e) => {
+                log::error!("failed to query system stats: {e}");
+                None
+            }
+        },
+        MetricsType::Process => match storage_engine.get_processes_stats_between(start, end).await {
+            Ok(rows) => Some(MetricsResponseKind::ProcessMetrics(ProcessesStatsList {
+                items: rows.into_iter().map(metrics_mapping::processes_stats).collect(),
+            })),
+            Err(e) => {
+                log::error!("failed to query process stats: {e}");
+                None
+            }
+        },
+        MetricsType::Docker => match storage_engine.get_container_runtime_stats_between(start, end).await {
+            Ok(rows) => Some(MetricsResponseKind::ContainerMetrics(ContainerRuntimeStatsList {
+                items: rows.into_iter().map(metrics_mapping::container_runtime_stats).collect(),
+            })),
+            Err(e) => {
+                log::error!("failed to query container stats: {e}");
+                None
+            }
+        },
+        MetricsType::Speedtest => match storage_engine.get_speedtest_stats_between(start, end).await {
+            Ok(rows) => Some(MetricsResponseKind::SpeedtestMetrics(SpeedtestMetricsList {
+                items: rows.into_iter().map(metrics_mapping::speedtest_metrics).collect(),
+            })),
+            Err(e) => {
+                log::error!("failed to query speedtest stats: {e}");
+                None
+            }
+        },
+        MetricsType::Full => {
+            let (cpu, memory, disks, network, system, processes, containers, speedtest) = tokio::join!(
+                storage_engine.get_cpu_stats_between(start, end),
+                storage_engine.get_memory_stats_between(start, end),
+                storage_engine.get_disk_stats_between(start, end),
+                storage_engine.get_network_stats_between(start, end),
+                storage_engine.get_system_stats_between(start, end),
+                storage_engine.get_processes_stats_between(start, end),
+                storage_engine.get_container_runtime_stats_between(start, end),
+                storage_engine.get_speedtest_stats_between(start, end),
+            );
+
+            Some(MetricsResponseKind::FullMetrics(FullMetrics {
+                cpu_metrics: Some(CpuMetricsList {
+                    items: cpu.unwrap_or_default().into_iter().map(metrics_mapping::cpu_metrics).collect(),
+                }),
+                memory_metrics: Some(MemoryMetricsList {
+                    items: memory.unwrap_or_default().into_iter().map(metrics_mapping::memory_metrics).collect(),
+                }),
+                disk_metrics: Some(DiskMetricsList {
+                    items: disks.unwrap_or_default().into_iter().map(metrics_mapping::disk_metrics).collect(),
+                }),
+                network_metrics: Some(NetworkMetricsList {
+                    items: network.unwrap_or_default().into_iter().map(metrics_mapping::network_metrics).collect(),
+                }),
+                system_metrics: Some(SystemMetricsList {
+                    items: system.unwrap_or_default().into_iter().map(metrics_mapping::system_metrics).collect(),
+                }),
+                process_metrics: Some(ProcessesStatsList {
+                    items: processes.unwrap_or_default().into_iter().map(metrics_mapping::processes_stats).collect(),
+                }),
+                container_metrics: Some(ContainerRuntimeStatsList {
+                    items: containers.unwrap_or_default().into_iter().map(metrics_mapping::container_runtime_stats).collect(),
+                }),
+                speedtest_metrics: Some(SpeedtestMetricsList {
+                    items: speedtest.unwrap_or_default().into_iter().map(metrics_mapping::speedtest_metrics).collect(),
+                }),
+            }))
+        }
+    };
+
+    MetricsResponse {
+        request_id: request.request_id.clone(),
+        response,
+    }
+}
 
 pub struct MetricsTunnel {
     url: &'static str,
@@ -26,7 +162,7 @@ impl MetricsTunnel {
         }
     }
 
-    pub async fn run(&self) -> Result<(), tonic::Status> {
+    pub async fn run_blocking(&self) -> Result<(), tonic::Status> {
         // first connect our channel
         let channel = self
             .connect_with_retries()
@@ -53,19 +189,12 @@ impl MetricsTunnel {
         // get the inner stream to receive incoming requests from the server
         let mut inbound = response.into_inner();
 
-        // TODO: logic for receiving requests and send responses -> when an error occurs reconnect first
         while let Some(result) = inbound.next().await {
             match result {
                 Ok(req_data) => {
                     log::debug!("received request: {:?}", req_data);
-                    if tx
-                        .send(MetricsResponse {
-                            request_id: req_data.request_id.clone(),
-                            response: None,
-                        })
-                        .await
-                        .is_err()
-                    {
+                    let response = build_response(&req_data, &self.storage_engine).await;
+                    if tx.send(response).await.is_err() {
                         log::error!("response channel closed");
                         break;
                     }

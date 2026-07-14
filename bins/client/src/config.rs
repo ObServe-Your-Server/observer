@@ -21,9 +21,7 @@ struct TomlConfig {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct ServerConfig {
-    pub base_metrics_url: String,
-    pub base_commands_url: String,
-    pub base_docker_url: String,
+    pub base_server_url: String,
     pub base_notifier_url: String,
     pub database_url: String,
     pub api_key: String,
@@ -34,7 +32,6 @@ pub struct ServerConfig {
 #[serde(rename_all = "snake_case")]
 pub struct IntervalsConfig {
     pub metric_secs: u16,
-    pub command_poll_secs: u16,
     pub speedtest_secs: u32,
     pub enable_docker_socket: bool,
     pub docker_secs: u16,
@@ -82,12 +79,6 @@ fn validate(c: &Config) -> Result<(), String> {
             i.metric_secs
         ));
     }
-    if !(2..=60).contains(&i.command_poll_secs) {
-        return Err(format!(
-            "intervals.command_poll_secs must be 2–60, got {}",
-            i.command_poll_secs
-        ));
-    }
     if !(60..=86400).contains(&i.speedtest_secs) {
         return Err(format!(
             "intervals.speedtest_secs must be 60–86400, got {}",
@@ -112,9 +103,7 @@ mod tests {
     fn valid_toml() -> &'static str {
         r#"
 [server]
-base_metrics_url  = "http://localhost:8080/v1/ingest"
-base_commands_url = "http://localhost:8080/api/commands"
-base_docker_url   = "http://localhost:8080/v1/docker"
+base_server_url   = "http://localhost:"
 base_notifier_url = "http://localhost:8080/v1/ingest/notifier"
 database_url      = "sqlite://test.db"
 api_key           = "test-key"
@@ -122,7 +111,6 @@ metrics_retention_time_hours = 24
 
 [intervals]
 metric_secs          = 5
-command_poll_secs    = 10
 speedtest_secs       = 3600
 enable_docker_socket = true
 docker_secs          = 10
@@ -139,10 +127,7 @@ docker_secs          = 10
     fn test_load_valid_config() {
         let f = write_temp(valid_toml());
         let config = load_config(f.path().to_str().unwrap()).unwrap();
-        assert_eq!(
-            config.server.base_metrics_url,
-            "http://localhost:8080/v1/ingest"
-        );
+        assert_eq!(config.server.base_server_url, "http://localhost:");
         assert_eq!(config.intervals.metric_secs, 5);
         assert_eq!(config.intervals.speedtest_secs, 3600);
         assert_eq!(config.server.metrics_retention_time_hours, 24);
@@ -185,18 +170,6 @@ docker_secs          = 10
         let result = load_config(f.path().to_str().unwrap());
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("metric_secs"));
-    }
-
-    #[test]
-    fn test_command_poll_secs_out_of_range() {
-        let f = write_temp(
-            valid_toml()
-                .replace("command_poll_secs    = 10", "command_poll_secs = 0")
-                .as_str(),
-        );
-        let result = load_config(f.path().to_str().unwrap());
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("command_poll_secs"));
     }
 
     #[test]

@@ -1,10 +1,13 @@
 use std::sync::OnceLock;
 use std::time::Duration;
-use sea_orm::{ActiveValue::Set, ColumnTrait, ConnectOptions, Database, DatabaseConnection, DbErr, EntityTrait, QueryFilter};
+use sea_orm::{ActiveValue::Set, ColumnTrait, ConnectOptions, Database, DatabaseConnection, DbErr, EntityTrait, QueryFilter, QueryOrder};
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use migration::{Migrator, MigratorTrait};
-use crate::entities::{cpu_core_stats, cpu_stats, disk_stats, memory_stats, network_stats, system_stats};
+use crate::entities::{
+    container_runtime_stats, container_stats, cpu_core_stats, cpu_stats, disk_stats,
+    memory_stats, network_stats, process_stats, processes_stats, speedtest_stats, system_stats,
+};
 use crate::subsystem::base_metrics::BaseMetrics;
 
 pub struct StorageEngine{
@@ -40,6 +43,10 @@ impl StorageEngine {
         Ok(self)
     }
 
+    fn db(&self) -> Result<&DatabaseConnection> {
+        self.db.get().ok_or_else(|| anyhow!("database connection not initialized"))
+    }
+
     pub async fn cleanup_job(&self, clean_older_than: DateTime<Utc>) -> Result<()>{
         let db = self
             .db
@@ -60,10 +67,7 @@ impl StorageEngine {
     }
 
     pub async fn save_base_metrics_to_db(&self, base_metrics: BaseMetrics) -> Result<()> {
-        let db = self
-            .db
-            .get()
-            .ok_or_else(|| anyhow!("database connection not initialized"))?;
+        let db = self.db()?;
 
         if let Some(cpu) = base_metrics.cpu {
             let model = cpu_stats::ActiveModel {
@@ -147,5 +151,115 @@ impl StorageEngine {
         }
 
         Ok(())
+    }
+
+    pub async fn get_cpu_stats_between(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<(cpu_stats::Model, Vec<cpu_core_stats::Model>)>> {
+        let db = self.db()?;
+        let rows = cpu_stats::Entity::find()
+            .filter(cpu_stats::Column::CollectedAt.between(start, end))
+            .order_by_asc(cpu_stats::Column::CollectedAt)
+            .find_with_related(cpu_core_stats::Entity)
+            .all(db)
+            .await?;
+        Ok(rows)
+    }
+
+    pub async fn get_memory_stats_between(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<memory_stats::Model>> {
+        let db = self.db()?;
+        Ok(memory_stats::Entity::find()
+            .filter(memory_stats::Column::CollectedAt.between(start, end))
+            .order_by_asc(memory_stats::Column::CollectedAt)
+            .all(db)
+            .await?)
+    }
+
+    pub async fn get_disk_stats_between(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<disk_stats::Model>> {
+        let db = self.db()?;
+        Ok(disk_stats::Entity::find()
+            .filter(disk_stats::Column::CollectedAt.between(start, end))
+            .order_by_asc(disk_stats::Column::CollectedAt)
+            .all(db)
+            .await?)
+    }
+
+    pub async fn get_network_stats_between(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<network_stats::Model>> {
+        let db = self.db()?;
+        Ok(network_stats::Entity::find()
+            .filter(network_stats::Column::CollectedAt.between(start, end))
+            .order_by_asc(network_stats::Column::CollectedAt)
+            .all(db)
+            .await?)
+    }
+
+    pub async fn get_system_stats_between(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<system_stats::Model>> {
+        let db = self.db()?;
+        Ok(system_stats::Entity::find()
+            .filter(system_stats::Column::CollectedAt.between(start, end))
+            .order_by_asc(system_stats::Column::CollectedAt)
+            .all(db)
+            .await?)
+    }
+
+    pub async fn get_processes_stats_between(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<(processes_stats::Model, Vec<process_stats::Model>)>> {
+        let db = self.db()?;
+        let rows = processes_stats::Entity::find()
+            .filter(processes_stats::Column::CollectedAt.between(start, end))
+            .order_by_asc(processes_stats::Column::CollectedAt)
+            .find_with_related(process_stats::Entity)
+            .all(db)
+            .await?;
+        Ok(rows)
+    }
+
+    pub async fn get_container_runtime_stats_between(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<(container_runtime_stats::Model, Vec<container_stats::Model>)>> {
+        let db = self.db()?;
+        let rows = container_runtime_stats::Entity::find()
+            .filter(container_runtime_stats::Column::CollectedAt.between(start, end))
+            .order_by_asc(container_runtime_stats::Column::CollectedAt)
+            .find_with_related(container_stats::Entity)
+            .all(db)
+            .await?;
+        Ok(rows)
+    }
+
+    pub async fn get_speedtest_stats_between(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<speedtest_stats::Model>> {
+        let db = self.db()?;
+        Ok(speedtest_stats::Entity::find()
+            .filter(speedtest_stats::Column::CollectedAt.between(start, end))
+            .order_by_asc(speedtest_stats::Column::CollectedAt)
+            .all(db)
+            .await?)
     }
 }
