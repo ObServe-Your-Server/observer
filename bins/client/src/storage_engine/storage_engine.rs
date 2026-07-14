@@ -268,9 +268,18 @@ impl StorageEngine {
         last_n: u64,
     ) -> Result<Vec<(cpu_stats::Model, Vec<cpu_core_stats::Model>)>> {
         let db = self.db()?;
-        let mut rows = cpu_stats::Entity::find()
+        let latest_ids: Vec<i64> = cpu_stats::Entity::find()
             .order_by_desc(cpu_stats::Column::CollectedAt)
             .limit(last_n)
+            .all(db)
+            .await?
+            .into_iter()
+            .map(|m| m.id)
+            .collect();
+
+        let mut rows = cpu_stats::Entity::find()
+            .filter(cpu_stats::Column::Id.is_in(latest_ids))
+            .order_by_desc(cpu_stats::Column::CollectedAt)
             .find_with_related(cpu_core_stats::Entity)
             .all(db)
             .await?;

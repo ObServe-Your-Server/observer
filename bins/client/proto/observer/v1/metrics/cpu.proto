@@ -11,6 +11,7 @@ message CpuMetrics {
   float temperature_celsius = 4;
   repeated CoreMetrics cores = 5;
   google.protobuf.Timestamp collected_at = 6;
+  float usage_percent = 7;
 }
 
 message CoreMetrics {

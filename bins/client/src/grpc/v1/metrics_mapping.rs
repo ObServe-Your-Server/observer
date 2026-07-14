@@ -24,6 +24,7 @@ pub fn cpu_metrics(row: (cpu_stats::Model, Vec<cpu_core_stats::Model>)) -> CpuMe
         count: cpu.cpu_count as u32,
         physical_count: cpu.cpu_physical_count as u32,
         temperature_celsius: cpu.cpu_temperature_celsius,
+        usage_percent: cpu.cpu_usage_percent,
         cores: cores
             .into_iter()
             .map(|core| CoreMetrics {
