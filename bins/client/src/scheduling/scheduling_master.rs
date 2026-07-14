@@ -47,6 +47,15 @@ impl SchedulingMaster {
             }
         });
 
-        let _ = tokio::join!(scheduler_handle, metrics_tunnel_handle);
+        // whichever of the two terminates first (cleanly or not) brings the whole process down
+        tokio::select! {
+            _ = scheduler_handle => {
+                log::error!("scheduler terminated, shutting down");
+            }
+            _ = metrics_tunnel_handle => {
+                log::error!("metrics tunnel terminated, shutting down");
+            }
+        }
+        std::process::exit(1);
     }
 }

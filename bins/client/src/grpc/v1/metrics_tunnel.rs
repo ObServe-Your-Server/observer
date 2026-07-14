@@ -148,7 +148,7 @@ async fn build_response(request: &MetricsRequest, storage_engine: &StorageEngine
 pub struct MetricsTunnel {
     url: &'static str,
     api_key: String,
-    connection_retries: u8,
+    reconnect_budget: Duration,
     storage_engine: Arc<StorageEngine>,
 }
 
@@ -157,13 +157,24 @@ impl MetricsTunnel {
         Self {
             url,
             api_key,
-            connection_retries: 5,
+            reconnect_budget: Duration::from_secs(5 * 60),
             storage_engine,
         }
     }
 
+    /// Runs the tunnel until it is closed, reconnecting whenever the connection
+    /// drops. Every time a (re)connect is needed, retries happen for up to
+    /// `reconnect_budget` before giving up entirely and returning an error.
+    /// Once a connection is (re)established, the budget resets for the next drop.
     pub async fn run_blocking(&self) -> Result<(), tonic::Status> {
-        // first connect our channel
+        loop {
+            self.connect_and_serve().await?;
+            log::warn!("metrics tunnel connection lost, reconnecting");
+        }
+    }
+
+    async fn connect_and_serve(&self) -> Result<(), tonic::Status> {
+        // (re)connect our channel, retrying within the reconnect budget
         let channel = self
             .connect_with_retries()
             .await
@@ -201,18 +212,22 @@ impl MetricsTunnel {
                 }
                 Err(e) => {
                     log::error!("Error receiving metrics request: {}", e);
-                    return Err(tonic::Status::internal(e.to_string()));
+                    break;
                 }
             }
         }
 
-        // server closed the stream — should reconnect and restart
+        // stream ended (cleanly closed or errored) — caller will reconnect and restart
         Ok(())
     }
 
+    /// Retries connecting until it succeeds or `reconnect_budget` elapses since
+    /// the first attempt, whichever comes first.
     async fn connect_with_retries(&self) -> Result<Channel, tonic::transport::Error> {
+        let deadline = tokio::time::Instant::now() + self.reconnect_budget;
         let mut last_err = None;
-        for _attempt in 1..=self.connection_retries {
+
+        loop {
             // connect the socket to the given url
             match Self::connect_socket(self.url).await {
                 Ok(channel) => {
@@ -226,6 +241,15 @@ impl MetricsTunnel {
                         e
                     );
                     last_err = Some(e);
+
+                    if tokio::time::Instant::now() >= deadline {
+                        log::error!(
+                            "giving up reconnecting to {} after {:?}",
+                            self.url,
+                            self.reconnect_budget
+                        );
+                        break;
+                    }
                     tokio::time::sleep(Duration::from_secs(5)).await;
                 }
             }
