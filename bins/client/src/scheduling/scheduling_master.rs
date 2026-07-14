@@ -15,8 +15,6 @@ impl SchedulingMaster {
     pub async fn register_and_start_background_jobs() {
         let config = get_config();
 
-        //TODO: implemement job registry where the error count etc. is managed not in the job
-
         // we can clone it around because the db connection is thread save and with the pool meant to be cloned
         let storage_engine = Arc::new(StorageEngine::new(config.server.database_url.clone()).connect_to_db_and_migrate().await.unwrap());
         log::info!("Database connected with no errors.");
@@ -36,9 +34,9 @@ impl SchedulingMaster {
 
         let mut scheduler = Scheduler::new(vec![base_metric_collection_job]);
 
-        /*let scheduler_handle = tokio::spawn(async move {
+        let scheduler_handle = tokio::spawn(async move {
             scheduler.start_jobs_blocking().await.expect("Error during scheduling");
-        });*/
+        });
 
         // metrics grpc tunnel
         let metrics_tunnel_handle = tokio::spawn(async move {
@@ -49,9 +47,9 @@ impl SchedulingMaster {
 
         // whichever of the two terminates first (cleanly or not) brings the whole process down
         tokio::select! {
-            /*_ = scheduler_handle => {
+            _ = scheduler_handle => {
                 log::error!("scheduler terminated, shutting down");
-            }*/
+            }
             _ = metrics_tunnel_handle => {
                 log::error!("metrics tunnel terminated, shutting down");
             }
