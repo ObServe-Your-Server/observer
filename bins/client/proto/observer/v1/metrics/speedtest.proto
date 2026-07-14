@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package observer.v1.metrics;
+
+import "google/protobuf/timestamp.proto";
+
+message SpeedtestMetrics {
+  double download_mbps = 1;
+  double upload_mbps = 2;
+  double ping_ms = 3;
+  google.protobuf.Timestamp collected_at = 4;
+}

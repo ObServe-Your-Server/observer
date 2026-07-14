@@ -5,6 +5,12 @@ package observer.v1;
 import "google/protobuf/timestamp.proto";
 import "observer/v1/metrics/cpu.proto";
 import "observer/v1/metrics/memory.proto";
+import "observer/v1/metrics/disk.proto";
+import "observer/v1/metrics/network.proto";
+import "observer/v1/metrics/system.proto";
+import "observer/v1/metrics/process.proto";
+import "observer/v1/metrics/container_runtime.proto";
+import "observer/v1/metrics/speedtest.proto";
 
 enum MetricsType {
   CPU = 0;
@@ -13,7 +19,9 @@ enum MetricsType {
   NETWORK = 3;
   DOCKER = 4;
   PROCESS = 5;
-  FULL = 6;
+  SYSTEM = 6;
+  SPEEDTEST = 7;
+  FULL = 8;
 }
 
 message MetricsRequest {
@@ -26,7 +34,26 @@ message MetricsResponse {
   string request_id = 1;
   oneof response {
     observer.v1.metrics.CpuMetrics cpu_metrics = 2;
+    observer.v1.metrics.MemoryMetrics memory_metrics = 3;
+    observer.v1.metrics.DiskMetrics disk_metrics = 4;
+    observer.v1.metrics.NetworkMetrics network_metrics = 5;
+    observer.v1.metrics.SystemMetrics system_metrics = 6;
+    observer.v1.metrics.ProcessesStats process_metrics = 7;
+    observer.v1.metrics.ContainerRuntimeStats container_metrics = 8;
+    observer.v1.metrics.SpeedtestMetrics speedtest_metrics = 9;
+    FullMetrics full_metrics = 10;
   }
+}
+
+message FullMetrics {
+  observer.v1.metrics.CpuMetrics cpu_metrics = 1;
+  observer.v1.metrics.MemoryMetrics memory_metrics = 2;
+  repeated observer.v1.metrics.DiskMetrics disk_metrics = 3;
+  observer.v1.metrics.NetworkMetrics network_metrics = 4;
+  observer.v1.metrics.SystemMetrics system_metrics = 5;
+  observer.v1.metrics.ProcessesStats process_metrics = 6;
+  observer.v1.metrics.ContainerRuntimeStats container_metrics = 7;
+  observer.v1.metrics.SpeedtestMetrics speedtest_metrics = 8;
 }
 
 service MetricsTunnel {

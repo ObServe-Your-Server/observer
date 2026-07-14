@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package observer.v1.metrics;
+
+import "google/protobuf/timestamp.proto";
+
+message ProcessesStats {
+  repeated ProcessStats top_cpu = 1;
+  repeated ProcessStats top_memory = 2;
+  google.protobuf.Timestamp collected_at = 3;
+}
+
+enum ProcessStatsKind {
+  PROCESS_STATS_KIND_UNSPECIFIED = 0;
+  PROCESS_STATS_KIND_CPU = 1;
+  PROCESS_STATS_KIND_MEMORY = 2;
+}
+
+message ProcessStats {
+  ProcessStatsKind kind = 1;
+  uint32 pid = 2;
+  string name = 3;
+  string user_name = 4;
+  string status = 5;
+  float cpu_usage_percent = 6;
+  uint64 memory_usage_bytes = 7;
+}

@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package observer.v1.metrics;
+
+import "google/protobuf/timestamp.proto";
+
+message SystemMetrics {
+  optional string os_name = 1;
+  uint64 uptime_seconds = 2;
+  optional string host_name = 3;
+  string kernel_version = 4;
+  google.protobuf.Timestamp collected_at = 5;
+}
