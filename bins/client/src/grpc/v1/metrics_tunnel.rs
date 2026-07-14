@@ -1,26 +1,36 @@
+use crate::grpc::v1::metrics_tunnel_client::MetricsTunnelClient;
+use crate::grpc::v1::MetricsResponse;
+use crate::storage_engine::storage_engine::StorageEngine;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
-use tonic::{metadata::MetadataValue, transport::{ClientTlsConfig}, Request};
 use tonic::transport::Channel;
-use crate::grpc::v1::metrics_tunnel_client::MetricsTunnelClient;
-use crate::grpc::v1::MetricsResponse;
+use tonic::{metadata::MetadataValue, transport::ClientTlsConfig, Request};
 
-pub struct Client {
+pub struct MetricsTunnel {
     url: &'static str,
     api_key: String,
     connection_retries: u8,
+    storage_engine: Arc<StorageEngine>,
 }
 
-impl Client {
-    pub fn new(url: &'static str, api_key: String) -> Self {
-        Self { url, api_key, connection_retries: 5 }
+impl MetricsTunnel {
+    pub fn new(url: &'static str, api_key: String, storage_engine: Arc<StorageEngine>) -> Self {
+        Self {
+            url,
+            api_key,
+            connection_retries: 5,
+            storage_engine,
+        }
     }
 
     pub async fn run(&self) -> Result<(), tonic::Status> {
         // first connect our channel
-        let channel = self.connect_with_retries().await
+        let channel = self
+            .connect_with_retries()
+            .await
             .map_err(|e| tonic::Status::unavailable(e.to_string()))?;
 
         let mut client = MetricsTunnelClient::new(channel);
@@ -48,25 +58,29 @@ impl Client {
             match result {
                 Ok(req_data) => {
                     log::debug!("received request: {:?}", req_data);
-                    if tx.send(MetricsResponse {
-                        request_id: req_data.request_id.clone(),
-                        response: None,
-                    }).await.is_err() {
+                    if tx
+                        .send(MetricsResponse {
+                            request_id: req_data.request_id.clone(),
+                            response: None,
+                        })
+                        .await
+                        .is_err()
+                    {
                         log::error!("response channel closed");
                         break;
                     }
                 }
                 Err(e) => {
                     log::error!("Error receiving metrics request: {}", e);
-                    return Err(tonic::Status::internal(e.to_string()))
-                },
+                    return Err(tonic::Status::internal(e.to_string()));
+                }
             }
         }
 
         // server closed the stream — should reconnect and restart
         Ok(())
     }
-    
+
     async fn connect_with_retries(&self) -> Result<Channel, tonic::transport::Error> {
         let mut last_err = None;
         for _attempt in 1..=self.connection_retries {
@@ -77,7 +91,11 @@ impl Client {
                     return Ok(channel);
                 }
                 Err(e) => {
-                    log::error!("Error connecting to grpc server: {} with error: {}", self.url, e);
+                    log::error!(
+                        "Error connecting to grpc server: {} with error: {}",
+                        self.url,
+                        e
+                    );
                     last_err = Some(e);
                     tokio::time::sleep(Duration::from_secs(5)).await;
                 }
@@ -107,13 +125,13 @@ impl Client {
 
 #[cfg(test)]
 mod tests {
-    use std::time::SystemTime;
     use super::*;
+    use crate::logging::init_logging;
+    use std::time::SystemTime;
     use tokio::sync::mpsc;
     use tokio_stream::{wrappers::ReceiverStream, StreamExt};
-    use tonic::{metadata::MetadataValue, Request};
     use tonic::transport::Server;
-    use crate::logging::init_logging;
+    use tonic::{metadata::MetadataValue, Request};
 
     const SERVER_URL: &str = "http://localhost:50051";
 
@@ -132,10 +150,9 @@ mod tests {
         let outbound = ReceiverStream::new(resp_rx);
 
         let mut request = Request::new(outbound);
-        request.metadata_mut().insert(
-            "api_key",
-            MetadataValue::try_from("test-key").unwrap(),
-        );
+        request
+            .metadata_mut()
+            .insert("api_key", MetadataValue::try_from("test-key").unwrap());
 
         let mut inbound = client
             .base_transfer(request)
@@ -160,19 +177,9 @@ mod tests {
             .expect("failed to send response");
 
         tokio::time::sleep(Duration::from_secs(1)).await;
-        println!("Sent MetricsResponse for request_id={}", request_data.request_id);
-    }
-
-    #[ignore = "requires a grpc server running"]
-    #[tokio::test]
-    async fn run_grpc_client() {
-        init_logging();
-        let system_time = SystemTime::now();
-        let client = Client::new(SERVER_URL, "KNlj1kJhA1pa8cj6DAmlLyvO4XRhOY2tC0HwNeKMh4o".to_string());
-        let time = system_time.elapsed().unwrap();
-        let res = client.run().await;
-        let time = system_time.elapsed().unwrap();
-        log::info!("elapsed time: {:?}", time);
-        assert!(res.is_ok());
+        println!(
+            "Sent MetricsResponse for request_id={}",
+            request_data.request_id
+        );
     }
 }

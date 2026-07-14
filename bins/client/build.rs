@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     configure()
         .compile_protos(
             &[
-                "proto/observer/v1/base_conn.proto",
+                "proto/observer/v1/metrics_tunnel.proto",
                 "proto/observer/v1/metrics/cpu.proto",
                 "proto/observer/v1/metrics/memory.proto",
                 "proto/observer/v1/metrics/disk.proto",
