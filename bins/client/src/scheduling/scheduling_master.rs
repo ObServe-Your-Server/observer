@@ -2,8 +2,10 @@ use std::sync::Arc;
 use anyhow::{anyhow, Context};
 use chrono::Duration;
 use crate::subsystem::speedtest::SpeedtestMetrics;
-use crate::{config::get_config, subsystem::base_metrics_system::BaseMetrics};
+use crate::config::get_config;
+use crate::jobs::base_metric_collection_job::BaseMetricCollectionJob;
 use crate::jobs::data_cleanup_job::DataCleanupJob;
+use crate::scheduling::scheduler::{SchedulableJob, Scheduler};
 use crate::storage_engine::storage_engine::StorageEngine;
 
 pub struct SchedulingMaster {}
@@ -18,40 +20,14 @@ impl SchedulingMaster {
         let storage_engine = Arc::new(StorageEngine::new(config.server.database_url.clone()).connect_to_db_and_migrate().await.unwrap());
         log::info!("Database connected with no errors.");
 
-        let metrics_retention_time_hours = config.server.metrics_retention_time_hours.clone().parse::<u64>().expect("Unable to parse metrics retention time from provided string to u64");
-        let data_cleanup_job = DataCleanupJob::new(Arc::clone(&storage_engine), metrics_retention_time_hours, 4, Duration::minutes(5));
+        let metrics_retention_time_hours = config.server.metrics_retention_time_hours.clone();
+        let data_cleanup_job = DataCleanupJob::new(Arc::clone(&storage_engine), metrics_retention_time_hours, Duration::minutes(5));
 
-       /* let metrics = tokio::spawn(
-            Scheduler::new(
-                config.intervals.metric_secs as u32,
-            )
-            .run(HostMetrics::run),
-        );*/
+        let base_metric_collection_job_schedule_time = Duration::seconds(config.intervals.metric_secs as i64);
+        let base_metric_collection_job = BaseMetricCollectionJob::new(Arc::clone(&storage_engine), base_metric_collection_job_schedule_time);
+        let base_metric_collection_job = SchedulableJob::new(Box::new(base_metric_collection_job), 10);
 
-        /*
-        let speedtest = tokio::spawn(
-            Scheduler::new(
-                SchedulerKind::SpeedtestCollection,
-                config.intervals.speedtest_secs,
-                15,
-            )
-            .run(SpeedtestMetrics::run),
-        );
-
-        let docker = tokio::spawn(async move {
-            if config.intervals.enable_docker_socket {
-                Scheduler::new(
-                    SchedulerKind::DockerCollection,
-                    config.intervals.docker_secs as u32,
-                    15,
-                )
-                .run(DockerMetrics::run)
-                .await;
-            } else {
-                info!("Docker socket collection is disabled, skipping docker metrics collection");
-            }
-        });*/
-
-        //tokio::try_join!(metrics, speedtest, docker).unwrap();
+        let mut scheduler = Scheduler::new(vec![base_metric_collection_job]);
+        scheduler.start_jobs_blocking().await.expect("Error during scheduling");
     }
 }

@@ -1,22 +1,11 @@
-use crate::config::get_config;
 use log::{debug, error};
-use open_eye::collector::{
-    cpu::collector::CpuStats,
-    disk::collector::{DiskInfo, DiskStats},
-    memory::collector::MemoryStats,
-    network::collector::NetworkStats,
-    systemstats::collector::SystemStats,
-};
 use serde::{Deserialize, Serialize};
-use std::sync::OnceLock;
-use tokio::sync::RwLock;
-use anyhow::Result;
-
-static LAST_METRICS: OnceLock<RwLock<Option<BaseMetrics>>> = OnceLock::new();
-
-fn last_metrics() -> &'static RwLock<Option<BaseMetrics>> {
-    LAST_METRICS.get_or_init(|| RwLock::new(None))
-}
+use open_eye::collector::cpu::collector::CpuStats;
+use open_eye::collector::disk::collector::{DiskInfo, DiskStats};
+use open_eye::collector::memory::collector::MemoryStats;
+use open_eye::collector::network::collector::NetworkStats;
+use open_eye::collector::systemstats::collector::SystemStats;
+use crate::config::get_config;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BaseMetrics {
@@ -52,31 +41,5 @@ impl BaseMetrics {
                 .map_err(|e| error!("system stats collector panicked: {e}"))
                 .ok(),
         }
-    }
-
-    pub async fn run() -> Result<()> {
-        let config = get_config();
-        let metrics = BaseMetrics::collect().await;
-
-        debug!("Host metrics collected: {:?}", metrics);
-
-        let last = last_metrics().read().await.clone();
-
-        *last_metrics().write().await = Some(metrics);
-
-        todo!("save to db")
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::subsystem::base_metrics_system::BaseMetrics;
-
-    #[ignore = "just collects host metrics"]
-    #[tokio::test]
-    async fn run_test() {
-        let metrics = BaseMetrics::collect().await;
-
-        println!("Collected metrics: {:?}", metrics);
     }
 }
