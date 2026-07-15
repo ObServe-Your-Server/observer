@@ -5,6 +5,7 @@ use crate::subsystem::speedtest::SpeedtestMetrics;
 use crate::config::get_config;
 use crate::grpc::v1::metrics_tunnel::MetricsTunnel;
 use crate::jobs::base_metric_collection_job::BaseMetricCollectionJob;
+use crate::jobs::container_stats_collection_job::ContainerStatsCollectionJob;
 use crate::jobs::data_cleanup_job::DataCleanupJob;
 use crate::scheduling::scheduler::{SchedulableJob, Scheduler};
 use crate::storage_engine::storage_engine::StorageEngine;
@@ -21,6 +22,7 @@ impl SchedulingMaster {
 
         let metrics_retention_time_hours = config.server.metrics_retention_time_hours.clone();
         let data_cleanup_job = DataCleanupJob::new(Arc::clone(&storage_engine), metrics_retention_time_hours, Duration::minutes(5));
+        let data_cleanup_job = SchedulableJob::new(Box::new(data_cleanup_job), 5);
 
         let base_metric_collection_job_schedule_time = Duration::seconds(config.intervals.metric_secs as i64);
         let base_metric_collection_job = BaseMetricCollectionJob::new(Arc::clone(&storage_engine), base_metric_collection_job_schedule_time);
@@ -32,8 +34,19 @@ impl SchedulingMaster {
             Arc::clone(&storage_engine),
         );
 
-        let mut scheduler = Scheduler::new(vec![base_metric_collection_job]);
+        // -------------- first add essential jobs --------------
+        let mut scheduler = Scheduler::new(vec![data_cleanup_job, base_metric_collection_job]);
 
+        // -------------- addons like container stats --------------
+        if config.intervals.enable_docker_socket {
+            let container_stats_collection_job_schedule_time = Duration::seconds(config.intervals.docker_secs as i64);
+            let container_stats_collection_job = ContainerStatsCollectionJob::new(Arc::clone(&storage_engine), container_stats_collection_job_schedule_time);
+            let container_stats_collection_job = SchedulableJob::new(Box::new(container_stats_collection_job), 10);
+
+            scheduler.add_job(container_stats_collection_job);
+        }
+
+        // start the jobs in separate tasks
         let scheduler_handle = tokio::spawn(async move {
             scheduler.start_jobs_blocking().await.expect("Error during scheduling");
         });

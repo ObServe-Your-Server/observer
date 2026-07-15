@@ -220,7 +220,10 @@ async fn build_container_stats_from_summary(
 
 pub async fn get_current_stats() -> Result<Option<ContainerRuntimeStats>> {
     let container_runtimes =
-        check_runtime_availability().ok_or_else(|| anyhow!("No container runtime found."))?;
+        check_runtime_availability().ok_or_else(|| {
+            log::info!("No continer runtime found.");
+            anyhow!("No container runtime found.")
+        })?;
 
     let mut all_container_stats: Vec<ContainerStats> = Vec::new();
     let mut seen_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -252,6 +255,7 @@ pub async fn get_current_stats() -> Result<Option<ContainerRuntimeStats>> {
             .await;
             container_stats_collected.push(stats);
         }
+        all_container_stats.append(&mut container_stats_collected);
     }
 
     if all_container_stats.is_empty() {

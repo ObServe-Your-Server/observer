@@ -4,10 +4,12 @@ use sea_orm::{ActiveValue::Set, ColumnTrait, ConnectOptions, Database, DatabaseC
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use migration::{Migrator, MigratorTrait};
+use open_eye::collector::container_runtime::collector::{ContainerRuntime, ContainerRuntimeStats};
 use crate::entities::{
     container_runtime_stats, container_stats, cpu_core_stats, cpu_stats, disk_stats,
     memory_stats, network_stats, process_stats, processes_stats, speedtest_stats, system_stats,
 };
+use crate::entities::cpu_stats::ActiveModel;
 use crate::subsystem::base_metrics::BaseMetrics;
 
 pub struct StorageEngine{
@@ -150,6 +152,39 @@ impl StorageEngine {
             system_stats::Entity::insert(model).exec(db).await?;
         }
 
+        Ok(())
+    }
+
+    pub async fn save_container_runtime_stats_to_db(&self, container_runtime_stats: ContainerRuntimeStats) -> Result<()> {
+        let db = self.db()?;
+        let model = container_runtime_stats::ActiveModel {
+            collected_at: Set(container_runtime_stats.collected_at.into()),
+            ..Default::default()
+        };
+        let inserted_container_runtime = container_runtime_stats::Entity::insert(model).exec(db).await?;
+
+        let models: Vec<container_stats::ActiveModel> = container_runtime_stats.container_stats.into_iter().map(|c|{
+            container_stats::ActiveModel{
+                container_runtime_stats_id: Set(inserted_container_runtime.last_insert_id),
+                container_runtime: Set(c.container_runtime.to_string()),
+                container_id: Set(c.id),
+                host_name: Set(c.host_name),
+                created_at: Set(c.created_at.into()),
+                status: Set(c.status),
+                running: Set(c.running),
+                running_for_seconds: Set(c.running_for_seconds as i64),
+                image_name: Set(c.image_name),
+                networks: Set(c.networks.join("|")),
+                cpu_usage_percent: Set(c.cpu_usage_percent),
+                memory_usage_bytes: Set(c.memory_usage_bytes as i64),
+                collected_at: Set(c.collected_at.into()),
+                ..Default::default()
+            }
+        }).collect();
+
+        for model in models {
+            container_stats::Entity::insert(model).exec(db).await?;
+        }
         Ok(())
     }
 
