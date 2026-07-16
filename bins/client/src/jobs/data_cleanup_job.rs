@@ -33,6 +33,6 @@ impl Job for DataCleanupJob {
     }
 
     fn name(&self) -> &str {
-        "DataCleanupJob"
+        "Data Cleanup Job"
     }
 }

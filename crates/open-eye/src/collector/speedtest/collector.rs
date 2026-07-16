@@ -7,6 +7,7 @@ use std::sync::{
     Arc,
 };
 use std::time::{Duration, Instant};
+use chrono::Utc;
 
 const DOWNLOAD_URL: &str = "https://speed.cloudflare.com/__down?bytes=90000000";
 const UPLOAD_URL: &str = "https://speed.cloudflare.com/__up";
@@ -28,6 +29,7 @@ pub struct SpeedtestResult {
     pub download_mbps: f64,
     pub upload_mbps: f64,
     pub ping_ms: f64,
+    pub collected_at: chrono::DateTime<Utc>,
 }
 
 #[derive(Debug)]
@@ -224,6 +226,7 @@ pub async fn run() -> Result<SpeedtestResult, SpeedtestError> {
         download_mbps,
         upload_mbps,
         ping_ms,
+        collected_at: Utc::now()
     })
 }
 

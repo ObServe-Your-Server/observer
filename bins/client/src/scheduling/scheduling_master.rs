@@ -7,6 +7,7 @@ use crate::grpc::v1::metrics_tunnel::MetricsTunnel;
 use crate::jobs::base_metric_collection_job::BaseMetricCollectionJob;
 use crate::jobs::container_stats_collection_job::ContainerStatsCollectionJob;
 use crate::jobs::data_cleanup_job::DataCleanupJob;
+use crate::jobs::speedtest_stats_collection_job::SpeedtestStatsCollectionJob;
 use crate::scheduling::scheduler::{SchedulableJob, Scheduler};
 use crate::storage_engine::storage_engine::StorageEngine;
 
@@ -27,7 +28,11 @@ impl SchedulingMaster {
         let base_metric_collection_job_schedule_time = Duration::seconds(config.intervals.metric_secs as i64);
         let base_metric_collection_job = BaseMetricCollectionJob::new(Arc::clone(&storage_engine), base_metric_collection_job_schedule_time);
         let base_metric_collection_job = SchedulableJob::new(Box::new(base_metric_collection_job), 10);
-
+        
+        let speedtest_stats_collection_job_schedule_time = Duration::seconds(config.intervals.speedtest_secs as i64);
+        let speedtest_stats_collection_job = SpeedtestStatsCollectionJob::new(Arc::clone(&storage_engine), speedtest_stats_collection_job_schedule_time);
+        let speedtest_stats_collection_job = SchedulableJob::new(Box::new(speedtest_stats_collection_job), 5);
+            
         let metrics_tunnel = MetricsTunnel::new(
             config.server.base_server_url.as_str(),
             config.server.api_key.clone(),
@@ -35,7 +40,7 @@ impl SchedulingMaster {
         );
 
         // -------------- first add essential jobs --------------
-        let mut scheduler = Scheduler::new(vec![data_cleanup_job, base_metric_collection_job]);
+        let mut scheduler = Scheduler::new(vec![data_cleanup_job, base_metric_collection_job, speedtest_stats_collection_job]);
 
         // -------------- addons like container stats --------------
         if config.intervals.enable_docker_socket {

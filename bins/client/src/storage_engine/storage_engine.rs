@@ -5,6 +5,7 @@ use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use migration::{Migrator, MigratorTrait};
 use open_eye::collector::container_runtime::collector::{ContainerRuntime, ContainerRuntimeStats};
+use open_eye::collector::speedtest::collector::SpeedtestResult;
 use crate::entities::{
     container_runtime_stats, container_stats, cpu_core_stats, cpu_stats, disk_stats,
     memory_stats, network_stats, process_stats, processes_stats, speedtest_stats, system_stats,
@@ -185,6 +186,21 @@ impl StorageEngine {
         for model in models {
             container_stats::Entity::insert(model).exec(db).await?;
         }
+        Ok(())
+    }
+
+    pub async fn save_speedtest_stats_to_db(&self, speedtest_stats: SpeedtestResult) -> Result<()> {
+        let db = self.db()?;
+
+        let model = speedtest_stats::ActiveModel {
+            download_mbps: Set(speedtest_stats.download_mbps),
+            upload_mbps: Set(speedtest_stats.upload_mbps),
+            ping_ms: Set(speedtest_stats.ping_ms),
+            collected_at: Set(speedtest_stats.collected_at.into()),
+            ..Default::default()
+        };
+
+        speedtest_stats::Entity::insert(model).exec(db).await?;
         Ok(())
     }
 

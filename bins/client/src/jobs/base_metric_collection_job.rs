@@ -37,7 +37,7 @@ impl Job for BaseMetricCollectionJob {
     }
 
     fn name(&self) -> &str {
-        "BaseMetricCollectionJob"
+        "Base Metrics Collection Job"
     }
 }
 

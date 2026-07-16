@@ -46,6 +46,6 @@ impl Job for ContainerStatsCollectionJob {
     }
 
     fn name(&self) -> &str {
-        "ContainerStatsCollectionJob"
+        "Container Stats Collection Job"
     }
 }
