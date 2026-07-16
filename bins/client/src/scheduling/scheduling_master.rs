@@ -1,7 +1,6 @@
 use std::sync::Arc;
 use anyhow::{anyhow, Context};
 use chrono::Duration;
-use crate::subsystem::speedtest::SpeedtestMetrics;
 use crate::config::get_config;
 use crate::grpc::v1::metrics_tunnel::MetricsTunnel;
 use crate::jobs::base_metric_collection_job::BaseMetricCollectionJob;

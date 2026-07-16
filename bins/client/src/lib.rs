@@ -4,7 +4,6 @@
 pub mod config;
 pub mod logging;
 pub mod scheduling;
-mod subsystem;
 mod grpc;
 mod storage_engine;
 pub mod entities;
