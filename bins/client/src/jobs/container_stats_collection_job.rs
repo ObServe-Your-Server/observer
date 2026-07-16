@@ -3,9 +3,8 @@ use chrono::Duration;
 use std::sync::Arc;
 use anyhow::anyhow;
 use async_trait::async_trait;
-use open_eye::collector::container_runtime::collector::{check_runtime_availability, get_current_stats, ContainerRuntimeStats};
+use open_eye::collector::container_runtime::collector::{check_runtime_availability, get_current_stats};
 use crate::scheduling::job::Job;
-use crate::subsystem::container_stats_system::ContainerStatsSystem;
 
 pub struct ContainerStatsCollectionJob {
     storage_engine: Arc<StorageEngine>,

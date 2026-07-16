@@ -10,7 +10,7 @@ use crate::entities::{
     memory_stats, network_stats, process_stats, processes_stats, speedtest_stats, system_stats,
 };
 use crate::entities::cpu_stats::ActiveModel;
-use crate::subsystem::base_metrics::BaseMetrics;
+use crate::jobs::base_metric_collection_job::BaseMetrics;
 
 pub struct StorageEngine{
     database_path: String,
