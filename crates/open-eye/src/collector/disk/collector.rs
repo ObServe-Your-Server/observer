@@ -1,10 +1,7 @@
 use chrono::{DateTime, Utc};
 use nix::sys::statvfs::statvfs;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use std::process::Command;
-#[cfg(not(target_os = "linux"))]
-use sysinfo::Disks;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -68,7 +65,7 @@ mod linux {
         }
         dev.children
             .as_ref()
-            .is_some_and(|kids| kids.iter().any(is_zfs_member))
+            .map_or(false, |kids| kids.iter().any(is_zfs_member))
     }
 
     fn sum_used(dev: &BlockDevice) -> u64 {
@@ -181,10 +178,9 @@ mod linux {
 
 #[cfg(target_os = "macos")]
 mod macos {
-    use super::{collect_zpools, statvfs_info, DiskInfo};
-    use log::debug;
+    use super::{collect_zpools, DiskInfo};
+    use log::{debug, warn};
     use std::collections::HashSet;
-    use std::fs;
 
     const SKIP_PREFIXES: &[&str] = &["/System/Volumes/", "/private/var/folders", "/dev", "/proc"];
 
@@ -201,9 +197,14 @@ mod macos {
 
     pub fn collect() -> Vec<DiskInfo> {
         // Parse /etc/fstab isn't reliable on macOS; use mount output instead
-        let output = std::process::Command::new("mount")
-            .output()
-            .unwrap_or_else(|_| panic!("failed to run mount"));
+        // TODO: consider falling back to statvfs on / or parsing diskutil info if mount fails
+        let output = match std::process::Command::new("mount").output() {
+            Ok(o) => o,
+            Err(e) => {
+                warn!("mount failed: {}", e);
+                return vec![];
+            }
+        };
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         let mut seen = HashSet::new();

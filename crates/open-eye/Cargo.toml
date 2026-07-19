@@ -28,3 +28,4 @@ futures-util = "0.3.32"
 nix = { version = "0.31.3", features = ["fs", "user"] }
 reqwest = { version = "0.12", features = ["stream", "rustls-tls", "json", "http2"], default-features = false }
 chrono = { version = "0.4.45", features = ["serde"] }
+anyhow = "1.0.103"

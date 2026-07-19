@@ -5,6 +5,9 @@ use observer_client::logging::init_logging;
 use observer_client::scheduling::scheduling_master::SchedulingMaster;
 
 use std::env;
+use std::time::Duration;
+use sea_orm::{ConnectOptions, Database};
+use migration::{Migrator, MigratorTrait};
 
 #[tokio::main]
 async fn main() {
@@ -20,12 +23,6 @@ async fn main() {
         }
     };
 
-    info!("Observer v{} started", config.version);
-    info!(
-        "Server: {} / {}",
-        config.server.base_metrics_url, config.server.base_commands_url
-    );
-    info!("Application ready");
-
+    info!("Observer v{} starting", config.version);
     SchedulingMaster::register_and_start_background_jobs().await;
 }

@@ -17,6 +17,9 @@ ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
 ReadOnlyPaths=/etc/observer/observer.toml
+# Default database location written by setup/deploy-pre.sh. If you point
+# database_url at a custom path outside /var/lib/observer, add it here too.
+ReadWritePaths=/var/lib/observer
 
 [Install]
 WantedBy=multi-user.target

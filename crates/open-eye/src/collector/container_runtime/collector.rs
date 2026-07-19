@@ -1,5 +1,9 @@
+use crate::collector::DataCreationTime;
+use anyhow::{anyhow, Result};
 use chrono::Utc;
+use docker_api::models::ContainerSummary;
 use docker_api::opts::ContainerListOpts;
+use docker_api::Containers;
 use futures_util::StreamExt;
 use log::debug;
 use serde::{Deserialize, Serialize};
@@ -35,6 +39,12 @@ pub enum ContainerRuntime {
     Docker,
     DockerDesktop,
     Podman,
+}
+
+impl DataCreationTime for ContainerRuntimeStats {
+    fn get_data_creation_time(&self) -> i64 {
+        self.collected_at.timestamp()
+    }
 }
 
 impl ContainerRuntime {
@@ -143,117 +153,109 @@ fn parse_cpu_percent(stats: serde_json::Value) -> f64 {
     (cpu_delta as f64 / system_delta as f64) * num_cpus as f64 * 100.0
 }
 
-pub async fn get_current_stats() -> Result<Option<ContainerRuntimeStats>, docker_api::Error> {
-    let container_runtimes = check_runtime_availability();
-    if container_runtimes.is_none() {
-        debug!("No container runtimes found, skipping collection");
-        return Ok(None);
+async fn build_container_stats_from_summary(
+    container_summary: ContainerSummary,
+    container_api: &Containers,
+    container_runtime: ContainerRuntime,
+) -> ContainerStats {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+    let id = container_summary.id.unwrap_or_default();
+    let host_name = container_summary
+        .names
+        .as_ref()
+        .and_then(|n| n.first())
+        .map(|n| n.trim_start_matches('/').to_string())
+        .unwrap_or_default();
+    let created_at = container_summary.created.unwrap_or(0);
+    let status = container_summary.status.unwrap_or_default();
+    let state = container_summary.state.unwrap_or_default();
+    let running = state == "running";
+    let running_for_seconds = if running && created_at > 0 {
+        now.saturating_sub(created_at as u64)
+    } else {
+        0
+    };
+    let image_name = container_summary.image.unwrap_or_default();
+    let networks = container_summary
+        .network_settings
+        .and_then(|ns| ns.networks)
+        .map(|map| map.into_keys().collect())
+        .unwrap_or_default();
+
+    // Fetch one stats sample (only available for running containers)
+    let container = container_api.get(&id);
+    let (cpu_usage_percent, memory_usage_bytes) = if running {
+        let mut stream = container.stats();
+        let next = stream.next().await;
+        if let Some(Ok(snapshot)) = next {
+            let mem = snapshot["memory_stats"]["usage"].as_u64().unwrap_or(0);
+            let cpu = parse_cpu_percent(snapshot);
+            (cpu, mem)
+        } else {
+            (0.0, 0)
+        }
+    } else {
+        (0.0, 0)
+    };
+
+    ContainerStats {
+        container_runtime: container_runtime.clone(),
+        id,
+        host_name,
+        created_at,
+        status,
+        running,
+        running_for_seconds,
+        image_name,
+        networks,
+        cpu_usage_percent,
+        memory_usage_bytes,
+        collected_at: Utc::now(),
     }
+}
+
+pub async fn get_current_stats() -> Result<Option<ContainerRuntimeStats>> {
+    let container_runtimes =
+        check_runtime_availability().ok_or_else(|| {
+            log::info!("No continer runtime found.");
+            anyhow!("No container runtime found.")
+        })?;
 
     let mut all_container_stats: Vec<ContainerStats> = Vec::new();
     let mut seen_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
 
-    for container_runtime in container_runtimes.unwrap() {
-        let result: Result<Vec<ContainerStats>, docker_api::Error> = async {
-            let socket_uri = container_runtime.socket_uri();
-            debug!("Docker: attempting to connect to {}", socket_uri);
+    for container_runtime in container_runtimes {
+        let socket_uri = container_runtime.socket_uri();
+        debug!("Attempting to connect to {}", socket_uri);
 
-            let docker = docker_api::Docker::new(&socket_uri)?;
-            debug!("Docker: client created successfully");
+        let docker = docker_api::Docker::new(&socket_uri)?;
+        debug!("Client created successfully");
 
-            debug!("Docker: sending ping...");
-            docker.ping().await?;
-            debug!("Docker: ping succeeded");
+        debug!("Sending ping...");
+        docker.ping().await?;
+        debug!("Ping succeeded");
 
-            debug!("Docker: listing containers...");
-            let containers_api = docker.containers();
-            let summaries = containers_api
-                .list(&ContainerListOpts::builder().all(true).build())
-                .await?;
+        debug!("Listing containers...");
+        let containers_api = docker.containers();
+        let summaries = containers_api
+            .list(&ContainerListOpts::builder().all(true).build())
+            .await?;
 
-            let now = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs();
-
-            let mut container_stats = Vec::new();
-
-            for c in summaries {
-                let id = c.id.unwrap_or_default();
-                let host_name = c
-                    .names
-                    .as_ref()
-                    .and_then(|n| n.first())
-                    .map(|n| n.trim_start_matches('/').to_string())
-                    .unwrap_or_default();
-                let created_at = c.created.unwrap_or(0);
-                let status = c.status.unwrap_or_default();
-                let state = c.state.unwrap_or_default();
-                let running = state == "running";
-                let running_for_seconds = if running && created_at > 0 {
-                    now.saturating_sub(created_at as u64)
-                } else {
-                    0
-                };
-                let image_name = c.image.unwrap_or_default();
-                let networks = c
-                    .network_settings
-                    .and_then(|ns| ns.networks)
-                    .map(|map| map.into_keys().collect())
-                    .unwrap_or_default();
-
-                // Fetch one stats sample (only available for running containers)
-                let container = containers_api.get(&id);
-                let (cpu_usage_percent, memory_usage_bytes) = if running {
-                    let mut stream = container.stats();
-                    let next = stream.next().await;
-                    if let Some(Ok(snapshot)) = next {
-                        let mem = snapshot["memory_stats"]["usage"].as_u64().unwrap_or(0);
-                        let cpu = parse_cpu_percent(snapshot);
-                        (cpu, mem)
-                    } else {
-                        (0.0, 0)
-                    }
-                } else {
-                    (0.0, 0)
-                };
-
-                container_stats.push(ContainerStats {
-                    container_runtime: container_runtime.clone(),
-                    id,
-                    host_name,
-                    created_at,
-                    status,
-                    running,
-                    running_for_seconds,
-                    image_name,
-                    networks,
-                    cpu_usage_percent,
-                    memory_usage_bytes,
-                    collected_at: Utc::now(),
-                });
-            }
-            Ok(container_stats)
+        let mut container_stats_collected = Vec::new();
+        for summary in summaries {
+            let stats = build_container_stats_from_summary(
+                summary,
+                &containers_api,
+                container_runtime.clone(),
+            )
+            .await;
+            container_stats_collected.push(stats);
         }
-        .await;
-
-        match result {
-            Ok(stats) => {
-                for stat in stats {
-                    if seen_ids.insert(stat.id.clone()) {
-                        all_container_stats.push(stat);
-                    } else {
-                        debug!(
-                            "Skipping duplicate container {} from {}",
-                            stat.id, stat.container_runtime
-                        );
-                    }
-                }
-            }
-            Err(e) => {
-                debug!("Runtime {} failed: {}, trying next", container_runtime, e);
-            }
-        }
+        all_container_stats.append(&mut container_stats_collected);
     }
 
     if all_container_stats.is_empty() {

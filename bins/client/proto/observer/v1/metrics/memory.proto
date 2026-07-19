@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package observer.v1.metrics;
+
+import "google/protobuf/timestamp.proto";
+
+
+message MemoryMetrics {
+  uint64 total_bytes = 1;
+  uint64 available_bytes = 2;
+  uint64 used_bytes = 3;
+  uint64 total_swap_bytes = 4;
+  uint64 available_swap_bytes = 5;
+  uint64 used_swap_bytes = 6;
+  google.protobuf.Timestamp collected_at = 7;
+}

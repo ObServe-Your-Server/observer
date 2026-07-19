@@ -1,0 +1,103 @@
+syntax = "proto3";
+
+package observer.v1;
+
+import "observer/v1/metrics/cpu.proto";
+import "observer/v1/metrics/memory.proto";
+import "observer/v1/metrics/disk.proto";
+import "observer/v1/metrics/network.proto";
+import "observer/v1/metrics/system.proto";
+import "observer/v1/metrics/process.proto";
+import "observer/v1/metrics/container_runtime.proto";
+import "observer/v1/metrics/speedtest.proto";
+
+enum MetricsType {
+  CPU = 0;
+  MEMORY = 1;
+  DISK = 2;
+  NETWORK = 3;
+  DOCKER = 4;
+  PROCESS = 5;
+  SYSTEM = 6;
+  SPEEDTEST = 7;
+  FULL = 8;
+}
+
+message TimeRange {
+  // inclusive start of the queried time range, unix timestamp (seconds)
+  int64 start = 1;
+  // inclusive end of the queried time range, unix timestamp (seconds)
+  int64 end = 2;
+}
+
+message MetricsRequest {
+  string request_id = 1;
+  MetricsType type = 2;
+  oneof query {
+    TimeRange range = 3;
+    // return only the most recent `last_n` entries, ordered oldest to newest
+    int64 last_n = 4;
+  }
+}
+
+message MetricsResponse {
+  string request_id = 1;
+  oneof response {
+    CpuMetricsList cpu_metrics = 2;
+    MemoryMetricsList memory_metrics = 3;
+    DiskMetricsList disk_metrics = 4;
+    NetworkMetricsList network_metrics = 5;
+    SystemMetricsList system_metrics = 6;
+    ProcessesStatsList process_metrics = 7;
+    ContainerRuntimeStatsList container_metrics = 8;
+    SpeedtestMetricsList speedtest_metrics = 9;
+    FullMetrics full_metrics = 10;
+  }
+}
+
+message CpuMetricsList {
+  repeated observer.v1.metrics.CpuMetrics items = 1;
+}
+
+message MemoryMetricsList {
+  repeated observer.v1.metrics.MemoryMetrics items = 1;
+}
+
+message DiskMetricsList {
+  repeated observer.v1.metrics.DiskMetrics items = 1;
+}
+
+message NetworkMetricsList {
+  repeated observer.v1.metrics.NetworkMetrics items = 1;
+}
+
+message SystemMetricsList {
+  repeated observer.v1.metrics.SystemMetrics items = 1;
+}
+
+message ProcessesStatsList {
+  repeated observer.v1.metrics.ProcessesStats items = 1;
+}
+
+message ContainerRuntimeStatsList {
+  repeated observer.v1.metrics.ContainerRuntimeStats items = 1;
+}
+
+message SpeedtestMetricsList {
+  repeated observer.v1.metrics.SpeedtestMetrics items = 1;
+}
+
+message FullMetrics {
+  CpuMetricsList cpu_metrics = 1;
+  MemoryMetricsList memory_metrics = 2;
+  DiskMetricsList disk_metrics = 3;
+  NetworkMetricsList network_metrics = 4;
+  SystemMetricsList system_metrics = 5;
+  ProcessesStatsList process_metrics = 6;
+  ContainerRuntimeStatsList container_metrics = 7;
+  SpeedtestMetricsList speedtest_metrics = 8;
+}
+
+service MetricsTunnel {
+  rpc BaseTransfer (stream MetricsResponse) returns (stream MetricsRequest);
+}

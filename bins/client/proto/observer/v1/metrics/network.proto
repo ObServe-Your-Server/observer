@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package observer.v1.metrics;
+
+import "google/protobuf/timestamp.proto";
+
+message NetworkMetrics {
+  string local_ip = 1;
+  uint64 total_bytes_transmitted = 2;
+  uint64 total_bytes_received = 3;
+  uint64 total_packets_transmitted = 4;
+  uint64 total_packets_received = 5;
+  google.protobuf.Timestamp collected_at = 6;
+}

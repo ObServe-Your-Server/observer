@@ -1,170 +1,116 @@
+use crate::scheduling::job::Job;
 use chrono::{DateTime, Utc};
-use log::{error, info, warn};
-use std::sync::{Arc, OnceLock};
+use std::sync::OnceLock;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time;
 use tokio::time::MissedTickBehavior;
-
-use crate::scheduling::collection_error::CollectionError;
-
-pub struct SubsystemState {
-    pub metrics_enabled: RwLock<bool>,
-    pub started_at: DateTime<Utc>,
-}
-
-static STATE: OnceLock<SubsystemState> = OnceLock::new();
-
-pub fn get_state() -> &'static SubsystemState {
-    STATE.get_or_init(|| SubsystemState {
-        metrics_enabled: RwLock::new(true),
-        started_at: Utc::now(),
-    })
-}
-
-pub enum SchedulerKind {
-    MetricCollection,
-    SpeedtestCollection,
-    DockerCollection,
-}
-
-impl SchedulerKind {
-    fn as_str(&self) -> &'static str {
-        match self {
-            SchedulerKind::MetricCollection => "metric-collection",
-            SchedulerKind::SpeedtestCollection => "speedtest-collection",
-            SchedulerKind::DockerCollection => "docker-collection",
-        }
-    }
-
-    async fn is_enabled(&self) -> bool {
-        let state = get_state();
-        match self {
-            SchedulerKind::MetricCollection => *state.metrics_enabled.read().await,
-            SchedulerKind::SpeedtestCollection => *state.metrics_enabled.read().await,
-            SchedulerKind::DockerCollection => *state.metrics_enabled.read().await,
-        }
-    }
-}
-
-#[derive(PartialEq)]
-enum ErrorLevel {
-    HealthyJob,
-    ErrorCount(u8),
-}
+use anyhow::{anyhow, Result};
+use tokio::task::JoinSet;
 
 pub struct Scheduler {
-    kind: SchedulerKind,
-    interval_secs: u32,
-    error_level: ErrorLevel,
-    max_error_count: u8,
+    job_list: Vec<SchedulableJob>
 }
 
-impl Scheduler {
-    pub fn new(kind: SchedulerKind, interval_secs: u32, max_error_count: u8) -> Self {
-        Self {
-            kind,
-            interval_secs,
-            error_level: ErrorLevel::HealthyJob,
+pub struct SchedulableJob{
+    job: Box<dyn Job>,
+    error_count: u32,
+    max_error_count: u32,
+}
+
+impl SchedulableJob {
+    pub fn new(job: Box<dyn Job>, max_error_count: u32) -> SchedulableJob {
+        SchedulableJob {
+            job,
+            error_count: 0,
             max_error_count,
         }
     }
+}
 
-    pub async fn run<F, Fut, E>(&mut self, job: F)
-    where
-        F: Fn() -> Fut,
-        Fut: std::future::Future<Output = Result<(), E>>,
-        E: std::error::Error + 'static,
-    {
-        let duration = Duration::from_secs(self.interval_secs as u64);
-        let mut interval = time::interval(duration);
-        // skip if the execution took too long or other issues
-        interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+impl Scheduler {
+    pub fn new(job_list: Vec<SchedulableJob>) -> Scheduler {
+        Scheduler{job_list}
+    }
 
-        info!(
+    pub fn add_job(&mut self, job: SchedulableJob){
+        self.job_list.push(job);
+    }
+
+    pub async fn start_jobs_blocking(&mut self) -> Result<()> {
+        if self.job_list.is_empty() {
+            return Err(anyhow!("Job list is empty"));
+        }
+
+        let mut set = JoinSet::new();
+        for job in self.job_list.drain(..) {
+            set.spawn(run(job));
+        }
+
+        // if one job fails or returns then the match triggers
+        while let Some(res) = set.join_next().await {
+            match res {
+                Ok(Ok(())) => continue,
+                Ok(Err(e)) => {
+                    set.abort_all();
+                    return Err(e);
+                }
+                Err(join_err) => {
+                    set.abort_all();
+                    return Err(anyhow!("job task panicked: {join_err}"));
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+async fn run(mut schedulable_job: SchedulableJob) -> Result<()>{
+    let job = &schedulable_job.job;
+    log::info!(
             "Scheduler [{}] starting, running every {}s",
-            self.kind.as_str(),
-            self.interval_secs
+            job.name(),
+            job.schedule_time().as_seconds_f64()
         );
 
-        loop {
-            interval.tick().await;
+    let duration = Duration::from_secs_f64(job.schedule_time().as_seconds_f64());
+    let mut interval = time::interval(duration);
+    interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
-            // check over the polled state if the job should be running
-            if !self.kind.is_enabled().await {
-                info!("Scheduler [{}] paused, skipping tick", self.kind.as_str());
-                continue;
+    loop {
+        interval.tick().await;
+
+        // run the job and wait on the result
+        match time::timeout(duration, job.run()).await {
+            Ok(Ok(_)) => {
+                log::info!("Job: {} run successfully.", job.name());
+                schedulable_job.error_count = 0;
             }
-
-            let name = self.kind.as_str();
-            // run the job and wait on the result
-            match time::timeout(duration, job()).await {
-                Ok(Ok(())) => match self.error_level {
-                    ErrorLevel::ErrorCount(_) => {
-                        self.reset_error_count();
-                        info!("Scheduler [{}] job succeeded after error", name);
-                    }
-                    ErrorLevel::HealthyJob => {}
-                },
-                Ok(Err(e)) => {
-                    error!("Scheduler [{}] job failed: {}", name, e);
-                    // handle the error from the job
-                    // first reference as a dynamic Any. Then try do downcast it to a collection error
-                    if let Some(collection_error) =
-                        (&e as &dyn std::any::Any).downcast_ref::<CollectionError>()
-                    {
-                        // increase the error count
-                        self.increment_error_count();
-
-                        if self.error_level == ErrorLevel::ErrorCount(self.max_error_count) {
-                            // if the container socket is unavailable then just
-                            // stop this job and not exit in a whole
-                            if matches!(
-                                collection_error,
-                                CollectionError::ContainerSocketUnavailable(_)
-                            ) {
-                                warn!(
-                                    "Scheduler [{}] container socket unavailable, stopping job",
-                                    name
-                                );
-                                return;
-                            }
-
-                            // exit the application if it is another error
-                            panic!(
-                                "Scheduler [{}] max error count reached: {}. The last error was: {}",
-                                name, self.max_error_count, collection_error
-                            );
-                        }
-                    } else {
-                        error!("Another error occurred during a collection run: {}", e);
-                    }
+            Ok(Err(e)) => {
+                log::error!("Scheduler [{}] job failed: {}", job.name(), e);
+                schedulable_job.error_count += 1;
+                if schedulable_job.error_count >= schedulable_job.max_error_count {
+                    return Err(anyhow!(
+                        "job [{}] reached max error count ({}), terminating: {e}",
+                        job.name(),
+                        schedulable_job.max_error_count
+                    ));
                 }
-                Err(_) => {
-                    // executes when the job takes too long
-                    error!(
-                        "Scheduler [{}] job exceeded interval ({}s), cancelled.
-                        You may need to increase the metrics collection interval.",
-                        name, self.interval_secs
-                    );
+            }
+            Err(_) => {
+                // executes when the job takes too long
+                log::error!("Scheduler [{}] job timed out after {:?}", job.name(), duration);
+                schedulable_job.error_count += 1;
+                if schedulable_job.error_count >= schedulable_job.max_error_count {
+                    return Err(anyhow!(
+                        "job [{}] reached max error count ({}), terminating: timed out after {:?}",
+                        job.name(),
+                        schedulable_job.max_error_count,
+                        duration
+                    ));
                 }
             }
         }
-    }
-
-    fn increment_error_count(&mut self) {
-        match self.error_level {
-            ErrorLevel::HealthyJob => {
-                self.error_level = ErrorLevel::ErrorCount(1);
-            }
-            ErrorLevel::ErrorCount(count) if count < 255 => {
-                self.error_level = ErrorLevel::ErrorCount(count + 1);
-            }
-            _ => {}
-        }
-    }
-
-    fn reset_error_count(&mut self) {
-        self.error_level = ErrorLevel::HealthyJob;
     }
 }
