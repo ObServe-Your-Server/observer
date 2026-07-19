@@ -7,7 +7,7 @@ edition = "2024"
 unused = "allow"
 
 [[bin]]
-name = "observer_client"
+name = "observer-client"
 path = "src/main.rs"
 
 [dev-dependencies]

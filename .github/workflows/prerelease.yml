@@ -40,15 +40,15 @@ jobs:
           rustup target add aarch64-unknown-linux-musl
 
       - name: Build x86_64 binary
-        run: cargo zigbuild --release -p observer-client --bin observer --target x86_64-unknown-linux-musl
+        run: cargo zigbuild --release -p observer-client --bin observer-client --target x86_64-unknown-linux-musl
 
       - name: Build aarch64 binary (Raspberry Pi 3/4/5, 64-bit)
-        run: cargo zigbuild --release -p observer-client --bin observer --target aarch64-unknown-linux-musl
+        run: cargo zigbuild --release -p observer-client --bin observer-client --target aarch64-unknown-linux-musl
 
       - name: Rename binaries with arch suffix
         run: |
-          cp target/x86_64-unknown-linux-musl/release/observer target/observer-x86_64
-          cp target/aarch64-unknown-linux-musl/release/observer target/observer-aarch64
+          cp target/x86_64-unknown-linux-musl/release/observer-client target/observer-x86_64
+          cp target/aarch64-unknown-linux-musl/release/observer-client target/observer-aarch64
 
       - name: Create GitHub Prerelease
         uses: softprops/action-gh-release@v2
