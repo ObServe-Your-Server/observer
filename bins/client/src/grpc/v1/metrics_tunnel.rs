@@ -307,7 +307,7 @@ impl MetricsTunnel {
                 return Ok(());
             }
         };
-        request.metadata_mut().insert("api_key", api_key);
+        request.metadata_mut().insert("x-api-key", api_key);
 
         // open the bidi stream — server sends MetricsRequest, we send MetricsResponse back.
         // Non-retryable statuses (bad/expired api key etc.) are propagated so the

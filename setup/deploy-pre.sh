@@ -15,17 +15,19 @@ fi
 #   1. The binary is pulled from the latest prerelease tag (e.g. v1.2.8-pre.1)
 #      instead of the latest stable release.
 #
-#   2. The four metrics/commands/docker/notifier URLs are ALWAYS overwritten
-#      to the staging endpoints below — even when updating an existing install.
+#   2. base_server_url / base_notifier_url are ALWAYS overwritten to the
+#      staging endpoints below — even when updating an existing install.
 #      This prevents a staging machine from accidentally pointing at production.
 #
-# To adjust timeouts or intervals, just change the defaults in the section
-# marked "STAGING ENDPOINTS & DEFAULTS" below.
+# Config values are NOT loaded from a previously installed config (except the
+# API key, which is reused if present). Everything else defaults to the
+# values below, which mirror the repo's observer.toml.
 # ─────────────────────────────────────────────────────────────────────────────
 
 REPO="ObServe-Your-Server/observer"
 CONFIG_DIR="/etc/observer"
 CONFIG_PATH="$CONFIG_DIR/observer.toml"
+DATA_DIR="/var/lib/observer"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # INIT SYSTEM DETECTION
@@ -88,21 +90,20 @@ svc_status() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ENDPOINTS & DEFAULTS
-# The four URL values are always written to the config, regardless of what
-# was there before — this is intentional (see note 2 above).
+# STAGING ENDPOINTS & DEFAULTS
+# Mirrors the repo's observer.toml. The two URL values are always written to
+# the config, regardless of what was there before (see note 2 above).
 # ─────────────────────────────────────────────────────────────────────────────
 
-STAGING_METRICS_URL="https://watch-tower.observe.vision/v1/ingest"
-STAGING_COMMANDS_URL="https://watch-tower.observe.vision/v1/commands"
-STAGING_DOCKER_URL="https://watch-tower.observe.vision/v1/ingest/docker"
-STAGING_NOTIFIER_URL="https://watch-tower.observe.vision/v1/ingest/notification"
+STAGING_BASE_SERVER_URL="https://grpc-watch-tower-dev.observe.vision:42042"
+STAGING_BASE_NOTIFIER_URL="none"
 
+DEFAULT_DB_PATH="$DATA_DIR/observer.db"
+DEFAULT_METRICS_RETENTION_HOURS="24"
 DEFAULT_METRIC_SECS="5"
-DEFAULT_COMMAND_POLL_SECS="10"
-DEFAULT_SPEEDTEST_SECS="600"
-DEFAULT_DOCKER_SECS="10"
+DEFAULT_SPEEDTEST_SECS="300"
 DEFAULT_ENABLE_DOCKER_SOCKET="true"
+DEFAULT_DOCKER_SECS="10"
 
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -132,6 +133,24 @@ ask_optional() {
     REPLY="${REPLY:-$default}"
 }
 
+# Yes/no prompt. Sets REPLY_YES to "true" or "false".
+ask_yes_no() {
+    local label="$1"
+    local default="$2" # "y" or "n"
+    local hint="y/N"
+    [ "$default" = "y" ] && hint="Y/n"
+    while true; do
+        printf "%s [%s]: " "$label" "$hint" >&2
+        IFS= read -r REPLY </dev/tty
+        REPLY="${REPLY:-$default}"
+        case "$REPLY" in
+            y|Y|yes|Yes) REPLY_YES="true"; break ;;
+            n|N|no|No)   REPLY_YES="false"; break ;;
+            *) echo "  Please answer y or n." >&2 ;;
+        esac
+    done
+}
+
 echo "=== Observer Prerelease Installer ===" >&2
 echo "" >&2
 
@@ -141,7 +160,7 @@ DEFAULT_API_KEY=""
 if [ -f "$CONFIG_PATH" ]; then
     echo "Observer is already installed." >&2
     echo "" >&2
-    echo "  u  Update binary only (keep current config, except URLs — those are always overwritten)" >&2
+    echo "  u  Update binary only (keep current config, URLs are always reset)" >&2
     echo "  c  Update config and binary" >&2
     echo "  x  Uninstall" >&2
     echo "  n  Cancel" >&2
@@ -167,59 +186,62 @@ if [ -f "$CONFIG_PATH" ]; then
         rm -f /etc/init.d/observer
         rm -f "$CONFIG_PATH"
         rmdir "$CONFIG_DIR" 2>/dev/null || true
-        echo "Observer uninstalled." >&2
+        echo "Observer uninstalled. Data in $DATA_DIR was left untouched." >&2
         exit 0
     fi
 
-    # Load existing config values as defaults for the interval/key fields.
-    # Note: URL fields are intentionally NOT loaded — they are always reset
-    # to the staging endpoints defined above.
-    prefill_str() {
-        local val
-        val=$(grep "$1" "$CONFIG_PATH" | sed 's/.*= "\(.*\)"/\1/')
-        [ -n "$val" ] && echo "$val" || echo "$2"
-    }
-    prefill_num() {
-        local val
-        val=$(grep "$1" "$CONFIG_PATH" | sed 's/[^0-9]*\([0-9]*\).*/\1/')
-        [ -n "$val" ] && echo "$val" || echo "$2"
-    }
-    prefill_bool() {
-        local val
-        val=$(grep "$1" "$CONFIG_PATH" | grep -o 'true\|false')
-        [ -n "$val" ] && echo "$val" || echo "$2"
-    }
-
-    DEFAULT_API_KEY=$(prefill_str 'api_key' "$DEFAULT_API_KEY")
-    DEFAULT_METRIC_SECS=$(prefill_num 'metric_secs' "$DEFAULT_METRIC_SECS")
-    DEFAULT_COMMAND_POLL_SECS=$(prefill_num 'command_poll_secs' "$DEFAULT_COMMAND_POLL_SECS")
-    DEFAULT_SPEEDTEST_SECS=$(prefill_num 'speedtest_secs' "$DEFAULT_SPEEDTEST_SECS")
-    DEFAULT_DOCKER_SECS=$(prefill_num 'docker_secs' "$DEFAULT_DOCKER_SECS")
-    DEFAULT_ENABLE_DOCKER_SOCKET=$(prefill_bool 'enable_docker_socket' "$DEFAULT_ENABLE_DOCKER_SOCKET")
+    # Only the API key is reused from an existing install. Every other value
+    # (URLs, database location, retention, intervals, docker) is re-derived
+    # from the defaults below, not from whatever is currently on disk.
+    DEFAULT_API_KEY=$(grep 'api_key' "$CONFIG_PATH" | sed 's/.*= "\(.*\)"/\1/')
 fi
 
 if [ "$MODE" = "full" ]; then
     echo "Press Enter to accept the default shown in brackets." >&2
     echo "" >&2
 
+    echo "Paste your API key below." >&2
     ask_required "API key" "$DEFAULT_API_KEY"
     API_KEY="$REPLY"
+    echo "" >&2
 
-    ask_optional "Metric send interval in seconds (2-60)" "$DEFAULT_METRIC_SECS"
-    METRIC_SECS="$REPLY"
+    echo "Default database location: $DEFAULT_DB_PATH (SQLite)" >&2
+    ask_yes_no "Use a custom absolute path instead?" "n"
+    if [ "$REPLY_YES" = "true" ]; then
+        while true; do
+            ask_required "Absolute path to database file" "$DEFAULT_DB_PATH"
+            case "$REPLY" in
+                /*) DB_PATH="$REPLY"; break ;;
+                *) echo "  Path must be absolute (start with /)." >&2 ;;
+            esac
+        done
+    else
+        DB_PATH="$DEFAULT_DB_PATH"
+    fi
+    DATABASE_URL="sqlite://$DB_PATH?mode=rwc"
+    echo "" >&2
 
-    ask_optional "Command poll interval in seconds (2-60)" "$DEFAULT_COMMAND_POLL_SECS"
-    COMMAND_POLL_SECS="$REPLY"
+    ask_optional "Metrics retention time in hours" "$DEFAULT_METRICS_RETENTION_HOURS"
+    METRICS_RETENTION_HOURS="$REPLY"
+    echo "" >&2
 
-    ask_optional "Speedtest interval in seconds (60-86400)" "$DEFAULT_SPEEDTEST_SECS"
-    SPEEDTEST_SECS="$REPLY"
+    if [ -S /var/run/docker.sock ] || [ -S /run/docker.sock ]; then
+        echo "Detected a Docker socket on this system." >&2
+        DOCKER_DEFAULT="y"
+    else
+        echo "No Docker socket was detected on this system." >&2
+        DOCKER_DEFAULT="n"
+    fi
+    echo "Note: if Docker monitoring is enabled but no Docker socket is found at runtime, Observer will terminate." >&2
+    ask_yes_no "Is a Docker socket running that Observer should monitor?" "$DOCKER_DEFAULT"
+    ENABLE_DOCKER_SOCKET="$REPLY_YES"
+    echo "" >&2
 
-    ask_optional "Docker metric interval in seconds (10-60)" "$DEFAULT_DOCKER_SECS"
-    DOCKER_SECS="$REPLY"
-
-    ask_optional "Enable Docker socket monitoring (true/false)" "$DEFAULT_ENABLE_DOCKER_SOCKET"
-    ENABLE_DOCKER_SOCKET="$REPLY"
-
+    echo "Using default server URL:          $STAGING_BASE_SERVER_URL" >&2
+    echo "Using default notifier URL:        $STAGING_BASE_NOTIFIER_URL" >&2
+    echo "Using default metric interval:     ${DEFAULT_METRIC_SECS}s" >&2
+    echo "Using default speedtest interval:  ${DEFAULT_SPEEDTEST_SECS}s" >&2
+    echo "Using default docker interval:     ${DEFAULT_DOCKER_SECS}s" >&2
     echo "" >&2
 fi
 
@@ -272,20 +294,20 @@ fi
 if [ "$MODE" = "full" ]; then
     echo "Writing config to $CONFIG_PATH..." >&2
     mkdir -p "$CONFIG_DIR"
+    mkdir -p "$(dirname "$DB_PATH")"
     cat > "$CONFIG_PATH" <<EOF
 [server]
-base_metrics_url  = "$STAGING_METRICS_URL"
-base_commands_url = "$STAGING_COMMANDS_URL"
-base_docker_url   = "$STAGING_DOCKER_URL"
-base_notifier_url = "$STAGING_NOTIFIER_URL"
+base_server_url   = "$STAGING_BASE_SERVER_URL"
+base_notifier_url = "$STAGING_BASE_NOTIFIER_URL"
+database_url      = "$DATABASE_URL"
 api_key           = "$API_KEY"
+metrics_retention_time_hours = $METRICS_RETENTION_HOURS
 
 [intervals]
-metric_secs          = $METRIC_SECS
-command_poll_secs    = $COMMAND_POLL_SECS
-speedtest_secs       = $SPEEDTEST_SECS
-enable_docker_socket = $ENABLE_DOCKER_SOCKET
-docker_secs          = $DOCKER_SECS
+metric_secs           = $DEFAULT_METRIC_SECS
+speedtest_secs         = $DEFAULT_SPEEDTEST_SECS
+enable_docker_socket   = $ENABLE_DOCKER_SOCKET
+docker_secs            = $DEFAULT_DOCKER_SECS
 EOF
     chmod 600 "$CONFIG_PATH"
 fi
@@ -293,10 +315,8 @@ fi
 # update_only: rewrite only the URL fields, leave everything else untouched
 if [ "$MODE" = "update_only" ]; then
     echo "Updating staging URLs in existing config..." >&2
-    sed -i "s|base_metrics_url.*|base_metrics_url  = \"$STAGING_METRICS_URL\"|" "$CONFIG_PATH"
-    sed -i "s|base_commands_url.*|base_commands_url = \"$STAGING_COMMANDS_URL\"|" "$CONFIG_PATH"
-    sed -i "s|base_docker_url.*|base_docker_url   = \"$STAGING_DOCKER_URL\"|" "$CONFIG_PATH"
-    sed -i "s|base_notifier_url.*|base_notifier_url = \"$STAGING_NOTIFIER_URL\"|" "$CONFIG_PATH"
+    sed -i "s|base_server_url.*|base_server_url   = \"$STAGING_BASE_SERVER_URL\"|" "$CONFIG_PATH"
+    sed -i "s|base_notifier_url.*|base_notifier_url = \"$STAGING_BASE_NOTIFIER_URL\"|" "$CONFIG_PATH"
 fi
 
 echo "Enabling and starting observer service..." >&2

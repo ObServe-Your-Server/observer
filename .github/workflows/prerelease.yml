@@ -3,7 +3,7 @@ name: Prerelease
 on:
   push:
     tags:
-      - "v*-*"
+      - "v*-pre*"
 
 jobs:
   test:
@@ -12,7 +12,7 @@ jobs:
     container: rust:latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Run tests
         run: cargo test --workspace
@@ -26,7 +26,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install build tools
         run: apt-get update && apt-get install -y musl-tools pkg-config python3-pip && pip3 install ziglang --break-system-packages
@@ -40,10 +40,10 @@ jobs:
           rustup target add aarch64-unknown-linux-musl
 
       - name: Build x86_64 binary
-        run: cargo zigbuild --release --bin observer --target x86_64-unknown-linux-musl
+        run: cargo zigbuild --release -p observer-client --bin observer --target x86_64-unknown-linux-musl
 
       - name: Build aarch64 binary (Raspberry Pi 3/4/5, 64-bit)
-        run: cargo zigbuild --release --bin observer --target aarch64-unknown-linux-musl
+        run: cargo zigbuild --release -p observer-client --bin observer --target aarch64-unknown-linux-musl
 
       - name: Rename binaries with arch suffix
         run: |
