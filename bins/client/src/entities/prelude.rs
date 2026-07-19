@@ -4,6 +4,7 @@ pub use super::container_runtime_stats::Entity as ContainerRuntimeStats;
 pub use super::container_stats::Entity as ContainerStats;
 pub use super::cpu_core_stats::Entity as CpuCoreStats;
 pub use super::cpu_stats::Entity as CpuStats;
+pub use super::disk_entry::Entity as DiskEntry;
 pub use super::disk_stats::Entity as DiskStats;
 pub use super::memory_stats::Entity as MemoryStats;
 pub use super::network_stats::Entity as NetworkStats;

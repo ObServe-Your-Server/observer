@@ -1,13 +1,13 @@
 //! Converts SeaORM entity models (as stored in the DB) into the proto metric types.
 
 use crate::entities::{
-    container_runtime_stats, container_stats, cpu_core_stats, cpu_stats, disk_stats,
+    container_runtime_stats, container_stats, cpu_core_stats, cpu_stats, disk_entry, disk_stats,
     memory_stats, network_stats, process_stats, processes_stats, speedtest_stats, system_stats,
 };
 use crate::grpc::v1::metrics::{
-    ContainerRuntimeStats, ContainerStats, CoreMetrics, CpuMetrics, DiskMetrics, MemoryMetrics,
-    NetworkMetrics, ProcessStats, ProcessStatsKind, ProcessesStats, SpeedtestMetrics,
-    SystemMetrics,
+    ContainerRuntimeStats, ContainerStats, CoreMetrics, CpuMetrics, DiskEntry, DiskMetrics,
+    MemoryMetrics, NetworkMetrics, ProcessStats, ProcessStatsKind, ProcessesStats,
+    SpeedtestMetrics, SystemMetrics,
 };
 
 fn to_timestamp(time: chrono::DateTime<chrono::FixedOffset>) -> prost_types::Timestamp {
@@ -60,6 +60,14 @@ pub fn disk_metrics(disk: disk_stats::Model) -> DiskMetrics {
         available_blocks: disk.available_blocks as u64,
         block_size: disk.block_size as u64,
         collected_at: Some(to_timestamp(disk.collected_at)),
+    }
+}
+
+pub fn disk_entry(row: (disk_entry::Model, Vec<disk_stats::Model>)) -> DiskEntry {
+    let (entry, disks) = row;
+    DiskEntry {
+        disks: disks.into_iter().map(disk_metrics).collect(),
+        collected_at: Some(to_timestamp(entry.collected_at)),
     }
 }
 

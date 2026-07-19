@@ -84,7 +84,7 @@ async fn build_response(request: &MetricsRequest, storage_engine: &StorageEngine
             };
             match rows {
                 Ok(rows) => Some(MetricsResponseKind::DiskMetrics(DiskMetricsList {
-                    items: rows.into_iter().map(metrics_mapping::disk_metrics).collect(),
+                    items: rows.into_iter().map(metrics_mapping::disk_entry).collect(),
                 })),
                 Err(e) => {
                     log::error!("failed to query disk stats: {e}");
@@ -205,7 +205,7 @@ async fn build_response(request: &MetricsRequest, storage_engine: &StorageEngine
                     items: memory.unwrap_or_default().into_iter().map(metrics_mapping::memory_metrics).collect(),
                 }),
                 disk_metrics: Some(DiskMetricsList {
-                    items: disks.unwrap_or_default().into_iter().map(metrics_mapping::disk_metrics).collect(),
+                    items: disks.unwrap_or_default().into_iter().map(metrics_mapping::disk_entry).collect(),
                 }),
                 network_metrics: Some(NetworkMetricsList {
                     items: network.unwrap_or_default().into_iter().map(metrics_mapping::network_metrics).collect(),

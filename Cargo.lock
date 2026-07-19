@@ -2202,7 +2202,7 @@ dependencies = [
  "env_logger",
  "futures-util",
  "log",
- "nix 0.31.2",
+ "nix 0.31.3",
  "reqwest",
  "serde",
  "serde_json",

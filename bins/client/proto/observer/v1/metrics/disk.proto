@@ -4,6 +4,12 @@ package observer.v1.metrics;
 
 import "google/protobuf/timestamp.proto";
 
+// A single collection pass, covering every disk observed on the host at that time.
+message DiskEntry {
+  repeated DiskMetrics disks = 1;
+  google.protobuf.Timestamp collected_at = 2;
+}
+
 message DiskMetrics {
   string name = 1;
   uint64 total_bytes = 2;

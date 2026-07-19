@@ -7,6 +7,7 @@ use sea_orm::entity::prelude::*;
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i64,
+    pub disk_entry_id: i64,
     pub name: String,
     pub total_bytes: i64,
     pub used_bytes: i64,
@@ -18,6 +19,21 @@ pub struct Model {
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::disk_entry::Entity",
+        from = "Column::DiskEntryId",
+        to = "super::disk_entry::Column::Id",
+        on_update = "NoAction",
+        on_delete = "Cascade"
+    )]
+    DiskEntry,
+}
+
+impl Related<super::disk_entry::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::DiskEntry.def()
+    }
+}
 
 impl ActiveModelBehavior for ActiveModel {}

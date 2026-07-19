@@ -64,7 +64,7 @@ message MemoryMetricsList {
 }
 
 message DiskMetricsList {
-  repeated observer.v1.metrics.DiskMetrics items = 1;
+  repeated observer.v1.metrics.DiskEntry items = 1;
 }
 
 message NetworkMetricsList {
