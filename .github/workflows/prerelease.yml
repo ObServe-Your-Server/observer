@@ -8,19 +8,12 @@ on:
 jobs:
   test:
     name: Run tests
-    runs-on: [observe-runner]
-    container: rust:latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Run tests
-        run: cargo test --workspace
+    uses: ./.github/workflows/test.yml
 
   build:
     name: Build and publish prerelease
     needs: test
-    runs-on: [observe-runner]
+    runs-on: self-hosted
     container: rust:latest
     permissions:
       contents: write
