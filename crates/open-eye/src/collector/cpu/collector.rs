@@ -1,7 +1,7 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use sysinfo::{Components, Cpu, System};
+use sysinfo::{Components, Cpu, RefreshKind, System};
 use crate::collector::DataCreationTime;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -42,7 +42,7 @@ impl CpuStats {
     /// assert!(stats.cpu_usage_percent >= 0.0 && stats.cpu_usage_percent <= 100.0);
     /// ```
     pub fn get_current_stats() -> CpuStats {
-        let mut sys = System::new_all();
+        let mut sys = System::new_with_specifics(RefreshKind::nothing());
         sys.refresh_cpu_all();
         std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL + Duration::from_millis(200));
         sys.refresh_cpu_all();

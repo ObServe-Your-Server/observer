@@ -1,6 +1,6 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use sysinfo::System;
+use sysinfo::{RefreshKind, System};
 use crate::collector::DataCreationTime;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -22,7 +22,7 @@ impl DataCreationTime for MemoryStats {
 
 impl MemoryStats {
     pub fn get_current_stats() -> MemoryStats {
-        let mut sys = System::new_all();
+        let mut sys = System::new_with_specifics(RefreshKind::nothing());
         sys.refresh_memory();
 
         MemoryStats {
