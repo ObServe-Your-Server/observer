@@ -28,11 +28,13 @@ impl StorageEngine {
 
     pub async fn connect_to_db_and_migrate(self) -> Result<Self> {
         let mut opt = ConnectOptions::new(self.database_path.clone());
-        opt.max_connections(100)
-            .min_connections(5)
+        // SQLite serializes writes, so a large pool buys no throughput but costs
+        // ~2MB page cache + lookaside + statement cache per open connection.
+        opt.max_connections(5)
+            .min_connections(1)
             .connect_timeout(Duration::from_secs(8))
             .acquire_timeout(Duration::from_secs(8))
-            .idle_timeout(Duration::from_secs(600))
+            .idle_timeout(Duration::from_secs(60))
             .max_lifetime(Duration::from_secs(1800))
             .sqlx_logging(false) // disable SQLx logging
             .sqlx_logging_level(log::LevelFilter::Info);

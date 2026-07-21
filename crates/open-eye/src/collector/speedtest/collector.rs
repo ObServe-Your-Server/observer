@@ -1,10 +1,11 @@
+use bytes::Bytes;
 use futures_util::StreamExt;
 use log::{debug, info};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::sync::{
     atomic::{AtomicBool, AtomicU64, Ordering},
-    Arc,
+    Arc, LazyLock,
 };
 use std::time::{Duration, Instant};
 use chrono::Utc;
@@ -22,6 +23,11 @@ const WARMUP_SECS: u64 = 4;
 const MEASURE_SECS: u64 = 8;
 
 const UPLOAD_CHUNK: usize = 10_000_000; // 10 MB per POST
+
+// Allocated once for the whole process; `Bytes::clone` is zero-copy, so every
+// POST across all streams shares this one buffer instead of allocating 10 MB
+// each — repeated large allocations fragment the heap and ratchet RSS upward.
+static UPLOAD_PAYLOAD: LazyLock<Bytes> = LazyLock::new(|| Bytes::from(vec![0u8; UPLOAD_CHUNK]));
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -134,7 +140,7 @@ async fn upload_stream(
         if stop.load(Ordering::Relaxed) {
             return;
         }
-        let payload = vec![0u8; UPLOAD_CHUNK];
+        let payload = UPLOAD_PAYLOAD.clone();
         let len = payload.len() as u64;
         match client
             .post(UPLOAD_URL)
