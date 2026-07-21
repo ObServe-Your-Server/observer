@@ -146,20 +146,20 @@ impl BaseMetricCollectionJob {
                 NotificationType::CPU,
                 Severity::HIGH,
                 "CPU",
-                format!("Cpu usage is high: {:.1} % avg", cpu_usage_avg),
+                format!("Cpu usage is high: {:.1}% avg", cpu_usage_avg),
             ).await?;
         } else if cpu_usage_avg >= 80.0 {
             self.try_send_notification(
                 NotificationType::CPU,
                 Severity::MEDIUM,
                 "CPU",
-                format!("Cpu usage is high: {:.1} % avg", cpu_usage_avg),
+                format!("Cpu usage is high: {:.1}% avg", cpu_usage_avg),
             ).await?;
         } else {
             self.clear_notification(
                 NotificationType::CPU,
                 "CPU",
-                format!("Cpu usage is back to normal: {:.1} % avg", cpu_usage_avg),
+                format!("Cpu usage is back to normal: {:.1}% avg", cpu_usage_avg),
             ).await?;
         }
 
