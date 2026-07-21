@@ -15,9 +15,10 @@ fi
 #   1. The binary is pulled from the latest prerelease tag (e.g. v1.2.8-pre.1)
 #      instead of the latest stable release.
 #
-#   2. base_server_url / base_notifier_url are ALWAYS overwritten to the
-#      staging endpoints below — even when updating an existing install.
-#      This prevents a staging machine from accidentally pointing at production.
+#   2. base_server_grpc_url / base_server_http_url / push_notification_url are
+#      ALWAYS overwritten to the staging endpoints below — even when updating
+#      an existing install. This prevents a staging machine from accidentally
+#      pointing at production.
 #
 # Config values are NOT loaded from a previously installed config (except the
 # API key, which is reused if present). Everything else defaults to the
@@ -91,12 +92,13 @@ svc_status() {
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STAGING ENDPOINTS & DEFAULTS
-# Mirrors the repo's observer.toml. The two URL values are always written to
+# Mirrors the repo's observer.toml. The three URL values are always written to
 # the config, regardless of what was there before (see note 2 above).
 # ─────────────────────────────────────────────────────────────────────────────
 
-STAGING_BASE_SERVER_URL="https://grpc-watch-tower-dev.observe.vision:42042"
-STAGING_BASE_NOTIFIER_URL="none"
+STAGING_BASE_SERVER_GRPC_URL="https://grpc-watch-tower-dev.observe.vision:42042"
+STAGING_BASE_SERVER_HTTP_URL="https://watch-tower-dev.observe.vision"
+STAGING_PUSH_NOTIFICATION_URL="https://watch-tower-dev.observe.vision/notifications"
 
 DEFAULT_DB_PATH="$DATA_DIR/observer.db"
 DEFAULT_METRICS_RETENTION_HOURS="24"
@@ -104,6 +106,9 @@ DEFAULT_METRIC_SECS="5"
 DEFAULT_SPEEDTEST_SECS="300"
 DEFAULT_ENABLE_DOCKER_SOCKET="true"
 DEFAULT_DOCKER_SECS="10"
+DEFAULT_CPU_NOTIFICATION_COOLDOWN="300"      # 5 minutes
+DEFAULT_MEMORY_NOTIFICATION_COOLDOWN="43200" # 12 hours
+DEFAULT_DISK_NOTIFICATION_COOLDOWN="604800"  # 1 week
 
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -237,11 +242,15 @@ if [ "$MODE" = "full" ]; then
     ENABLE_DOCKER_SOCKET="$REPLY_YES"
     echo "" >&2
 
-    echo "Using default server URL:          $STAGING_BASE_SERVER_URL" >&2
-    echo "Using default notifier URL:        $STAGING_BASE_NOTIFIER_URL" >&2
+    echo "Using default gRPC server URL:     $STAGING_BASE_SERVER_GRPC_URL" >&2
+    echo "Using default HTTP server URL:     $STAGING_BASE_SERVER_HTTP_URL" >&2
+    echo "Using default push notification URL: $STAGING_PUSH_NOTIFICATION_URL" >&2
     echo "Using default metric interval:     ${DEFAULT_METRIC_SECS}s" >&2
     echo "Using default speedtest interval:  ${DEFAULT_SPEEDTEST_SECS}s" >&2
     echo "Using default docker interval:     ${DEFAULT_DOCKER_SECS}s" >&2
+    echo "Using default CPU notification cooldown:    ${DEFAULT_CPU_NOTIFICATION_COOLDOWN}s" >&2
+    echo "Using default memory notification cooldown: ${DEFAULT_MEMORY_NOTIFICATION_COOLDOWN}s" >&2
+    echo "Using default disk notification cooldown:   ${DEFAULT_DISK_NOTIFICATION_COOLDOWN}s" >&2
     echo "" >&2
 fi
 
@@ -297,10 +306,11 @@ if [ "$MODE" = "full" ]; then
     mkdir -p "$(dirname "$DB_PATH")"
     cat > "$CONFIG_PATH" <<EOF
 [server]
-base_server_url   = "$STAGING_BASE_SERVER_URL"
-base_notifier_url = "$STAGING_BASE_NOTIFIER_URL"
-database_url      = "$DATABASE_URL"
-api_key           = "$API_KEY"
+base_server_grpc_url  = "$STAGING_BASE_SERVER_GRPC_URL"
+base_server_http_url  = "$STAGING_BASE_SERVER_HTTP_URL"
+push_notification_url = "$STAGING_PUSH_NOTIFICATION_URL"
+database_url           = "$DATABASE_URL"
+api_key                = "$API_KEY"
 metrics_retention_time_hours = $METRICS_RETENTION_HOURS
 
 [intervals]
@@ -308,6 +318,9 @@ metric_secs           = $DEFAULT_METRIC_SECS
 speedtest_secs         = $DEFAULT_SPEEDTEST_SECS
 enable_docker_socket   = $ENABLE_DOCKER_SOCKET
 docker_secs            = $DEFAULT_DOCKER_SECS
+cpu_notification_cooldown    = $DEFAULT_CPU_NOTIFICATION_COOLDOWN
+memory_notification_cooldown = $DEFAULT_MEMORY_NOTIFICATION_COOLDOWN
+disk_notification_cooldown   = $DEFAULT_DISK_NOTIFICATION_COOLDOWN
 EOF
     chmod 600 "$CONFIG_PATH"
 fi
@@ -315,8 +328,9 @@ fi
 # update_only: rewrite only the URL fields, leave everything else untouched
 if [ "$MODE" = "update_only" ]; then
     echo "Updating staging URLs in existing config..." >&2
-    sed -i "s|base_server_url.*|base_server_url   = \"$STAGING_BASE_SERVER_URL\"|" "$CONFIG_PATH"
-    sed -i "s|base_notifier_url.*|base_notifier_url = \"$STAGING_BASE_NOTIFIER_URL\"|" "$CONFIG_PATH"
+    sed -i "s|base_server_grpc_url.*|base_server_grpc_url  = \"$STAGING_BASE_SERVER_GRPC_URL\"|" "$CONFIG_PATH"
+    sed -i "s|base_server_http_url.*|base_server_http_url  = \"$STAGING_BASE_SERVER_HTTP_URL\"|" "$CONFIG_PATH"
+    sed -i "s|push_notification_url.*|push_notification_url = \"$STAGING_PUSH_NOTIFICATION_URL\"|" "$CONFIG_PATH"
 fi
 
 echo "Enabling and starting observer service..." >&2

@@ -21,7 +21,8 @@ struct TomlConfig {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct ServerConfig {
-    pub base_server_url: String,
+    pub base_server_grpc_url: String,
+    pub base_server_http_url: String,
     pub push_notification_url: String,
     pub database_url: String,
     pub api_key: String,
@@ -106,7 +107,8 @@ mod tests {
     fn valid_toml() -> &'static str {
         r#"
 [server]
-base_server_url       = "http://localhost:"
+base_server_grpc_url  = "http://localhost:"
+base_server_http_url  = "http://localhost:"
 push_notification_url = "http://localhost:8080/v1/ingest/notifier"
 database_url          = "sqlite://test.db"
 api_key               = "test-key"
@@ -133,7 +135,7 @@ disk_notification_cooldown   = 900
     fn test_load_valid_config() {
         let f = write_temp(valid_toml());
         let config = load_config(f.path().to_str().unwrap()).unwrap();
-        assert_eq!(config.server.base_server_url, "http://localhost:");
+        assert_eq!(config.server.base_server_grpc_url, "http://localhost:");
         assert_eq!(config.intervals.metric_secs, 5);
         assert_eq!(config.intervals.speedtest_secs, 3600);
         assert_eq!(config.server.metrics_retention_time_hours, 24);

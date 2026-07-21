@@ -44,7 +44,7 @@ impl SchedulingMaster {
         let speedtest_stats_collection_job = SchedulableJob::new(Box::new(speedtest_stats_collection_job), 5);
             
         let metrics_tunnel = MetricsTunnel::new(
-            config.server.base_server_url.as_str(),
+            config.server.base_server_grpc_url.as_str(),
             config.server.api_key.clone(),
             Arc::clone(&storage_engine),
         );
@@ -100,13 +100,23 @@ impl SchedulingMaster {
             }
         }
 
-        // whichever of the two terminates first (cleanly or not) brings the whole process down
+        // whichever terminates first (cleanly, via signal, or not) brings the whole process down
         tokio::select! {
             _ = scheduler_handle => {
                 log::error!("scheduler terminated, shutting down");
             }
             _ = metrics_tunnel_handle => {
                 log::error!("metrics tunnel terminated, shutting down");
+            }
+            _ = Self::watch_for_termination() => {
+                log::info!("termination signal received, shutting down");
+                match notification_handler.send_push_notification(&PushNotification {
+                    title: "Shutdown".to_string(),
+                    body: "Observer client is shutting down.".to_string(),
+                }).await {
+                    Ok(_) => log::info!("Shutdown message sent successfully"),
+                    Err(_) => log::error!("Failed to send shutdown message"),
+                }
             }
         }
         std::process::exit(1);
@@ -115,7 +125,7 @@ impl SchedulingMaster {
     async fn pull_machine_name(config: &Config) -> anyhow::Result<String> {
         let client = Client::new();
 
-        let res = client.post(format!("{}/machines/machine-name-over-api-key", config.server.base_server_url))
+        let res = client.get(format!("{}/machines/machine-name-over-api-key", config.server.base_server_http_url))
             .header("X-Api-Key", &config.server.api_key)
             .send()
             .await?;
@@ -123,6 +133,20 @@ impl SchedulingMaster {
         match res.status() {
             StatusCode::OK => Ok(res.text().await?),
             status => Err(anyhow!("Failed to pull machine name: {}", status)),
+        }
+    }
+
+    /// Resolves once SIGTERM or SIGINT is received. Can be awaited on its own
+    /// or raced against other futures (e.g. inside a `tokio::select!`).
+    pub async fn watch_for_termination() {
+        use tokio::signal::unix::{signal, SignalKind};
+
+        let mut sigterm = signal(SignalKind::terminate()).expect("failed to register SIGTERM handler");
+        let mut sigint = signal(SignalKind::interrupt()).expect("failed to register SIGINT handler");
+
+        tokio::select! {
+            _ = sigterm.recv() => log::info!("received SIGTERM"),
+            _ = sigint.recv() => log::info!("received SIGINT"),
         }
     }
 }

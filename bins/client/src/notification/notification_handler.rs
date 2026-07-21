@@ -39,7 +39,7 @@ impl NotificationHandler {
         let client = Client::new();
 
         let push_notification = PushNotification{
-            title: format!("{}: {}",self.machine_name, push_notification.body),
+            title: format!("{}: {}",self.machine_name, push_notification.title),
             body: push_notification.body.clone(),
         };
 
