@@ -22,7 +22,7 @@ struct TomlConfig {
 #[serde(rename_all = "snake_case")]
 pub struct ServerConfig {
     pub base_server_url: String,
-    pub base_notifier_url: String,
+    pub push_notification_url: String,
     pub database_url: String,
     pub api_key: String,
     pub metrics_retention_time_hours: u64,
@@ -35,6 +35,9 @@ pub struct IntervalsConfig {
     pub speedtest_secs: u32,
     pub enable_docker_socket: bool,
     pub docker_secs: u16,
+    pub cpu_notification_cooldown: u32,
+    pub memory_notification_cooldown: u32,
+    pub disk_notification_cooldown: u32,
 }
 
 static CONFIG: OnceLock<Config> = OnceLock::new();
@@ -103,10 +106,10 @@ mod tests {
     fn valid_toml() -> &'static str {
         r#"
 [server]
-base_server_url   = "http://localhost:"
-base_notifier_url = "http://localhost:8080/v1/ingest/notifier"
-database_url      = "sqlite://test.db"
-api_key           = "test-key"
+base_server_url       = "http://localhost:"
+push_notification_url = "http://localhost:8080/v1/ingest/notifier"
+database_url          = "sqlite://test.db"
+api_key               = "test-key"
 metrics_retention_time_hours = 24
 
 [intervals]
@@ -114,6 +117,9 @@ metric_secs          = 5
 speedtest_secs       = 3600
 enable_docker_socket = true
 docker_secs          = 10
+cpu_notification_cooldown    = 900
+memory_notification_cooldown = 900
+disk_notification_cooldown   = 900
 "#
     }
 
