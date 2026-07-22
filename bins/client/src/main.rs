@@ -1,4 +1,8 @@
 use log::{error, info};
+use mimalloc::MiMalloc;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 
 use observer_client::config::init_config;
 use observer_client::logging::init_logging;
