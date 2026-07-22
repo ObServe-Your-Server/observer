@@ -39,9 +39,9 @@ impl SchedulingMaster {
         let base_metric_collection_job = BaseMetricCollectionJob::new(Arc::clone(&storage_engine), base_metric_collection_job_schedule_time, notification_handler.clone(), notification_cooldowns);
         let base_metric_collection_job = SchedulableJob::new(Box::new(base_metric_collection_job), 10);
         
-        let speedtest_stats_collection_job_schedule_time = Duration::seconds(config.intervals.speedtest_secs as i64);
+        /*let speedtest_stats_collection_job_schedule_time = Duration::seconds(config.intervals.speedtest_secs as i64);
         let speedtest_stats_collection_job = SpeedtestStatsCollectionJob::new(Arc::clone(&storage_engine), speedtest_stats_collection_job_schedule_time);
-        let speedtest_stats_collection_job = SchedulableJob::new(Box::new(speedtest_stats_collection_job), 5);
+        let speedtest_stats_collection_job = SchedulableJob::new(Box::new(speedtest_stats_collection_job), 5);*/
             
         let metrics_tunnel = MetricsTunnel::new(
             config.server.base_server_grpc_url.as_str(),
@@ -50,7 +50,7 @@ impl SchedulingMaster {
         );
 
         // -------------- first add essential jobs --------------
-        let mut scheduler = Scheduler::new(vec![data_cleanup_job, base_metric_collection_job, speedtest_stats_collection_job]);
+        let mut scheduler = Scheduler::new(vec![data_cleanup_job, base_metric_collection_job]);
 
         // -------------- addons like container stats --------------
         if config.intervals.enable_docker_socket {
