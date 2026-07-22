@@ -1,6 +1,6 @@
 [package]
 name = "observer-client"
-version = "2.0.5-pre"
+version = "2.0.6-pre"
 edition = "2024"
 
 [lints.rust]
@@ -17,6 +17,12 @@ tokio-stream = { version = "0.1", features = ["net"] }
 #[[bench]]
 #name = "storage_engine"
 #harness = false
+
+[target.'cfg(target_env = "musl")'.dependencies]
+# "override" exports malloc/free symbols so C code (bundled SQLite) also uses
+# mimalloc instead of musl's fragmenting malloc; #[global_allocator] alone only
+# covers Rust allocations
+mimalloc = { version = "0.1", features = ["override"] }
 
 [dependencies]
 mimalloc = "0.1"# replaces musl's malloc, which fragments badly under multithreaded tokio workloads
