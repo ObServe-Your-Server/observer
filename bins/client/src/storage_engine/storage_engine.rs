@@ -1,26 +1,29 @@
-use std::sync::OnceLock;
-use std::time::Duration;
-use sea_orm::{ActiveValue::Set, ColumnTrait, ConnectOptions, Database, DatabaseConnection, DbErr, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
-use anyhow::{anyhow, Result};
-use chrono::{DateTime, Utc};
-use migration::{Migrator, MigratorTrait};
-use open_eye::collector::container_runtime::collector::{ContainerRuntime, ContainerRuntimeStats};
-use open_eye::collector::speedtest::collector::SpeedtestResult;
+use crate::entities::cpu_stats::ActiveModel;
 use crate::entities::{
     container_runtime_stats, container_stats, cpu_core_stats, cpu_stats, disk_entry, disk_stats,
     memory_stats, network_stats, process_stats, processes_stats, speedtest_stats, system_stats,
 };
-use crate::entities::cpu_stats::ActiveModel;
 use crate::jobs::base_metric_collection_job::BaseMetrics;
+use anyhow::{Result, anyhow};
+use chrono::{DateTime, Utc};
+use migration::{Migrator, MigratorTrait};
+use open_eye::collector::container_runtime::collector::{ContainerRuntime, ContainerRuntimeStats};
+use open_eye::collector::speedtest::collector::SpeedtestResult;
+use sea_orm::{
+    ActiveValue::Set, ColumnTrait, ConnectOptions, Database, DatabaseConnection, EntityTrait,
+    QueryFilter, QueryOrder, QuerySelect,
+};
+use std::sync::OnceLock;
+use std::time::Duration;
 
-pub struct StorageEngine{
+pub struct StorageEngine {
     database_path: String,
     db: OnceLock<DatabaseConnection>,
 }
 
 impl StorageEngine {
     pub fn new(database_path: String) -> StorageEngine {
-        StorageEngine{
+        StorageEngine {
             database_path,
             db: OnceLock::new(),
         }
@@ -30,7 +33,7 @@ impl StorageEngine {
         let mut opt = ConnectOptions::new(self.database_path.clone());
         // SQLite serializes writes, so a large pool buys no throughput but costs
         // ~2MB page cache + lookaside + statement cache per open connection.
-        opt.max_connections(5)
+        opt.max_connections(8)
             .min_connections(1)
             .connect_timeout(Duration::from_secs(8))
             .acquire_timeout(Duration::from_secs(8))
@@ -43,30 +46,48 @@ impl StorageEngine {
         let db_conn = Database::connect(opt).await?;
 
         Migrator::up(&db_conn, None).await?;
-        self.db.set(db_conn).map_err(|_| anyhow!("database connection already set"))?;
+        self.db
+            .set(db_conn)
+            .map_err(|_| anyhow!("database connection already set"))?;
         log::debug!("Connected and migrated db at: {}", &self.database_path);
         Ok(self)
     }
 
     fn db(&self) -> Result<&DatabaseConnection> {
-        self.db.get().ok_or_else(|| anyhow!("database connection not initialized"))
+        self.db
+            .get()
+            .ok_or_else(|| anyhow!("database connection not initialized"))
     }
 
-    pub async fn cleanup_job(&self, clean_older_than: DateTime<Utc>) -> Result<()>{
+    pub async fn cleanup_job(&self, clean_older_than: DateTime<Utc>) -> Result<()> {
         let db = self
             .db
             .get()
             .ok_or_else(|| anyhow!("database connection not initialized"))?;
 
-        // independent deletes, no shared state between them, so run them concurrently
+        // no independent deletes to take load of connections
         // cpu_core_stats/disk_stats rows cascade-delete via the FK's on_delete = "Cascade"
-        tokio::try_join!(
-            cpu_stats::Entity::delete_many().filter(cpu_stats::Column::CollectedAt.lt(clean_older_than)).exec(db),
-            memory_stats::Entity::delete_many().filter(memory_stats::Column::CollectedAt.lt(clean_older_than)).exec(db),
-            disk_entry::Entity::delete_many().filter(disk_entry::Column::CollectedAt.lt(clean_older_than)).exec(db),
-            network_stats::Entity::delete_many().filter(network_stats::Column::CollectedAt.lt(clean_older_than)).exec(db),
-            system_stats::Entity::delete_many().filter(system_stats::Column::CollectedAt.lt(clean_older_than)).exec(db),
-        )?;
+
+        cpu_stats::Entity::delete_many()
+            .filter(cpu_stats::Column::CollectedAt.lt(clean_older_than))
+            .exec(db)
+            .await?;
+        memory_stats::Entity::delete_many()
+            .filter(memory_stats::Column::CollectedAt.lt(clean_older_than))
+            .exec(db)
+            .await?;
+        disk_entry::Entity::delete_many()
+            .filter(disk_entry::Column::CollectedAt.lt(clean_older_than))
+            .exec(db)
+            .await?;
+        network_stats::Entity::delete_many()
+            .filter(network_stats::Column::CollectedAt.lt(clean_older_than))
+            .exec(db)
+            .await?;
+        system_stats::Entity::delete_many()
+            .filter(system_stats::Column::CollectedAt.lt(clean_older_than))
+            .exec(db)
+            .await?;
 
         Ok(())
     }
@@ -168,16 +189,23 @@ impl StorageEngine {
         Ok(())
     }
 
-    pub async fn save_container_runtime_stats_to_db(&self, container_runtime_stats: ContainerRuntimeStats) -> Result<()> {
+    pub async fn save_container_runtime_stats_to_db(
+        &self,
+        container_runtime_stats: ContainerRuntimeStats,
+    ) -> Result<()> {
         let db = self.db()?;
         let model = container_runtime_stats::ActiveModel {
             collected_at: Set(container_runtime_stats.collected_at.into()),
             ..Default::default()
         };
-        let inserted_container_runtime = container_runtime_stats::Entity::insert(model).exec(db).await?;
+        let inserted_container_runtime = container_runtime_stats::Entity::insert(model)
+            .exec(db)
+            .await?;
 
-        let models: Vec<container_stats::ActiveModel> = container_runtime_stats.container_stats.into_iter().map(|c|{
-            container_stats::ActiveModel{
+        let models: Vec<container_stats::ActiveModel> = container_runtime_stats
+            .container_stats
+            .into_iter()
+            .map(|c| container_stats::ActiveModel {
                 container_runtime_stats_id: Set(inserted_container_runtime.last_insert_id),
                 container_runtime: Set(c.container_runtime.to_string()),
                 container_id: Set(c.id),
@@ -192,8 +220,8 @@ impl StorageEngine {
                 memory_usage_bytes: Set(c.memory_usage_bytes as i64),
                 collected_at: Set(c.collected_at.into()),
                 ..Default::default()
-            }
-        }).collect();
+            })
+            .collect();
 
         for model in models {
             container_stats::Entity::insert(model).exec(db).await?;
@@ -439,7 +467,10 @@ impl StorageEngine {
         Ok(rows)
     }
 
-    pub async fn get_speedtest_stats_latest(&self, last_n: u64) -> Result<Vec<speedtest_stats::Model>> {
+    pub async fn get_speedtest_stats_latest(
+        &self,
+        last_n: u64,
+    ) -> Result<Vec<speedtest_stats::Model>> {
         let db = self.db()?;
         let mut rows = speedtest_stats::Entity::find()
             .order_by_desc(speedtest_stats::Column::CollectedAt)
