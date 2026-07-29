@@ -457,12 +457,18 @@ impl StorageEngine {
         last_n: u64,
     ) -> Result<Vec<(container_runtime_stats::Model, Vec<container_stats::Model>)>> {
         let db = self.db()?;
-        let mut rows = container_runtime_stats::Entity::find()
+
+        let latest_ids: Vec<i64> = container_runtime_stats::Entity::find()
             .order_by_desc(container_runtime_stats::Column::CollectedAt)
-            .limit(last_n)
+            .limit(last_n).all(db).await?
+            .into_iter()
+            .map(|e| e.id).collect();
+
+        let mut rows = container_runtime_stats::Entity::find()
+            .filter(container_runtime_stats::Column::Id.is_in(latest_ids))
+            .order_by_desc(container_runtime_stats::Column::CollectedAt)
             .find_with_related(container_stats::Entity)
-            .all(db)
-            .await?;
+            .all(db).await?;
         rows.reverse();
         Ok(rows)
     }
