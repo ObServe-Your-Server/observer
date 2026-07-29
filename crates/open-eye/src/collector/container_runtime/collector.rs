@@ -248,16 +248,20 @@ pub async fn get_current_stats() -> Result<Option<ContainerRuntimeStats>> {
             .await?;
         debug!("Collected summaries");
 
-        let mut container_stats_collected = Vec::new();
-        for summary in summaries {
-            let stats = build_container_stats_from_summary(
-                summary,
-                &containers_api,
-                container_runtime.clone(),
-            )
+        let mut container_stats_collected: Vec<ContainerStats> = futures_util::stream::iter(summaries)
+            .map(|summary| {
+                let containers_api = &containers_api;
+                let container_runtime = container_runtime.clone();
+                async move {
+                    build_container_stats_from_summary(summary, containers_api, container_runtime)
+                        .await
+                }
+            })
+            .buffer_unordered(8)
+            .collect()
             .await;
+        for stats in &container_stats_collected {
             debug!("Pushing container stats for {}", stats.host_name);
-            container_stats_collected.push(stats);
         }
         all_container_stats.append(&mut container_stats_collected);
     }
