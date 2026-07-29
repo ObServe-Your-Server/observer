@@ -33,7 +33,7 @@ impl StorageEngine {
         let mut opt = ConnectOptions::new(self.database_path.clone());
         // SQLite serializes writes, so a large pool buys no throughput but costs
         // ~2MB page cache + lookaside + statement cache per open connection.
-        opt.max_connections(8)
+        opt.max_connections(12)
             .min_connections(1)
             .connect_timeout(Duration::from_secs(8))
             .acquire_timeout(Duration::from_secs(8))
