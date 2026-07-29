@@ -1,7 +1,12 @@
 # Observer
 
-Observer is a lightweight Rust agent that collects metrics and streams them to Watch-Tower, our backend.
-For Questions or our community please join our [Discord](https://discord.gg/Xnh7nKdsnM) server and ask questions there. 
+Observer is a lightweight Rust agent that collects metrics from your machine and stores them 
+locally. You can connect our iOS application to your client to visualize different host metrics.
+Currently, we are working on a web-interface which you will be able to selfhost and use either 
+alongside the iOS applicaiton or standalone.
+
+For Questions or our community please join our [Discord](https://discord.gg/Xnh7nKdsnM) server. 
+You are more than welcome, and we always search for interested people.
 
 ## What it monitors
 
