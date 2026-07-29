@@ -11,6 +11,7 @@ use std::{
     fmt,
     time::{SystemTime, UNIX_EPOCH},
 };
+use nix::libc::stat;
 
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct ContainerRuntimeStats {
@@ -241,9 +242,11 @@ pub async fn get_current_stats() -> Result<Option<ContainerRuntimeStats>> {
 
         debug!("Listing containers...");
         let containers_api = docker.containers();
+        debug!("Collecting summaries...");
         let summaries = containers_api
             .list(&ContainerListOpts::builder().all(true).build())
             .await?;
+        debug!("Collected summaries");
 
         let mut container_stats_collected = Vec::new();
         for summary in summaries {
@@ -253,6 +256,7 @@ pub async fn get_current_stats() -> Result<Option<ContainerRuntimeStats>> {
                 container_runtime.clone(),
             )
             .await;
+            debug!("Pushing container stats for {}", stats.host_name);
             container_stats_collected.push(stats);
         }
         all_container_stats.append(&mut container_stats_collected);
