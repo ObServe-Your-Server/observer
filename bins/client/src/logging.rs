@@ -29,6 +29,7 @@ pub fn init_logging() {
 
     env_logger::Builder::new()
         .filter(Some("observer"), level)
+        .filter(Some("open_eye"), level)
         .init();
 
     debug!("Logging initialized at level: {}", level);
