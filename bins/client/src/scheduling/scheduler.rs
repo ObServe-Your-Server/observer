@@ -1,7 +1,7 @@
 use crate::scheduling::job::Job;
 use chrono::{DateTime, Utc};
 use std::sync::OnceLock;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use tokio::time;
 use tokio::time::MissedTickBehavior;
@@ -78,17 +78,21 @@ async fn run(mut schedulable_job: SchedulableJob) -> Result<()>{
     let mut interval = time::interval(duration);
     interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
+    let mut timer: Instant;
     loop {
         interval.tick().await;
+
+        // reset the timer
+        timer = Instant::now();
 
         // run the job and wait on the result
         match time::timeout(duration, job.run()).await {
             Ok(Ok(_)) => {
-                log::info!("Job: {} run successfully.", job.name());
+                log::info!("Job: {} run successfully. Duration: {:.3}s", job.name(), timer.elapsed().as_secs_f32());
                 schedulable_job.error_count = 0;
             }
             Ok(Err(e)) => {
-                log::error!("Scheduler [{}] job failed: {}", job.name(), e);
+                log::error!("Scheduler [{}] job failed: {} after {:.3}s", job.name(), e, timer.elapsed().as_secs_f32());
                 schedulable_job.error_count += 1;
                 if schedulable_job.error_count >= schedulable_job.max_error_count {
                     return Err(anyhow!(
