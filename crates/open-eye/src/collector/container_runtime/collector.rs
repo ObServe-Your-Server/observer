@@ -260,9 +260,9 @@ pub async fn get_current_stats() -> Result<Option<ContainerRuntimeStats>> {
             .buffer_unordered(8)
             .collect()
             .await;
-        debug!("Container vec: {:#?}", all_container_stats);
         all_container_stats.append(&mut container_stats_collected);
     }
+    debug!("Container vec: {:#?}", all_container_stats);
 
     if all_container_stats.is_empty() {
         Ok(None)
