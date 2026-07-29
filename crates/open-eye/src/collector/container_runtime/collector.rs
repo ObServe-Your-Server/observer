@@ -260,9 +260,7 @@ pub async fn get_current_stats() -> Result<Option<ContainerRuntimeStats>> {
             .buffer_unordered(8)
             .collect()
             .await;
-        for stats in &container_stats_collected {
-            debug!("Pushing container stats for {}", stats.host_name);
-        }
+        debug!("Container vec: {:#?}", all_container_stats);
         all_container_stats.append(&mut container_stats_collected);
     }
 
