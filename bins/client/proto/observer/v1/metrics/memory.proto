@@ -4,6 +4,13 @@ package observer.v1.metrics;
 
 import "google/protobuf/timestamp.proto";
 
+// request
+message MemoryRequest {}
+
+// response
+message MemoryResponse {
+  repeated MemoryMetrics items = 1;
+}
 
 message MemoryMetrics {
   uint64 total_bytes = 1;

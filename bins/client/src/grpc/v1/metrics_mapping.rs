@@ -5,7 +5,7 @@ use crate::entities::{
     memory_stats, network_stats, process_stats, processes_stats, speedtest_stats, system_stats,
 };
 use crate::grpc::v1::metrics::{
-    ContainerRuntimeStats, ContainerStats, CoreMetrics, CpuMetrics, DiskEntry, DiskMetrics,
+    ContainerMetrics, ContainerRuntimeMetrics, CoreMetrics, CpuMetrics, DiskEntry, DiskMetrics,
     MemoryMetrics, NetworkMetrics, ProcessStats, ProcessStatsKind, ProcessesStats,
     SpeedtestMetrics, SystemMetrics,
 };
@@ -130,14 +130,14 @@ pub fn container_runtime_stats(
         container_runtime_stats::Model,
         Vec<container_stats::Model>,
     ),
-) -> ContainerRuntimeStats {
+) -> ContainerRuntimeMetrics {
     let (runtime, containers) = row;
-    ContainerRuntimeStats {
+    ContainerRuntimeMetrics {
         containers: containers
             .into_iter()
-            .map(|container| ContainerStats {
+            .map(|container| ContainerMetrics {
                 container_runtime: container.container_runtime,
-                id: container.container_id,
+                container_id: container.container_id,
                 host_name: container.host_name,
                 created_at: container.created_at,
                 status: container.status,

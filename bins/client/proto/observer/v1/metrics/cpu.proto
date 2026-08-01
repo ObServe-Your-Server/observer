@@ -4,6 +4,12 @@ package observer.v1.metrics;
 
 import "google/protobuf/timestamp.proto";
 
+message CpuRequest {}
+
+message CpuResponse {
+  repeated CpuMetrics items = 1;
+}
+
 message CpuMetrics {
   string name = 1;
   uint32 count = 2;

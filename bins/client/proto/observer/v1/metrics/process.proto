@@ -4,6 +4,16 @@ package observer.v1.metrics;
 
 import "google/protobuf/timestamp.proto";
 
+// request
+message ProcessRequest {
+  int32 number_of_processes = 1;
+}
+
+// response
+message ProcessResponse {
+  repeated ProcessesStats items = 1;
+}
+
 message ProcessesStats {
   repeated ProcessStats top_cpu = 1;
   repeated ProcessStats top_memory = 2;

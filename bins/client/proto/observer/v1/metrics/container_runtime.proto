@@ -4,14 +4,45 @@ package observer.v1.metrics;
 
 import "google/protobuf/timestamp.proto";
 
-message ContainerRuntimeStats {
-  repeated ContainerStats containers = 1;
+// request
+message GetFullMetrics {}
+message GetOneContainerMetrics {
+  string container_id = 1;
+}
+
+message ContainerRuntimeRequest {
+  oneof message_type {
+    GetFullMetrics full_metrics = 1;
+    GetOneContainerMetrics one_container_metrics = 2;
+  }
+}
+
+// response
+message ContainerRuntimeResponse {
+  oneof response {
+    ContainerRuntimeMetricsList container_runtime_metrics_list = 1;
+    ContainerMetricsList container_metrics_list = 2;
+  }
+}
+
+message ContainerMetricsList {
+  repeated ContainerMetrics container_metrics = 1;
+}
+
+// one run grouped together
+message ContainerRuntimeMetricsList {
+  repeated ContainerRuntimeMetrics items = 1;
+}
+
+// one run of collected metrics
+message ContainerRuntimeMetrics {
+  repeated ContainerMetrics containers = 1;
   google.protobuf.Timestamp collected_at = 2;
 }
 
-message ContainerStats {
+message ContainerMetrics {
   string container_runtime = 1;
-  string id = 2;
+  string container_id = 2;
   string host_name = 3;
   int64 created_at = 4;
   string status = 5;

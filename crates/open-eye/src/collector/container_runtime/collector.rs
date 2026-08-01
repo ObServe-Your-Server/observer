@@ -192,6 +192,7 @@ async fn build_container_stats_from_summary(
     let (cpu_usage_percent, memory_usage_bytes) = if running {
         let mut stream = container.stats();
         let next = stream.next().await;
+        //println!("Container stats: {:#?}", next);
         if let Some(Ok(snapshot)) = next {
             let mem = snapshot["memory_stats"]["usage"].as_u64().unwrap_or(0);
             let cpu = parse_cpu_percent(snapshot);
@@ -239,6 +240,8 @@ pub async fn get_current_stats() -> Result<Option<ContainerRuntimeStats>> {
         debug!("Sending ping...");
         docker.ping().await?;
         debug!("Ping succeeded");
+
+        println!("{:#?}", docker.info().await);
 
         debug!("Listing containers...");
         let containers_api = docker.containers();

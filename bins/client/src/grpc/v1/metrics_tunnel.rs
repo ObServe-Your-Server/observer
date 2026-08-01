@@ -1,12 +1,14 @@
-use crate::grpc::v1::metrics_mapping;
+use crate::grpc::v1::{FullRequest, MetricsRequest, MetricsResponse};
+use crate::grpc::v1::metrics_request::RequestedMetric as RequestKind;
 use crate::grpc::v1::metrics_request::Query as MetricsRequestQuery;
-use crate::grpc::v1::metrics_response::Response as MetricsResponseKind;
+use crate::grpc::v1::metrics::container_runtime_request::MessageType as ContainerRequestKind;
 use crate::grpc::v1::metrics_tunnel_client::MetricsTunnelClient;
-use crate::grpc::v1::{
-    ContainerRuntimeStatsList, CpuMetricsList, DiskMetricsList, FullMetrics, MemoryMetricsList,
-    MetricsRequest, MetricsResponse, MetricsType, NetworkMetricsList, ProcessesStatsList,
-    SpeedtestMetricsList, SystemMetricsList,
+use crate::grpc::v1::response_builder::{
+    build_container_runtime_response, build_cpu_response, build_disk_response,
+    build_full_response, build_memory_response, build_network_response, build_process_response,
+    build_speedtest_response, build_system_response,
 };
+
 use crate::storage_engine::storage_engine::StorageEngine;
 use chrono::{DateTime, TimeZone, Utc};
 use std::sync::Arc;
@@ -19,7 +21,8 @@ use tonic::{metadata::MetadataValue, transport::ClientTlsConfig, Request};
 
 /// Which slice of history a request wants: an inclusive `[start, end]` time
 /// range, or just the most recent `n` entries.
-enum QueryRange {
+#[derive(Clone, Copy, Debug)]
+pub enum QueryRange {
     Between(DateTime<Utc>, DateTime<Utc>),
     LastN(u64),
 }
@@ -38,197 +41,46 @@ impl QueryRange {
     }
 }
 
-/// Builds the `MetricsResponse` for `request` by querying `storage_engine`
-/// according to `request.query` (a time range or "last n entries") and
-/// mapping the rows onto the matching proto list type. Query failures are
-/// logged and result in an empty `response` rather than dropping the connection.
-async fn build_response(request: &MetricsRequest, storage_engine: &StorageEngine) -> MetricsResponse {
-    let request_type = MetricsType::try_from(request.r#type).unwrap_or(MetricsType::Full);
+/// Dispatches `request` to the builder for the metric it names. A request that
+/// names none is treated as asking for everything. Build failures are logged
+/// and answered with an unset `returned_metric` rather than dropping the connection.
+async fn build_response(request: &MetricsRequest, storage_engine: Arc<StorageEngine>) -> MetricsResponse {
+    let fallback = RequestKind::FullRequest(FullRequest {});
+    let requested_metric = request.requested_metric.as_ref().unwrap_or(&fallback);
     let range = QueryRange::from_request(request);
 
-    let response = match request_type {
-        MetricsType::Cpu => {
-            let rows = match &range {
-                QueryRange::Between(start, end) => storage_engine.get_cpu_stats_between(*start, *end).await,
-                QueryRange::LastN(n) => storage_engine.get_cpu_stats_latest(*n).await,
-            };
-            match rows {
-                Ok(rows) => Some(MetricsResponseKind::CpuMetrics(CpuMetricsList {
-                    items: rows.into_iter().map(metrics_mapping::cpu_metrics).collect(),
-                })),
-                Err(e) => {
-                    log::error!("failed to query cpu stats: {e}");
-                    None
-                }
-            }
+    let built = match requested_metric {
+        RequestKind::CpuRequest(_) => build_cpu_response(range, storage_engine).await,
+        RequestKind::MemoryRequest(_) => build_memory_response(range, storage_engine).await,
+        RequestKind::DiskRequest(_) => build_disk_response(range, storage_engine).await,
+        RequestKind::NetworkRequest(_) => build_network_response(range, storage_engine).await,
+        RequestKind::SystemRequest(_) => build_system_response(range, storage_engine).await,
+        RequestKind::SpeedtestRequest(_) => build_speedtest_response(range, storage_engine).await,
+        RequestKind::ProcessRequest(req) => {
+            build_process_response(range, req.number_of_processes, storage_engine).await
         }
-        MetricsType::Memory => {
-            let rows = match &range {
-                QueryRange::Between(start, end) => storage_engine.get_memory_stats_between(*start, *end).await,
-                QueryRange::LastN(n) => storage_engine.get_memory_stats_latest(*n).await,
+        RequestKind::ContainerRuntimeRequest(req) => {
+            // an unset message_type means "every run", same as GetFullMetrics
+            let container_id = match req.message_type.as_ref() {
+                Some(ContainerRequestKind::OneContainerMetrics(one)) => Some(one.container_id.as_str()),
+                Some(ContainerRequestKind::FullMetrics(_)) | None => None,
             };
-            match rows {
-                Ok(rows) => Some(MetricsResponseKind::MemoryMetrics(MemoryMetricsList {
-                    items: rows.into_iter().map(metrics_mapping::memory_metrics).collect(),
-                })),
-                Err(e) => {
-                    log::error!("failed to query memory stats: {e}");
-                    None
-                }
-            }
+            build_container_runtime_response(range, container_id, storage_engine).await
         }
-        MetricsType::Disk => {
-            let rows = match &range {
-                QueryRange::Between(start, end) => storage_engine.get_disk_stats_between(*start, *end).await,
-                QueryRange::LastN(n) => storage_engine.get_disk_stats_latest(*n).await,
-            };
-            match rows {
-                Ok(rows) => Some(MetricsResponseKind::DiskMetrics(DiskMetricsList {
-                    items: rows.into_iter().map(metrics_mapping::disk_entry).collect(),
-                })),
-                Err(e) => {
-                    log::error!("failed to query disk stats: {e}");
-                    None
-                }
-            }
-        }
-        MetricsType::Network => {
-            let rows = match &range {
-                QueryRange::Between(start, end) => storage_engine.get_network_stats_between(*start, *end).await,
-                QueryRange::LastN(n) => storage_engine.get_network_stats_latest(*n).await,
-            };
-            match rows {
-                Ok(rows) => Some(MetricsResponseKind::NetworkMetrics(NetworkMetricsList {
-                    items: rows.into_iter().map(metrics_mapping::network_metrics).collect(),
-                })),
-                Err(e) => {
-                    log::error!("failed to query network stats: {e}");
-                    None
-                }
-            }
-        }
-        MetricsType::System => {
-            let rows = match &range {
-                QueryRange::Between(start, end) => storage_engine.get_system_stats_between(*start, *end).await,
-                QueryRange::LastN(n) => storage_engine.get_system_stats_latest(*n).await,
-            };
-            match rows {
-                Ok(rows) => Some(MetricsResponseKind::SystemMetrics(SystemMetricsList {
-                    items: rows.into_iter().map(metrics_mapping::system_metrics).collect(),
-                })),
-                Err(e) => {
-                    log::error!("failed to query system stats: {e}");
-                    None
-                }
-            }
-        }
-        MetricsType::Process => {
-            let rows = match &range {
-                QueryRange::Between(start, end) => storage_engine.get_processes_stats_between(*start, *end).await,
-                QueryRange::LastN(n) => storage_engine.get_processes_stats_latest(*n).await,
-            };
-            match rows {
-                Ok(rows) => Some(MetricsResponseKind::ProcessMetrics(ProcessesStatsList {
-                    items: rows.into_iter().map(metrics_mapping::processes_stats).collect(),
-                })),
-                Err(e) => {
-                    log::error!("failed to query process stats: {e}");
-                    None
-                }
-            }
-        }
-        MetricsType::Docker => {
-            let rows = match &range {
-                QueryRange::Between(start, end) => {
-                    storage_engine.get_container_runtime_stats_between(*start, *end).await
-                }
-                QueryRange::LastN(n) => storage_engine.get_container_runtime_stats_latest(*n).await,
-            };
-            match rows {
-                Ok(rows) => Some(MetricsResponseKind::ContainerMetrics(ContainerRuntimeStatsList {
-                    items: rows.into_iter().map(metrics_mapping::container_runtime_stats).collect(),
-                })),
-                Err(e) => {
-                    log::error!("failed to query container stats: {e}");
-                    None
-                }
-            }
-        }
-        MetricsType::Speedtest => {
-            let rows = match &range {
-                QueryRange::Between(start, end) => storage_engine.get_speedtest_stats_between(*start, *end).await,
-                QueryRange::LastN(n) => storage_engine.get_speedtest_stats_latest(*n).await,
-            };
-            match rows {
-                Ok(rows) => Some(MetricsResponseKind::SpeedtestMetrics(SpeedtestMetricsList {
-                    items: rows.into_iter().map(metrics_mapping::speedtest_metrics).collect(),
-                })),
-                Err(e) => {
-                    log::error!("failed to query speedtest stats: {e}");
-                    None
-                }
-            }
-        }
-        MetricsType::Full => {
-            let (cpu, memory, disks, network, system, processes, containers, speedtest) = match &range {
-                QueryRange::Between(start, end) => {
-                    tokio::join!(
-                        storage_engine.get_cpu_stats_between(*start, *end),
-                        storage_engine.get_memory_stats_between(*start, *end),
-                        storage_engine.get_disk_stats_between(*start, *end),
-                        storage_engine.get_network_stats_between(*start, *end),
-                        storage_engine.get_system_stats_between(*start, *end),
-                        storage_engine.get_processes_stats_between(*start, *end),
-                        storage_engine.get_container_runtime_stats_between(*start, *end),
-                        storage_engine.get_speedtest_stats_between(*start, *end),
-                    )
-                }
-                QueryRange::LastN(n) => {
-                    tokio::join!(
-                        storage_engine.get_cpu_stats_latest(*n),
-                        storage_engine.get_memory_stats_latest(*n),
-                        storage_engine.get_disk_stats_latest(*n),
-                        storage_engine.get_network_stats_latest(*n),
-                        storage_engine.get_system_stats_latest(*n),
-                        storage_engine.get_processes_stats_latest(*n),
-                        storage_engine.get_container_runtime_stats_latest(*n),
-                        storage_engine.get_speedtest_stats_latest(*n),
-                    )
-                }
-            };
+        RequestKind::FullRequest(_) => build_full_response(range, storage_engine).await,
+    };
 
-            Some(MetricsResponseKind::FullMetrics(FullMetrics {
-                cpu_metrics: Some(CpuMetricsList {
-                    items: cpu.unwrap_or_default().into_iter().map(metrics_mapping::cpu_metrics).collect(),
-                }),
-                memory_metrics: Some(MemoryMetricsList {
-                    items: memory.unwrap_or_default().into_iter().map(metrics_mapping::memory_metrics).collect(),
-                }),
-                disk_metrics: Some(DiskMetricsList {
-                    items: disks.unwrap_or_default().into_iter().map(metrics_mapping::disk_entry).collect(),
-                }),
-                network_metrics: Some(NetworkMetricsList {
-                    items: network.unwrap_or_default().into_iter().map(metrics_mapping::network_metrics).collect(),
-                }),
-                system_metrics: Some(SystemMetricsList {
-                    items: system.unwrap_or_default().into_iter().map(metrics_mapping::system_metrics).collect(),
-                }),
-                process_metrics: Some(ProcessesStatsList {
-                    items: processes.unwrap_or_default().into_iter().map(metrics_mapping::processes_stats).collect(),
-                }),
-                container_metrics: Some(ContainerRuntimeStatsList {
-                    items: containers.unwrap_or_default().into_iter().map(metrics_mapping::container_runtime_stats).collect(),
-                }),
-                speedtest_metrics: Some(SpeedtestMetricsList {
-                    items: speedtest.unwrap_or_default().into_iter().map(metrics_mapping::speedtest_metrics).collect(),
-                }),
-            }))
+    let returned_metric = match built {
+        Ok(metric) => Some(metric),
+        Err(e) => {
+            log::error!("failed to build response for request {}: {e}", request.request_id);
+            None
         }
     };
 
     MetricsResponse {
         request_id: request.request_id.clone(),
-        response,
+        returned_metric,
     }
 }
 
@@ -332,7 +184,7 @@ impl MetricsTunnel {
             match result {
                 Ok(req_data) => {
                     log::debug!("received request: {:?}", req_data);
-                    let response = build_response(&req_data, &self.storage_engine).await;
+                    let response = build_response(&req_data, self.storage_engine.clone()).await;
                     if tx.send(response).await.is_err() {
                         log::error!("response channel closed");
                         break;
@@ -452,7 +304,7 @@ mod tests {
         resp_tx
             .send(MetricsResponse {
                 request_id: request_data.request_id.clone(),
-                response: None,
+                returned_metric: None,
             })
             .await
             .expect("failed to send response");

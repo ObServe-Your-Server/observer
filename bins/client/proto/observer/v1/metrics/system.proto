@@ -4,6 +4,14 @@ package observer.v1.metrics;
 
 import "google/protobuf/timestamp.proto";
 
+// request
+message SystemRequest {}
+
+// response
+message SystemResponse {
+  repeated SystemMetrics items = 1;
+}
+
 message SystemMetrics {
   optional string os_name = 1;
   uint64 uptime_seconds = 2;

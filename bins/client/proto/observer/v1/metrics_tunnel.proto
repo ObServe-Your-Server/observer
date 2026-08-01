@@ -11,17 +11,9 @@ import "observer/v1/metrics/process.proto";
 import "observer/v1/metrics/container_runtime.proto";
 import "observer/v1/metrics/speedtest.proto";
 
-enum MetricsType {
-  CPU = 0;
-  MEMORY = 1;
-  DISK = 2;
-  NETWORK = 3;
-  DOCKER = 4;
-  PROCESS = 5;
-  SYSTEM = 6;
-  SPEEDTEST = 7;
-  FULL = 8;
-}
+
+
+message FullRequest {}
 
 message TimeRange {
   // inclusive start of the queried time range, unix timestamp (seconds)
@@ -32,70 +24,56 @@ message TimeRange {
 
 message MetricsRequest {
   string request_id = 1;
-  MetricsType type = 2;
+
+  // which metrics are being asked for
+  oneof requested_metric {
+    observer.v1.metrics.CpuRequest cpu_request = 2;
+    observer.v1.metrics.DiskRequest disk_request = 3;
+    observer.v1.metrics.MemoryRequest memory_request = 4;
+    observer.v1.metrics.NetworkRequest network_request = 5;
+    observer.v1.metrics.ProcessRequest process_request = 6;
+    observer.v1.metrics.SpeedtestRequest speedtest_request = 7;
+    observer.v1.metrics.SystemRequest system_request = 8;
+    observer.v1.metrics.ContainerRuntimeRequest container_runtime_request = 9;
+    FullRequest full_request = 10;
+  }
+
+  // which slice of history to return
   oneof query {
-    TimeRange range = 3;
+    TimeRange range = 11;
     // return only the most recent `last_n` entries, ordered oldest to newest
-    int64 last_n = 4;
+    int64 last_n = 12;
   }
 }
 
 message MetricsResponse {
   string request_id = 1;
-  oneof response {
-    CpuMetricsList cpu_metrics = 2;
-    MemoryMetricsList memory_metrics = 3;
-    DiskMetricsList disk_metrics = 4;
-    NetworkMetricsList network_metrics = 5;
-    SystemMetricsList system_metrics = 6;
-    ProcessesStatsList process_metrics = 7;
-    ContainerRuntimeStatsList container_metrics = 8;
-    SpeedtestMetricsList speedtest_metrics = 9;
-    FullMetrics full_metrics = 10;
+
+  // mirrors the `requested_metric` of the request this answers
+  oneof returned_metric {
+    observer.v1.metrics.CpuResponse cpu_response = 2;
+    observer.v1.metrics.DiskResponse disk_response = 3;
+    observer.v1.metrics.MemoryResponse memory_response = 4;
+    observer.v1.metrics.NetworkResponse network_response = 5;
+    observer.v1.metrics.ProcessResponse process_response = 6;
+    observer.v1.metrics.SpeedtestResponse speedtest_response = 7;
+    observer.v1.metrics.SystemResponse system_response = 8;
+    observer.v1.metrics.ContainerRuntimeResponse container_runtime_response = 9;
+    FullResponse full_response = 10;
   }
 }
 
-message CpuMetricsList {
-  repeated observer.v1.metrics.CpuMetrics items = 1;
-}
-
-message MemoryMetricsList {
-  repeated observer.v1.metrics.MemoryMetrics items = 1;
-}
-
-message DiskMetricsList {
-  repeated observer.v1.metrics.DiskEntry items = 1;
-}
-
-message NetworkMetricsList {
-  repeated observer.v1.metrics.NetworkMetrics items = 1;
-}
-
-message SystemMetricsList {
-  repeated observer.v1.metrics.SystemMetrics items = 1;
-}
-
-message ProcessesStatsList {
-  repeated observer.v1.metrics.ProcessesStats items = 1;
-}
-
-message ContainerRuntimeStatsList {
-  repeated observer.v1.metrics.ContainerRuntimeStats items = 1;
-}
-
-message SpeedtestMetricsList {
-  repeated observer.v1.metrics.SpeedtestMetrics items = 1;
-}
-
-message FullMetrics {
-  CpuMetricsList cpu_metrics = 1;
-  MemoryMetricsList memory_metrics = 2;
-  DiskMetricsList disk_metrics = 3;
-  NetworkMetricsList network_metrics = 4;
-  SystemMetricsList system_metrics = 5;
-  ProcessesStatsList process_metrics = 6;
-  ContainerRuntimeStatsList container_metrics = 7;
-  SpeedtestMetricsList speedtest_metrics = 8;
+// Every metric in one message, for a `FullRequest`. A oneof can only carry a
+// single field, so answering with all of them at once needs its own type.
+message FullResponse {
+  observer.v1.metrics.CpuResponse cpu_response = 1;
+  observer.v1.metrics.DiskResponse disk_response = 2;
+  observer.v1.metrics.MemoryResponse memory_response = 3;
+  observer.v1.metrics.NetworkResponse network_response = 4;
+  observer.v1.metrics.ProcessResponse process_response = 5;
+  observer.v1.metrics.SpeedtestResponse speedtest_response = 6;
+  observer.v1.metrics.SystemResponse system_response = 7;
+  observer.v1.metrics.ContainerRuntimeResponse container_runtime_response = 8;
 }
 
 service MetricsTunnel {

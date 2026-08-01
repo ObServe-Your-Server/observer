@@ -4,6 +4,14 @@ package observer.v1.metrics;
 
 import "google/protobuf/timestamp.proto";
 
+// request
+message NetworkRequest {}
+
+// response
+message NetworkResponse {
+  repeated NetworkMetrics items = 1;
+}
+
 message NetworkMetrics {
   string local_ip = 1;
   uint64 total_bytes_transmitted = 2;

@@ -4,6 +4,14 @@ package observer.v1.metrics;
 
 import "google/protobuf/timestamp.proto";
 
+// request
+message SpeedtestRequest {}
+
+// response
+message SpeedtestResponse {
+  repeated SpeedtestMetrics items = 1;
+}
+
 message SpeedtestMetrics {
   double download_mbps = 1;
   double upload_mbps = 2;
