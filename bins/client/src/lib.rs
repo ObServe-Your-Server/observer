@@ -9,3 +9,6 @@ mod storage_engine;
 pub mod entities;
 pub mod jobs;
 mod notification;
+
+#[cfg(test)]
+mod test_support;

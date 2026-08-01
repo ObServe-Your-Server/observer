@@ -59,6 +59,12 @@ impl StorageEngine {
             .ok_or_else(|| anyhow!("database connection not initialized"))
     }
 
+    // raw connection for tests to seed data
+    #[cfg(test)]
+    pub(crate) fn db_for_tests(&self) -> Result<&DatabaseConnection> {
+        self.db()
+    }
+
     pub async fn cleanup_job(&self, clean_older_than: DateTime<Utc>) -> Result<()> {
         let db = self
             .db

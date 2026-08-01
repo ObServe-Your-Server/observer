@@ -196,11 +196,6 @@ pub async fn build_container_runtime_response(
     ))
 }
 
-/// Runs every per-metric builder concurrently and collects them into a single
-/// `FullResponse`. Each builder returns the `returned_metric` variant it owns,
-/// so filling the struct is just a matter of putting each one in its slot.
-/// A metric whose query fails is logged and left unset rather than failing the
-/// whole response, so one bad table cannot blank out the others.
 pub async fn build_full_response(
     query_time: QueryRange,
     storage_engine: Arc<StorageEngine>,
@@ -243,4 +238,238 @@ pub async fn build_full_response(
     }
 
     Ok(metrics_response::ReturnedMetric::FullResponse(full))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_support::{minutes_ago, TestDb};
+    use metrics_response::ReturnedMetric as R;
+
+    fn all_of_it() -> QueryRange {
+        QueryRange::Between(minutes_ago(60), minutes_ago(0))
+    }
+
+    #[tokio::test]
+    async fn cpu_response_returns_both_seeded_cycles() {
+        let db = TestDb::new().await;
+        db.seed_two_cycles().await;
+
+        let R::CpuResponse(cpu) = build_cpu_response(all_of_it(), db.engine()).await.unwrap()
+        else {
+            panic!("expected a cpu response");
+        };
+
+        assert_eq!(cpu.items.len(), 2, "both seeded cycles should come back");
+        assert_eq!(cpu.items[0].name, "test-cpu");
+        assert_eq!(cpu.items[0].count, 8);
+        assert_eq!(cpu.items[0].cores.len(), 2, "cores are joined onto the cpu row");
+    }
+
+    #[tokio::test]
+    async fn last_n_returns_only_the_newest_cycle() {
+        let db = TestDb::new().await;
+        let (_older, newer) = db.seed_two_cycles().await;
+
+        let R::CpuResponse(cpu) = build_cpu_response(QueryRange::LastN(1), db.engine())
+            .await
+            .unwrap()
+        else {
+            panic!("expected a cpu response");
+        };
+
+        assert_eq!(cpu.items.len(), 1);
+        let collected_at = cpu.items[0].collected_at.as_ref().unwrap();
+        assert_eq!(
+            collected_at.seconds,
+            newer.timestamp(),
+            "last_n should return the newer cycle, not the older one"
+        );
+    }
+
+    #[tokio::test]
+    async fn range_excluding_the_older_cycle_returns_one() {
+        let db = TestDb::new().await;
+        let (older, newer) = db.seed_two_cycles().await;
+
+        // anchored to the seeded timestamps rather than a fresh `now`, so the
+        // boundary lands between the two cycles no matter when the test runs
+        let range = QueryRange::Between(
+            older + chrono::Duration::seconds(1),
+            newer + chrono::Duration::seconds(1),
+        );
+        let R::MemoryResponse(memory) = build_memory_response(range, db.engine()).await.unwrap()
+        else {
+            panic!("expected a memory response");
+        };
+
+        assert_eq!(memory.items.len(), 1);
+        assert_eq!(
+            memory.items[0].collected_at.as_ref().unwrap().seconds,
+            newer.timestamp()
+        );
+    }
+
+    #[tokio::test]
+    async fn empty_database_yields_empty_items_not_an_error() {
+        let db = TestDb::new().await;
+
+        let R::CpuResponse(cpu) = build_cpu_response(all_of_it(), db.engine()).await.unwrap()
+        else {
+            panic!("expected a cpu response");
+        };
+
+        assert!(cpu.items.is_empty());
+    }
+
+    #[tokio::test]
+    async fn disk_network_system_and_speedtest_come_back_populated() {
+        let db = TestDb::new().await;
+        db.seed_two_cycles().await;
+        let engine = db.engine();
+
+        let R::DiskResponse(disk) = build_disk_response(all_of_it(), engine.clone()).await.unwrap()
+        else {
+            panic!("expected a disk response");
+        };
+        assert_eq!(disk.items.len(), 2);
+        assert_eq!(disk.items[0].disks.len(), 1, "one disk per seeded cycle");
+        assert_eq!(disk.items[0].disks[0].name, "/dev/test0");
+
+        let R::NetworkResponse(network) =
+            build_network_response(all_of_it(), engine.clone()).await.unwrap()
+        else {
+            panic!("expected a network response");
+        };
+        assert_eq!(network.items.len(), 2);
+        assert_eq!(network.items[0].local_ip, "192.168.1.10");
+
+        let R::SystemResponse(system) =
+            build_system_response(all_of_it(), engine.clone()).await.unwrap()
+        else {
+            panic!("expected a system response");
+        };
+        assert_eq!(system.items.len(), 2);
+        assert_eq!(system.items[0].host_name.as_deref(), Some("test-host"));
+
+        let R::SpeedtestResponse(speedtest) =
+            build_speedtest_response(all_of_it(), engine).await.unwrap()
+        else {
+            panic!("expected a speedtest response");
+        };
+        assert_eq!(speedtest.items.len(), 2);
+        assert_eq!(speedtest.items[0].download_mbps, 100.5);
+    }
+
+    #[tokio::test]
+    async fn process_response_caps_each_cycle_at_the_requested_count() {
+        let db = TestDb::new().await;
+        db.seed_two_cycles().await; // 3 cpu + 3 memory entries per cycle
+
+        let R::ProcessResponse(capped) = build_process_response(all_of_it(), 2, db.engine())
+            .await
+            .unwrap()
+        else {
+            panic!("expected a process response");
+        };
+
+        assert_eq!(capped.items.len(), 2, "one entry per seeded cycle");
+        for stats in &capped.items {
+            assert_eq!(stats.top_cpu.len(), 2, "capped from 3 down to 2");
+            assert_eq!(stats.top_memory.len(), 2);
+        }
+    }
+
+    #[tokio::test]
+    async fn process_count_of_zero_means_no_cap() {
+        let db = TestDb::new().await;
+        db.seed_two_cycles().await;
+
+        let R::ProcessResponse(uncapped) = build_process_response(all_of_it(), 0, db.engine())
+            .await
+            .unwrap()
+        else {
+            panic!("expected a process response");
+        };
+
+        for stats in &uncapped.items {
+            assert_eq!(stats.top_cpu.len(), 3, "zero is treated as unset, so no cap");
+            assert_eq!(stats.top_memory.len(), 3);
+        }
+    }
+
+    #[tokio::test]
+    async fn container_request_without_an_id_returns_whole_cycles() {
+        let db = TestDb::new().await;
+        db.seed_two_cycles().await; // two containers per cycle
+
+        let R::ContainerRuntimeResponse(response) =
+            build_container_runtime_response(all_of_it(), None, db.engine())
+                .await
+                .unwrap()
+        else {
+            panic!("expected a container runtime response");
+        };
+
+        let Some(metrics::container_runtime_response::Response::ContainerRuntimeMetricsList(list)) =
+            response.response
+        else {
+            panic!("expected the whole-cycle variant");
+        };
+
+        assert_eq!(list.items.len(), 2, "one entry per seeded cycle");
+        assert_eq!(list.items[0].containers.len(), 2, "both containers in the cycle");
+    }
+
+    #[tokio::test]
+    async fn container_request_with_an_id_flattens_to_that_containers_history() {
+        let db = TestDb::new().await;
+        db.seed_two_cycles().await;
+
+        let R::ContainerRuntimeResponse(response) =
+            build_container_runtime_response(all_of_it(), Some("container-a"), db.engine())
+                .await
+                .unwrap()
+        else {
+            panic!("expected a container runtime response");
+        };
+
+        let Some(metrics::container_runtime_response::Response::ContainerMetricsList(list)) =
+            response.response
+        else {
+            panic!("expected the single-container variant");
+        };
+
+        // one entry per cycle, and container-b is filtered out
+        assert_eq!(list.container_metrics.len(), 2);
+        assert!(
+            list.container_metrics
+                .iter()
+                .all(|c| c.container_id == "container-a"),
+            "only the requested container should survive the filter"
+        );
+    }
+
+    #[tokio::test]
+    async fn full_response_fills_every_slot() {
+        let db = TestDb::new().await;
+        db.seed_two_cycles().await;
+
+        let R::FullResponse(full) = build_full_response(all_of_it(), db.engine()).await.unwrap()
+        else {
+            panic!("expected a full response");
+        };
+
+        assert_eq!(full.cpu_response.unwrap().items.len(), 2);
+        assert_eq!(full.memory_response.unwrap().items.len(), 2);
+        assert_eq!(full.disk_response.unwrap().items.len(), 2);
+        assert_eq!(full.network_response.unwrap().items.len(), 2);
+        assert_eq!(full.system_response.unwrap().items.len(), 2);
+        assert_eq!(full.speedtest_response.unwrap().items.len(), 2);
+        assert_eq!(full.process_response.unwrap().items.len(), 2);
+        assert!(
+            full.container_runtime_response.is_some(),
+            "containers should be filled in too"
+        );
+    }
 }
