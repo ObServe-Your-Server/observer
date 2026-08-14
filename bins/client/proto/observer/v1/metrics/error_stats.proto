@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package observer.v1.metrics;
+
+import "google/protobuf/timestamp.proto";
+
+enum ErrorSeverity {
+  FATAL = 0;
+  WARNING = 1;
+  JOB_ERROR = 2;
+  DB_ERROR = 3;
+}
+
+message ErrorStats {
+  ErrorSeverity error_severity = 1;
+  string error_message = 2;
+  bool notification_sent = 3;
+  google.protobuf.Timestamp collected_at = 4;
+}

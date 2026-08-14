@@ -23,5 +23,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ],
             &["proto"],
         )?;
+    println!("[build] Observer proto files compiled successfully");
     Ok(())
 }

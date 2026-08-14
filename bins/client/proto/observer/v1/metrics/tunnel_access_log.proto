@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package observer.v1.metrics;
+
+import "google/protobuf/timestamp.proto";
+import "observer/v1/metrics_request.proto";
+
+message TunnelAccessLog {
+  MetricsRequest request_type = 1;
+  google.protobuf.Timestamp collected_at = 4;
+}

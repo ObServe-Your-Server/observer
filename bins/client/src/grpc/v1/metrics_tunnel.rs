@@ -13,11 +13,16 @@ use crate::storage_engine::storage_engine::StorageEngine;
 use chrono::{DateTime, TimeZone, Utc};
 use std::sync::Arc;
 use std::time::Duration;
+use sea_orm::ColIdx;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 use tonic::transport::Channel;
-use tonic::{metadata::MetadataValue, transport::ClientTlsConfig, Request};
+use tonic::{metadata::MetadataValue, transport::ClientTlsConfig, Response, Status, Streaming};
+use tonic::metadata::Ascii;
+use tonic::metadata::errors::InvalidMetadataValue;
+use anyhow::{anyhow, Result};
+use env_logger::init;
 
 /// Which slice of history a request wants: an inclusive `[start, end]` time
 /// range, or just the most recent `n` entries.
@@ -41,48 +46,6 @@ impl QueryRange {
     }
 }
 
-/// Dispatches `request` to the builder for the metric it names. A request that
-/// names none is treated as asking for everything. Build failures are logged
-/// and answered with an unset `returned_metric` rather than dropping the connection.
-async fn build_response(request: &MetricsRequest, storage_engine: Arc<StorageEngine>) -> MetricsResponse {
-    let fallback = RequestKind::FullRequest(FullRequest {});
-    let requested_metric = request.requested_metric.as_ref().unwrap_or(&fallback);
-    let range = QueryRange::from_request(request);
-
-    let built = match requested_metric {
-        RequestKind::CpuRequest(_) => build_cpu_response(range, storage_engine).await,
-        RequestKind::MemoryRequest(_) => build_memory_response(range, storage_engine).await,
-        RequestKind::DiskRequest(_) => build_disk_response(range, storage_engine).await,
-        RequestKind::NetworkRequest(_) => build_network_response(range, storage_engine).await,
-        RequestKind::SystemRequest(_) => build_system_response(range, storage_engine).await,
-        RequestKind::SpeedtestRequest(_) => build_speedtest_response(range, storage_engine).await,
-        RequestKind::ProcessRequest(req) => {
-            build_process_response(range, req.number_of_processes, storage_engine).await
-        }
-        RequestKind::ContainerRuntimeRequest(req) => {
-            // an unset message_type means "every run", same as GetFullMetrics
-            let container_id = match req.message_type.as_ref() {
-                Some(ContainerRequestKind::OneContainerMetrics(one)) => Some(one.container_id.as_str()),
-                Some(ContainerRequestKind::FullMetrics(_)) | None => None,
-            };
-            build_container_runtime_response(range, container_id, storage_engine).await
-        }
-        RequestKind::FullRequest(_) => build_full_response(range, storage_engine).await,
-    };
-
-    let returned_metric = match built {
-        Ok(metric) => Some(metric),
-        Err(e) => {
-            log::error!("failed to build response for request {}: {e}", request.request_id);
-            None
-        }
-    };
-
-    MetricsResponse {
-        request_id: request.request_id.clone(),
-        returned_metric,
-    }
-}
 
 pub struct MetricsTunnel {
     url: &'static str,
@@ -136,8 +99,8 @@ impl MetricsTunnel {
         }
     }
 
-    async fn connect_and_serve(&self) -> Result<(), tonic::Status> {
-        // (re)connect our channel, retrying within the reconnect budget
+    async fn connect_and_serve(&self) -> Result<()> {
+        // general gRPC channel
         let channel = self
             .connect_with_retries()
             .await
@@ -145,12 +108,41 @@ impl MetricsTunnel {
 
         let mut client = MetricsTunnelClient::new(channel);
 
-        // creates the tx and rx for the metrics responses we send back to the server
+        // now establish the base tunnel connection
+        // first create a receiver stream and the initial connection request to init the stream
+
+        let mut initial_request = tonic::Request::new(());
+        let api_key = match MetadataValue::try_from(self.api_key) {
+            Ok(key) => key,
+            Err(err) => {
+                log::error!("Invalid string as api key. Error: {}", err);
+                return Err(anyhow!(err).context("Invalid string as api key."))
+            }
+        };
+        initial_request.metadata().insert("x-api-key", api_key);
+
+        let response = match client.tunnel(initial_request).await {
+            Ok(rx) => {}
+            Err(err) => {
+                log::error!("Received error in metrics tunnel: {}", err);
+                return Err(anyhow!("TODO                "))
+            }
+        };
+
+        //---- not for the tonic gRPC stream. This is a general message stream which i then use to stream messages to
+        // the tonic gRPC socket.
+        // build the channel from tokio to send and receive over
         let (tx, rx) = mpsc::channel::<MetricsResponse>(16);
-        // wraps it into a stream to hand to the server
+        // above receiver doesnt implement stream so wrap it
         let outbound = ReceiverStream::new(rx);
 
-        // creates the request with the api key
+        /*
+        code                           tonic / network
+        ┌─────────┐                    ┌──────────────────┐
+        │ tx.send │ ──channel──> rx ──▶│ outbound (Stream)│──▶ over the wire ──▶ server
+        └─────────┘                    └──────────────────┘
+         */
+        // hands over the stream where I can send messages to tonic. This is a general request
         let mut request = Request::new(outbound);
         let api_key = match MetadataValue::try_from(self.api_key.as_str()) {
             Ok(v) => v,
@@ -201,8 +193,6 @@ impl MetricsTunnel {
         Ok(())
     }
 
-    /// Retries connecting until it succeeds or `reconnect_budget` elapses since
-    /// the first attempt, whichever comes first.
     async fn connect_with_retries(&self) -> Result<Channel, tonic::transport::Error> {
         let deadline = tokio::time::Instant::now() + self.reconnect_budget;
         let mut last_err = None;

@@ -2,80 +2,11 @@ syntax = "proto3";
 
 package observer.v1;
 
-import "observer/v1/metrics/cpu.proto";
-import "observer/v1/metrics/memory.proto";
-import "observer/v1/metrics/disk.proto";
-import "observer/v1/metrics/network.proto";
-import "observer/v1/metrics/system.proto";
-import "observer/v1/metrics/process.proto";
-import "observer/v1/metrics/container_runtime.proto";
-import "observer/v1/metrics/speedtest.proto";
-
-
-
-message FullRequest {}
-
-message TimeRange {
-  // inclusive start of the queried time range, unix timestamp (seconds)
-  int64 start = 1;
-  // inclusive end of the queried time range, unix timestamp (seconds)
-  int64 end = 2;
-}
-
-message MetricsRequest {
-  string request_id = 1;
-
-  // which metrics are being asked for
-  oneof requested_metric {
-    observer.v1.metrics.CpuRequest cpu_request = 2;
-    observer.v1.metrics.DiskRequest disk_request = 3;
-    observer.v1.metrics.MemoryRequest memory_request = 4;
-    observer.v1.metrics.NetworkRequest network_request = 5;
-    observer.v1.metrics.ProcessRequest process_request = 6;
-    observer.v1.metrics.SpeedtestRequest speedtest_request = 7;
-    observer.v1.metrics.SystemRequest system_request = 8;
-    observer.v1.metrics.ContainerRuntimeRequest container_runtime_request = 9;
-    FullRequest full_request = 10;
-  }
-
-  // which slice of history to return
-  oneof query {
-    TimeRange range = 11;
-    // return only the most recent `last_n` entries, ordered oldest to newest
-    int64 last_n = 12;
-  }
-}
-
-message MetricsResponse {
-  string request_id = 1;
-
-  // mirrors the `requested_metric` of the request this answers
-  oneof returned_metric {
-    observer.v1.metrics.CpuResponse cpu_response = 2;
-    observer.v1.metrics.DiskResponse disk_response = 3;
-    observer.v1.metrics.MemoryResponse memory_response = 4;
-    observer.v1.metrics.NetworkResponse network_response = 5;
-    observer.v1.metrics.ProcessResponse process_response = 6;
-    observer.v1.metrics.SpeedtestResponse speedtest_response = 7;
-    observer.v1.metrics.SystemResponse system_response = 8;
-    observer.v1.metrics.ContainerRuntimeResponse container_runtime_response = 9;
-    FullResponse full_response = 10;
-  }
-}
-
-// Every metric in one message, for a `FullRequest`. A oneof can only carry a
-// single field, so answering with all of them at once needs its own type.
-message FullResponse {
-  observer.v1.metrics.CpuResponse cpu_response = 1;
-  observer.v1.metrics.DiskResponse disk_response = 2;
-  observer.v1.metrics.MemoryResponse memory_response = 3;
-  observer.v1.metrics.NetworkResponse network_response = 4;
-  observer.v1.metrics.ProcessResponse process_response = 5;
-  observer.v1.metrics.SpeedtestResponse speedtest_response = 6;
-  observer.v1.metrics.SystemResponse system_response = 7;
-  observer.v1.metrics.ContainerRuntimeResponse container_runtime_response = 8;
-}
+import "google/protobuf/empty.proto";
+import "observer/v1/metrics_request.proto";
+import "observer/v1/metrics_response.proto";
 
 service MetricsTunnel {
-  rpc BaseTransfer (stream MetricsResponse) returns (stream MetricsRequest);
+  rpc Tunnel(google.protobuf.Empty) returns (stream observer.v1.MetricsRequest);
+  rpc MetricsResponse(observer.v1.MetricsResponse) returns (google.protobuf.Empty);
 }

@@ -16,6 +16,7 @@ pub struct Config {
 struct TomlConfig {
     server: ServerConfig,
     intervals: IntervalsConfig,
+    notifications: NotificationConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -39,6 +40,14 @@ pub struct IntervalsConfig {
     pub cpu_notification_cooldown: u32,
     pub memory_notification_cooldown: u32,
     pub disk_notification_cooldown: u32,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct NotificationConfig {
+    pub cpu_high_after_secs: u16,
+    pub cpu_high_notification_limit: u16,
+    pub cpu_low_after_secs: u16,
 }
 
 static CONFIG: OnceLock<Config> = OnceLock::new();
