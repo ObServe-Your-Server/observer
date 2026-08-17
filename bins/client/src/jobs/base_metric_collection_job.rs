@@ -12,7 +12,7 @@ use open_eye::collector::systemstats::collector::SystemStats;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::config::{Config, ServerConfig};
+use crate::config::Config;
 
 struct Notification {
     notification_type: NotificationType,
@@ -136,8 +136,8 @@ impl BaseMetricCollectionJob {
 
     async fn check_health_send_notification(&self, storage_engine: &StorageEngine) -> Result<()> {
         let cpu_metrics = storage_engine.get_cpu_stats_latest(3).await?;
-        let memory_metrics = storage_engine.get_memory_stats_latest(3).await?;
-        let disk_metrics = storage_engine.get_disk_stats_latest(3).await?;
+        let _memory_metrics = storage_engine.get_memory_stats_latest(3).await?;
+        let _disk_metrics = storage_engine.get_disk_stats_latest(3).await?;
 
         let cpu_usage_avg: f32 = cpu_metrics.iter().map(|(m, _)| m.cpu_usage_percent).sum::<f32>() / cpu_metrics.len() as f32;
 

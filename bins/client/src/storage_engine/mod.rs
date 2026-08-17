@@ -4,6 +4,7 @@ struct CallSite<'a> {
     line: u32,
 }
 
+#[macro_export]
 macro_rules! report_error {
     ($msg:literal, $storage_engine:expr) => {
         $storage_engine.save_error_report($msg, CallSite {
@@ -14,13 +15,10 @@ macro_rules! report_error {
     };
 }
 
-pub(crate) use report_error;
 pub mod storage_engine;
 
 #[cfg(test)]
 mod tests {
-    use super::report_error;
-
     struct CallSite<'a> {
         module_path: &'a str,
         file: &'a str,

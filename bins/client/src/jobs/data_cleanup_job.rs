@@ -1,4 +1,3 @@
-use std::process::exit;
 use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::{Duration, Utc};

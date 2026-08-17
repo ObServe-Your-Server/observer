@@ -1,13 +1,12 @@
 use std::sync::Arc;
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use chrono::Duration;
-use reqwest::{Client, Response, StatusCode};
+use reqwest::{Client, StatusCode};
 use crate::config::{get_config, Config};
 use crate::grpc::v1::metrics_tunnel::MetricsTunnel;
 use crate::jobs::base_metric_collection_job::{BaseMetricCollectionJob, NotificationCooldowns};
 use crate::jobs::container_stats_collection_job::ContainerStatsCollectionJob;
 use crate::jobs::data_cleanup_job::DataCleanupJob;
-use crate::jobs::speedtest_stats_collection_job::SpeedtestStatsCollectionJob;
 use crate::notification::notification_handler::{NotificationHandler, PushNotification};
 use crate::scheduling::scheduler::{SchedulableJob, Scheduler};
 use crate::storage_engine::storage_engine::StorageEngine;
@@ -29,7 +28,7 @@ impl SchedulingMaster {
 
         let notification_handler = NotificationHandler::new(config.server.push_notification_url.to_string().clone(), config.server.api_key.clone(), machine_name.clone());
 
-        let metrics_retention_time_hours = config.server.metrics_retention_time_hours.clone();
+        let metrics_retention_time_hours = config.server.metrics_retention_time_hours;
         let data_cleanup_job = DataCleanupJob::new(Arc::clone(&storage_engine), metrics_retention_time_hours, Duration::minutes(5));
         let data_cleanup_job = SchedulableJob::new(Box::new(data_cleanup_job), 5);
 

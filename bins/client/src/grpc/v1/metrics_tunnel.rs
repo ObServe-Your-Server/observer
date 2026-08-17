@@ -1,20 +1,13 @@
-use std::fmt::format;
 
 use crate::storage_engine::storage_engine::StorageEngine;
 use chrono::{DateTime, TimeZone, Utc};
 use std::sync::Arc;
 use std::time::Duration;
-use sea_orm::ColIdx;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
-use tokio_stream::StreamExt;
 use tonic::transport::Channel;
-use tonic::{metadata::MetadataValue, transport::ClientTlsConfig, Response, Status, Streaming};
-use tonic::metadata::Ascii;
-use tonic::metadata::errors::InvalidMetadataValue;
+use tonic::{metadata::MetadataValue, transport::ClientTlsConfig};
 use anyhow::{anyhow, Result};
-use env_logger::init;
-use migration::any;
 use crate::grpc::v1::metrics_request::Query;
 use crate::grpc::v1::metrics_tunnel_client::MetricsTunnelClient;
 use crate::grpc::v1::{MetricsRequest, MetricsResponse};
@@ -113,8 +106,8 @@ impl MetricsTunnel {
         };
         initial_request.metadata_mut().insert("x-api-key", api_key);
 
-        let response = match client.tunnel(initial_request).await {
-            Ok(rx) => {}
+        match client.tunnel(initial_request).await {
+            Ok(_rx) => {}
             Err(err) => {
                 log::error!("Received error in metrics tunnel: {}", err);
                 return Err(anyhow!("TODO                "))
@@ -124,9 +117,9 @@ impl MetricsTunnel {
         //---- not for the tonic gRPC stream. This is a general message stream which i then use to stream messages to
         // the tonic gRPC socket.
         // build the channel from tokio to send and receive over
-        let (tx, rx) = mpsc::channel::<MetricsResponse>(16);
+        let (_tx, rx) = mpsc::channel::<MetricsResponse>(16);
         // above receiver doesnt implement stream so wrap it
-        let outbound = ReceiverStream::new(rx);
+        let _outbound = ReceiverStream::new(rx);
 
         /*
         /*

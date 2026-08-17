@@ -11,7 +11,6 @@ use std::{
     fmt,
     time::{SystemTime, UNIX_EPOCH},
 };
-use nix::libc::stat;
 
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct ContainerRuntimeStats {
@@ -228,7 +227,7 @@ pub async fn get_current_stats() -> Result<Option<ContainerRuntimeStats>> {
         })?;
 
     let mut all_container_stats: Vec<ContainerStats> = Vec::new();
-    let mut seen_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let _seen_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
 
     for container_runtime in container_runtimes {
         let socket_uri = container_runtime.socket_uri();

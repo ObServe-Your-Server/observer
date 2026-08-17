@@ -1,12 +1,9 @@
 use std::fmt;
-use std::fmt::{Debug, Formatter};
+use std::fmt::Formatter;
 use reqwest::Client;
 use serde::Serialize;
 use anyhow::{anyhow, Result};
 use reqwest::StatusCode;
-use sea_orm::ColIdx;
-use tokio::fs::read_to_string;
-use tonic::service::LayerExt;
 
 #[derive(Clone)]
 pub struct NotificationHandler {

@@ -1,7 +1,7 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use sysinfo::{Components, Cpu, RefreshKind, System};
+use sysinfo::{Components, RefreshKind, System};
 use crate::collector::DataCreationTime;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

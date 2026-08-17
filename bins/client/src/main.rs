@@ -9,9 +9,6 @@ use observer_client::logging::init_logging;
 use observer_client::scheduling::scheduling_master::SchedulingMaster;
 
 use std::env;
-use std::time::Duration;
-use sea_orm::{ConnectOptions, Database};
-use migration::{Migrator, MigratorTrait};
 
 #[tokio::main]
 async fn main() {

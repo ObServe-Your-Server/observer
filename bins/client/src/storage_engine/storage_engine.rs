@@ -1,4 +1,3 @@
-use crate::entities::cpu_stats::ActiveModel;
 use crate::entities::{
     container_runtime_stats, container_stats, cpu_core_stats, cpu_stats, disk_entry, disk_stats,
     memory_stats, network_stats, process_stats, processes_stats, speedtest_stats, system_stats,
@@ -7,7 +6,7 @@ use crate::jobs::base_metric_collection_job::BaseMetrics;
 use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
 use migration::{Migrator, MigratorTrait};
-use open_eye::collector::container_runtime::collector::{ContainerRuntime, ContainerRuntimeStats};
+use open_eye::collector::container_runtime::collector::ContainerRuntimeStats;
 use open_eye::collector::speedtest::collector::SpeedtestResult;
 use sea_orm::{
     ActiveValue::Set, ColumnTrait, ConnectOptions, Database, DatabaseConnection, EntityTrait,
@@ -50,7 +49,7 @@ impl StorageEngine {
         self.db
             .set(db_conn)
             .map_err(|_| anyhow!("database connection already set"))?;
-        log::debug!("Connected and migrated db at: {}", &self.database_path);
+        log::debug!("Connected and migrated db at: {}", self.database_path);
         Ok(self)
     }
 
@@ -141,8 +140,8 @@ impl StorageEngine {
             memory_stats::Entity::insert(model).exec(db).await?;
         }
 
-        if let Some(disks) = base_metrics.disks {
-            if let Some(first_disk) = disks.first() {
+        if let Some(disks) = base_metrics.disks
+            && let Some(first_disk) = disks.first() {
                 let entry_model = disk_entry::ActiveModel {
                     collected_at: Set(first_disk.collected_at.into()),
                     ..Default::default()
@@ -166,7 +165,6 @@ impl StorageEngine {
                     disk_stats::Entity::insert(model).exec(db).await?;
                 }
             }
-        }
 
         if let Some(network) = base_metrics.network {
             let model = network_stats::ActiveModel {
@@ -217,7 +215,7 @@ impl StorageEngine {
                 container_runtime: Set(c.container_runtime.to_string()),
                 container_id: Set(c.id),
                 host_name: Set(c.host_name),
-                created_at: Set(c.created_at.into()),
+                created_at: Set(c.created_at),
                 status: Set(c.status),
                 running: Set(c.running),
                 running_for_seconds: Set(c.running_for_seconds as i64),
@@ -494,7 +492,7 @@ impl StorageEngine {
         Ok(rows)
     }
 
-    pub(super) async fn save_error_report(&self, error_message: &str, call_site: CallSite<'_>) {
+    pub(super) async fn save_error_report(&self, _error_message: &str, _call_site: CallSite<'_>) {
         todo!()
     }
 }

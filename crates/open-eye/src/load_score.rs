@@ -1,4 +1,3 @@
-use serde::Serialize;
 use crate::collector::cpu::collector::CpuStats;
 use crate::collector::disk::collector::DiskInfo;
 use crate::collector::memory::collector::MemoryStats;

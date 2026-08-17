@@ -1,5 +1,4 @@
 use chrono::Utc;
-use log::debug;
 use serde::{Deserialize, Serialize};
 use sysinfo::Networks;
 
