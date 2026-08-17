@@ -19,6 +19,7 @@ pub mod storage_engine;
 
 #[cfg(test)]
 mod tests {
+    #[derive(Debug)]
     struct CallSite<'a> {
         module_path: &'a str,
         file: &'a str,
@@ -36,7 +37,8 @@ mod tests {
             }
         }
 
-        async fn save_error_report(&self, error_message: &str, _call_site: CallSite<'_>) {
+        async fn save_error_report(&self, error_message: &str, call_site: CallSite<'_>) {
+            println!("Callsite: {:#?}", call_site);
             *self.last_message.borrow_mut() = Some(error_message.to_string());
         }
     }
@@ -46,6 +48,8 @@ mod tests {
         let engine = MockStorageEngine::new();
 
         report_error!("something broke", engine);
+
+        println!("Error: {:#?}", engine.last_message.borrow());
 
         assert_eq!(
             engine.last_message.borrow().as_deref(),
