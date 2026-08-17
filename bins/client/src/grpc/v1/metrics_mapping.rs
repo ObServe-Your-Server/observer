@@ -4,11 +4,8 @@ use crate::entities::{
     container_runtime_stats, container_stats, cpu_core_stats, cpu_stats, disk_entry, disk_stats,
     memory_stats, network_stats, process_stats, processes_stats, speedtest_stats, system_stats,
 };
-use crate::grpc::v1::metrics::{
-    ContainerMetrics, ContainerRuntimeMetrics, CoreMetrics, CpuMetrics, DiskEntry, DiskMetrics,
-    MemoryMetrics, NetworkMetrics, ProcessStats, ProcessStatsKind, ProcessesStats,
-    SpeedtestMetrics, SystemMetrics,
-};
+use crate::entities::prelude::ProcessesStats;
+use crate::grpc::v1::metrics::{ContainerMetrics, ContainerRuntimeMetrics, CoreMetrics, CpuMetrics, DiskEntry, DiskMetrics, MemoryMetrics, NetworkMetrics, ProcessStats, ProcessStatsKind, SpeedtestMetrics, SystemMetrics};
 
 fn to_timestamp(time: chrono::DateTime<chrono::FixedOffset>) -> prost_types::Timestamp {
     prost_types::Timestamp {
@@ -97,31 +94,6 @@ fn process_stats_kind(kind: &str) -> ProcessStatsKind {
         "cpu" => ProcessStatsKind::Cpu,
         "memory" => ProcessStatsKind::Memory,
         _ => ProcessStatsKind::Unspecified,
-    }
-}
-
-pub fn processes_stats(
-    row: (processes_stats::Model, Vec<process_stats::Model>),
-) -> ProcessesStats {
-    let (processes, process_rows) = row;
-    let (top_cpu, top_memory): (Vec<_>, Vec<_>) = process_rows
-        .into_iter()
-        .partition(|process| process.kind == "cpu");
-
-    let map_process = |process: process_stats::Model| ProcessStats {
-        kind: process_stats_kind(&process.kind) as i32,
-        pid: process.pid as u32,
-        name: process.name,
-        user_name: process.user_name,
-        status: process.status,
-        cpu_usage_percent: process.cpu_usage_percent,
-        memory_usage_bytes: process.memory_usage_bytes as u64,
-    };
-
-    ProcessesStats {
-        top_cpu: top_cpu.into_iter().map(map_process).collect(),
-        top_memory: top_memory.into_iter().map(map_process).collect(),
-        collected_at: Some(to_timestamp(processes.collected_at)),
     }
 }
 

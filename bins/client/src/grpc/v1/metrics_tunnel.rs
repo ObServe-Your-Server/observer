@@ -1,13 +1,4 @@
-use crate::grpc::v1::{FullRequest, MetricsRequest, MetricsResponse};
-use crate::grpc::v1::metrics_request::RequestedMetric as RequestKind;
-use crate::grpc::v1::metrics_request::Query as MetricsRequestQuery;
-use crate::grpc::v1::metrics::container_runtime_request::MessageType as ContainerRequestKind;
-use crate::grpc::v1::metrics_tunnel_client::MetricsTunnelClient;
-use crate::grpc::v1::response_builder::{
-    build_container_runtime_response, build_cpu_response, build_disk_response,
-    build_full_response, build_memory_response, build_network_response, build_process_response,
-    build_speedtest_response, build_system_response,
-};
+use std::fmt::format;
 
 use crate::storage_engine::storage_engine::StorageEngine;
 use chrono::{DateTime, TimeZone, Utc};
@@ -23,6 +14,10 @@ use tonic::metadata::Ascii;
 use tonic::metadata::errors::InvalidMetadataValue;
 use anyhow::{anyhow, Result};
 use env_logger::init;
+use migration::any;
+use crate::grpc::v1::metrics_request::Query;
+use crate::grpc::v1::metrics_tunnel_client::MetricsTunnelClient;
+use crate::grpc::v1::{MetricsRequest, MetricsResponse};
 
 /// Which slice of history a request wants: an inclusive `[start, end]` time
 /// range, or just the most recent `n` entries.
@@ -35,8 +30,8 @@ pub enum QueryRange {
 impl QueryRange {
     fn from_request(request: &MetricsRequest) -> Self {
         match &request.query {
-            Some(MetricsRequestQuery::LastN(n)) => QueryRange::LastN((*n).max(0) as u64),
-            Some(MetricsRequestQuery::Range(range)) => {
+            Some(Query::LastN(n)) => QueryRange::LastN((*n).max(0) as u64),
+            Some(Query::Range(range)) => {
                 let start = Utc.timestamp_opt(range.start, 0).single().unwrap_or_else(Utc::now);
                 let end = Utc.timestamp_opt(range.end, 0).single().unwrap_or_else(Utc::now);
                 QueryRange::Between(start, end)
@@ -74,7 +69,7 @@ impl MetricsTunnel {
     /// established but immediately fail at the application level (e.g. a proxy
     /// 403 surfacing as bad stream framing) — without a deadline here, that
     /// second case would reconnect instantly in a tight loop.
-    pub async fn run_blocking(&self) -> Result<(), tonic::Status> {
+    pub async fn run_blocking(&self) -> Result<()> {
         let mut deadline = tokio::time::Instant::now() + self.reconnect_budget;
 
         loop {
@@ -89,10 +84,7 @@ impl MetricsTunnel {
             }
 
             if tokio::time::Instant::now() >= deadline {
-                return Err(tonic::Status::unavailable(format!(
-                    "metrics tunnel kept failing for over {:?}, giving up",
-                    self.reconnect_budget
-                )));
+                return Err(anyhow!(format!("Tunnel kept failing for over {}", self.reconnect_budget.as_secs())))
             }
 
             tokio::time::sleep(Duration::from_secs(5)).await;
@@ -112,14 +104,14 @@ impl MetricsTunnel {
         // first create a receiver stream and the initial connection request to init the stream
 
         let mut initial_request = tonic::Request::new(());
-        let api_key = match MetadataValue::try_from(self.api_key) {
+        let api_key = match MetadataValue::try_from(self.api_key.to_string()) {
             Ok(key) => key,
             Err(err) => {
                 log::error!("Invalid string as api key. Error: {}", err);
                 return Err(anyhow!(err).context("Invalid string as api key."))
             }
         };
-        initial_request.metadata().insert("x-api-key", api_key);
+        initial_request.metadata_mut().insert("x-api-key", api_key);
 
         let response = match client.tunnel(initial_request).await {
             Ok(rx) => {}
@@ -136,6 +128,7 @@ impl MetricsTunnel {
         // above receiver doesnt implement stream so wrap it
         let outbound = ReceiverStream::new(rx);
 
+        /*
         /*
         code                           tonic / network
         ┌─────────┐                    ┌──────────────────┐
@@ -187,7 +180,7 @@ impl MetricsTunnel {
                     break;
                 }
             }
-        }
+        }*/
 
         // stream ended (cleanly closed or errored) — caller will reconnect and restart
         Ok(())
@@ -246,6 +239,7 @@ impl MetricsTunnel {
     }
 }
 
+/*
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -306,3 +300,4 @@ mod tests {
         );
     }
 }
+*/

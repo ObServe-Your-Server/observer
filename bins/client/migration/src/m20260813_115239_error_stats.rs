@@ -20,3 +20,13 @@ impl MigrationTrait for Migration {
         todo!();
     }
 }
+
+#[derive(DeriveIden)]
+enum ErrorStats {
+    
+}
+
+#[derive(DeriveIden)]
+enum ErrorSeverity {
+
+}

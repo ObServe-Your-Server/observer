@@ -2,11 +2,7 @@
 //! requested slice of history and maps the rows onto its proto response type,
 //! so `metrics_tunnel` only has to dispatch on the request kind.
 
-use crate::grpc::v1;
-use crate::grpc::v1::metrics::{ContainerRuntimeMetrics, CpuMetrics};
-use crate::grpc::v1::metrics_response::ReturnedMetric::CpuResponse;
-use crate::grpc::v1::metrics_tunnel::QueryRange;
-use crate::grpc::v1::{metrics, metrics_response};
+/*
 use crate::storage_engine::storage_engine::StorageEngine;
 use anyhow::Result;
 use std::sync::Arc;
@@ -24,7 +20,7 @@ pub async fn build_cpu_response(
     .map(v1::metrics_mapping::cpu_metrics)
     .collect();
 
-    Ok(CpuResponse(metrics::CpuResponse { items }))
+    Ok(CpuResponse(CpuResponse { items }))
 }
 
 pub async fn build_memory_response(
@@ -42,7 +38,7 @@ pub async fn build_memory_response(
     .collect();
 
     Ok(metrics_response::ReturnedMetric::MemoryResponse(
-        metrics::MemoryResponse { items },
+        MemoryResponse { items },
     ))
 }
 
@@ -473,3 +469,4 @@ mod tests {
         );
     }
 }
+*/

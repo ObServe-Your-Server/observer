@@ -15,6 +15,7 @@ use sea_orm::{
 };
 use std::sync::OnceLock;
 use std::time::Duration;
+use crate::storage_engine::CallSite;
 
 pub struct StorageEngine {
     database_path: String,
@@ -492,4 +493,10 @@ impl StorageEngine {
         rows.reverse();
         Ok(rows)
     }
+
+    pub(super) async fn save_error_report(&self, error_message: &str, call_site: CallSite<'_>) {
+        todo!()
+    }
 }
+
+
