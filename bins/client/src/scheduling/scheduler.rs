@@ -85,7 +85,7 @@ async fn run(mut schedulable_job: SchedulableJob) -> Result<()>{
         // run the job and wait on the result
         match time::timeout(duration, job.run()).await {
             Ok(Ok(_)) => {
-                log::info!("Job: {} run successfully. Duration: {:.3}s", job.name(), timer.elapsed().as_secs_f32());
+                log::debug!("Job: {} run successfully. Duration: {:.3}s", job.name(), timer.elapsed().as_secs_f32());
                 schedulable_job.error_count = 0;
             }
             Ok(Err(e)) => {

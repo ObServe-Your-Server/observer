@@ -36,14 +36,14 @@ impl QueryRange {
 
 
 pub struct MetricsTunnel {
-    url: &'static str,
+    url: String,
     api_key: String,
     reconnect_budget: Duration,
     storage_engine: Arc<StorageEngine>,
 }
 
 impl MetricsTunnel {
-    pub fn new(url: &'static str, api_key: String, storage_engine: Arc<StorageEngine>) -> Self {
+    pub fn new(url: String, api_key: String, storage_engine: Arc<StorageEngine>) -> Self {
         Self {
             url,
             api_key,
@@ -179,13 +179,13 @@ impl MetricsTunnel {
         Ok(())
     }
 
-    async fn connect_with_retries(&self) -> Result<Channel, tonic::transport::Error> {
+    async fn connect_with_retries(&self) -> Result<Channel> {
         let deadline = tokio::time::Instant::now() + self.reconnect_budget;
         let mut last_err = None;
 
         loop {
             // connect the socket to the given url
-            match Self::connect_socket(self.url).await {
+            match Self::connect_socket(&self.url).await {
                 Ok(channel) => {
                     log::info!("Connected to the server at {}", self.url);
                     return Ok(channel);
@@ -213,8 +213,8 @@ impl MetricsTunnel {
         Err(last_err.unwrap())
     }
 
-    async fn connect_socket(url: &'static str) -> Result<Channel, tonic::transport::Error> {
-        let endpoint = tonic::transport::Channel::from_static(url)
+    async fn connect_socket(url: &str) -> Result<Channel> {
+        let endpoint = tonic::transport::Channel::from_shared(url.to_string())?
             .keep_alive_while_idle(true)
             .http2_keep_alive_interval(Duration::from_secs(15))
             .keep_alive_timeout(Duration::from_secs(5))
@@ -228,7 +228,7 @@ impl MetricsTunnel {
             endpoint
         };
 
-        endpoint.connect().await
+        Ok(endpoint.connect().await?)
     }
 }
 

@@ -12,3 +12,4 @@ mod notification;
 
 #[cfg(test)]
 mod test_support;
+pub(crate) mod macros;

@@ -2,40 +2,37 @@ use std::sync::Arc;
 use anyhow::anyhow;
 use chrono::Duration;
 use reqwest::{Client, StatusCode};
-use crate::config::{get_config, Config};
+use crate::config::Config;
 use crate::grpc::v1::metrics_tunnel::MetricsTunnel;
-use crate::jobs::base_metric_collection_job::{BaseMetricCollectionJob, NotificationCooldowns};
+use crate::jobs::base_metric_collection_job::BaseMetricCollectionJob;
 use crate::jobs::container_stats_collection_job::ContainerStatsCollectionJob;
 use crate::jobs::data_cleanup_job::DataCleanupJob;
-use crate::notification::notification_handler::{NotificationHandler, PushNotification};
 use crate::scheduling::scheduler::{SchedulableJob, Scheduler};
 use crate::storage_engine::storage_engine::StorageEngine;
 
 pub struct SchedulingMaster {}
 
 impl SchedulingMaster {
-    pub async fn register_and_start_background_jobs() {
-        let config = get_config();
+    pub async fn register_and_start_background_jobs(config: Config) {
 
         // we can clone it around because the db connection is thread save and with the pool meant to be cloned
         let storage_engine = Arc::new(StorageEngine::new(config.server.database_url.clone()).connect_to_db_and_migrate().await.unwrap());
         log::info!("Database connected with no errors.");
 
-        let machine_name = Self::pull_machine_name(config).await.unwrap_or_else(|e|{
+        let machine_name = Self::pull_machine_name(&config).await.unwrap_or_else(|e|{
             log::error!("Failed to fetch machine name: {}", e);
             "Unknown".to_string()
         });
 
-        let notification_handler = NotificationHandler::new(config.server.push_notification_url.to_string().clone(), config.server.api_key.clone(), machine_name.clone());
+        //let notification_handler = NotificationHandler::new(config.server.push_notification_url.to_string().clone(), config.server.api_key.clone(), machine_name.clone());
 
         let metrics_retention_time_hours = config.server.metrics_retention_time_hours;
         let data_cleanup_job = DataCleanupJob::new(Arc::clone(&storage_engine), metrics_retention_time_hours, Duration::minutes(5));
         let data_cleanup_job = SchedulableJob::new(Box::new(data_cleanup_job), 5);
 
-        let notification_cooldowns = NotificationCooldowns::from_config(config);
 
         let base_metric_collection_job_schedule_time = Duration::seconds(config.intervals.metric_secs as i64);
-        let base_metric_collection_job = BaseMetricCollectionJob::new(Arc::clone(&storage_engine), base_metric_collection_job_schedule_time, notification_handler.clone(), notification_cooldowns);
+        let base_metric_collection_job = BaseMetricCollectionJob::new(Arc::clone(&storage_engine), base_metric_collection_job_schedule_time);
         let base_metric_collection_job = SchedulableJob::new(Box::new(base_metric_collection_job), 10);
         
         /*let speedtest_stats_collection_job_schedule_time = Duration::seconds(config.intervals.speedtest_secs as i64);
@@ -43,7 +40,7 @@ impl SchedulingMaster {
         let speedtest_stats_collection_job = SchedulableJob::new(Box::new(speedtest_stats_collection_job), 5);*/
             
         let metrics_tunnel = MetricsTunnel::new(
-            config.server.base_server_grpc_url.as_str(),
+            config.server.base_server_grpc_url.clone(),
             config.server.api_key.clone(),
             Arc::clone(&storage_engine),
         );
@@ -60,64 +57,32 @@ impl SchedulingMaster {
             scheduler.add_job(container_stats_collection_job);
         }
 
-        // start the jobs in separate tasks
-        let sch_notification_handler = notification_handler.clone();
-        let scheduler_handle = tokio::spawn(async move {
-            let err = scheduler.start_jobs_blocking().await;
-            log::error!("Metrics collection failed with: {:?}", err);
-            // send message that observer client started
-            match sch_notification_handler.send_push_notification(&PushNotification {
-                title: "Shutdown".to_string(),
-                body: "Collector failed to collect host metrics.".to_string(),
-            }).await {
-                Ok(_) => {
-                    log::info!("Shutdown message sent successfully")
-                }
-                Err(_) => {
-                    log::error!("Failed to send shutdown message")
-                }
-            }
+        // scheduler in own task
+        let scheduler_future_handle = tokio::spawn(async move {
+            scheduler.start_jobs_blocking().await
         });
 
         // metrics grpc tunnel
-        let metrics_tunnel_handle = tokio::spawn(async move {
-            if let Err(e) = metrics_tunnel.run_blocking().await {
-                log::error!("Metrics tunnel exited with error: {e}");
-            }
+        let metrics_tunnel_future_handle = tokio::spawn(async move {
+            metrics_tunnel.run_blocking().await
         });
 
-        // send message that observer client started
-        match notification_handler.send_push_notification(&PushNotification {
-            title: "Startup".to_string(),
-            body: "Metrics collector started".to_string(),
-        }).await {
-            Ok(_) => {
-                log::info!("Startup message sent successfully")
-            }
-            Err(_) => {
-                log::error!("Failed to send startup message")
-            }
-        }
+        // TODO send message that observer client started
 
         // whichever terminates first (cleanly, via signal, or not) brings the whole process down
         tokio::select! {
-            _ = scheduler_handle => {
-                log::error!("scheduler terminated, shutting down");
+            res = scheduler_future_handle => {
+                log::error!("Scheduler termination: {}", res.err().unwrap())
             }
-            _ = metrics_tunnel_handle => {
-                log::error!("metrics tunnel terminated, shutting down");
+            res = metrics_tunnel_future_handle => {
+                log::error!("Metrics tunnel terminated: {}", res.err().unwrap());
             }
             _ = Self::watch_for_termination() => {
-                log::info!("termination signal received, shutting down");
-                match notification_handler.send_push_notification(&PushNotification {
-                    title: "Shutdown".to_string(),
-                    body: "Observer client is shutting down.".to_string(),
-                }).await {
-                    Ok(_) => log::info!("Shutdown message sent successfully"),
-                    Err(_) => log::error!("Failed to send shutdown message"),
-                }
+                log::info!("Termination signal received");
             }
         }
+
+        // TODO send shutdown notification
         std::process::exit(1);
     }
 
