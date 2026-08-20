@@ -1,4 +1,4 @@
-use crate::scheduling::job::Job;
+use crate::scheduling::job::JobTrait;
 use crate::storage_engine::storage_engine::StorageEngine;
 use anyhow::anyhow;
 use async_trait::async_trait;
@@ -26,7 +26,7 @@ impl ContainerStatsCollectionJob {
 }
 
 #[async_trait]
-impl Job for ContainerStatsCollectionJob {
+impl JobTrait for ContainerStatsCollectionJob {
     async fn run(&self) -> anyhow::Result<()> {
         check_runtime_availability().ok_or_else(|| anyhow!("No container runtime available"))?;
 
@@ -43,13 +43,5 @@ impl Job for ContainerStatsCollectionJob {
             }
         }
         Ok(())
-    }
-
-    fn schedule_time(&self) -> Duration {
-        self.schedule_time
-    }
-
-    fn name(&self) -> &str {
-        "Container Stats Collection Job"
     }
 }

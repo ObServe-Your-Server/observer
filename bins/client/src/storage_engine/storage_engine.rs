@@ -21,9 +21,9 @@ pub struct StorageEngine {
 }
 
 impl StorageEngine {
-    pub fn new(database_path: String) -> StorageEngine {
+    pub fn new(database_path: &str) -> StorageEngine {
         StorageEngine {
-            database_path,
+            database_path: database_path.to_string(),
             db: OnceLock::new(),
         }
     }

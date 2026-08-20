@@ -1,4 +1,4 @@
-use crate::scheduling::job::Job;
+use crate::scheduling::job::JobTrait;
 use crate::storage_engine::storage_engine::StorageEngine;
 use anyhow::Result;
 use async_trait::async_trait;
@@ -29,21 +29,13 @@ impl BaseMetricCollectionJob {
 }
 
 #[async_trait]
-impl Job for BaseMetricCollectionJob {
+impl JobTrait for BaseMetricCollectionJob {
     async fn run(&self) -> Result<()> {
         let base_metrics = BaseMetrics::collect().await;
         Ok(self
             .storage_engine
             .save_base_metrics_to_db(base_metrics)
             .await?)
-    }
-
-    fn schedule_time(&self) -> Duration {
-        self.schedule_time
-    }
-
-    fn name(&self) -> &str {
-        "Base Metrics Collection Job"
     }
 }
 

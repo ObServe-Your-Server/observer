@@ -3,13 +3,16 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use getset::Getters;
 use crate::config::toml_config::TomlConfig;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Getters)]
 #[serde(rename_all = "snake_case")]
 pub struct AppConfig {
-    pub version: &'static str,
-    pub toml_config: TomlConfig,
+    #[getset(get = "pub")]
+    version: &'static str,
+    #[getset(get = "pub")]
+    toml_config: TomlConfig,
 }
 
 impl AppConfig {

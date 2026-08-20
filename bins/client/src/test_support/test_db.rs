@@ -24,7 +24,7 @@ impl TestDb {
         // `mode=rwc` so sqlite creates the file instead of erroring on a missing one
         let url = format!("sqlite://{}?mode=rwc", path.display());
 
-        let engine = StorageEngine::new(url)
+        let engine = StorageEngine::new(&url)
             .connect_to_db_and_migrate()
             .await
             .expect("failed to migrate test database");

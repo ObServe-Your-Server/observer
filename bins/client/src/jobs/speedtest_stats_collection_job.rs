@@ -1,4 +1,4 @@
-use crate::scheduling::job::Job;
+use crate::scheduling::job::JobTrait;
 use crate::storage_engine::storage_engine::StorageEngine;
 use async_trait::async_trait;
 use chrono::Duration;
@@ -22,18 +22,10 @@ impl SpeedtestStatsCollectionJob {
 }
 
 #[async_trait]
-impl Job for SpeedtestStatsCollectionJob {
+impl JobTrait for SpeedtestStatsCollectionJob {
     async fn run(&self) -> anyhow::Result<()> {
         let res = open_eye::collector::speedtest::collector::run().await?;
         self.storage_engine.save_speedtest_stats_to_db(res).await?;
         Ok(())
-    }
-
-    fn schedule_time(&self) -> Duration {
-        self.schedule_time
-    }
-
-    fn name(&self) -> &str {
-        "Speedtest Collection Job"
     }
 }

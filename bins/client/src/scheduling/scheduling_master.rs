@@ -2,30 +2,30 @@ use crate::grpc::v1::metrics_tunnel::MetricsTunnel;
 use crate::jobs::base_metric_collection_job::BaseMetricCollectionJob;
 use crate::jobs::container_stats_collection_job::ContainerStatsCollectionJob;
 use crate::jobs::data_cleanup_job::DataCleanupJob;
-use crate::scheduling::scheduler::{SchedulableJob, Scheduler};
 use crate::storage_engine::storage_engine::StorageEngine;
 use anyhow::anyhow;
 use chrono::Duration;
 use reqwest::{Client, StatusCode};
 use std::sync::Arc;
 use crate::config::app_config::AppConfig;
+use crate::config::toml_config::TomlConfig;
 
 pub struct SchedulingMaster {}
 
-/*
+
 impl SchedulingMaster {
     pub async fn register_and_start_background_jobs(config: AppConfig) {
 
         // we can clone it around because the db connection is thread save and with the pool meant to be cloned
         let storage_engine = Arc::new(
-            StorageEngine::new(config.server.database_url.clone())
+            StorageEngine::new(config.toml_config().storage_config().database_url())
                 .connect_to_db_and_migrate()
                 .await
                 .unwrap(),
         );
         log::info!("Database connected with no errors.");
 
-        let _machine_name = Self::pull_machine_name(&config).await.unwrap_or_else(|e| {
+        let machine_name = Self::pull_machine_name(&config).await.unwrap_or_else(|e| {
             log::error!("Failed to fetch machine name: {}", e);
             "Unknown".to_string()
         });
@@ -103,15 +103,15 @@ impl SchedulingMaster {
         std::process::exit(1);
     }
 
-    async fn pull_machine_name(config: &AppConfig) -> anyhow::Result<String> {
+    async fn pull_machine_name(toml_config: &TomlConfig) -> anyhow::Result<String> {
         let client = Client::new();
 
         let res = client
             .get(format!(
                 "{}/machines/machine-name-over-api-key",
-                config.server.base_server_http_url
+                toml_config.client_config().base_server_http_url()
             ))
-            .header("X-Api-Key", &config.server.api_key)
+            .header("X-Api-Key", toml_config.client_config().api_key())
             .send()
             .await?;
 
@@ -137,5 +137,3 @@ impl SchedulingMaster {
         }
     }
 }
-
- */
