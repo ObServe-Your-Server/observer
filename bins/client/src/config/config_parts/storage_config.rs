@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use getset::Getters;
 
-#[derive(Debug, Deserialize, Serialize, Getters)]
+#[derive(Debug, Deserialize, Serialize, Getters, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct StorageConfig {
     #[getset(get = "pub")]

@@ -10,17 +10,14 @@ use std::sync::Arc;
 
 pub struct ContainerStatsCollectionJob {
     storage_engine: Arc<StorageEngine>,
-    schedule_time: Duration,
 }
 
 impl ContainerStatsCollectionJob {
     pub fn new(
         storage_engine: Arc<StorageEngine>,
-        schedule_time: Duration,
     ) -> ContainerStatsCollectionJob {
         ContainerStatsCollectionJob {
             storage_engine,
-            schedule_time,
         }
     }
 }

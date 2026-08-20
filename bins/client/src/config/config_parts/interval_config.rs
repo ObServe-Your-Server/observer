@@ -12,4 +12,6 @@ pub struct IntervalConfig {
     enable_docker_socket: bool,
     #[getset(get = "pub")]
     container_metrics_secs: Option<u16>,
+    #[getset(get = "pub")]
+    data_cleanup_job_secs: Option<u16>,
 }

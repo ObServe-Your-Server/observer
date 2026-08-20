@@ -1,3 +1,4 @@
+use std::process::exit;
 use crate::grpc::v1::metrics_tunnel::MetricsTunnel;
 use crate::jobs::base_metric_collection_job::BaseMetricCollectionJob;
 use crate::jobs::container_stats_collection_job::ContainerStatsCollectionJob;
@@ -9,6 +10,8 @@ use reqwest::{Client, StatusCode};
 use std::sync::Arc;
 use crate::config::app_config::AppConfig;
 use crate::config::toml_config::TomlConfig;
+use crate::scheduling::job::Job;
+use crate::scheduling::scheduler::Scheduler;
 
 pub struct SchedulingMaster {}
 
@@ -25,53 +28,49 @@ impl SchedulingMaster {
         );
         log::info!("Database connected with no errors.");
 
-        let machine_name = Self::pull_machine_name(&config).await.unwrap_or_else(|e| {
+        let machine_name = Self::pull_machine_name(&config.toml_config()).await.unwrap_or_else(|e| {
             log::error!("Failed to fetch machine name: {}", e);
-            "Unknown".to_string()
+            exit(1);
         });
 
         //let notification_handler = NotificationHandler::new(config.server.push_notification_url.to_string().clone(), config.server.api_key.clone(), machine_name.clone());
 
-        let metrics_retention_time_hours = config.server.metrics_retention_time_hours;
-        let data_cleanup_job = DataCleanupJob::new(
-            Arc::clone(&storage_engine),
-            metrics_retention_time_hours,
-            Duration::minutes(5),
-        );
-        let data_cleanup_job = SchedulableJob::new(Box::new(data_cleanup_job), 5);
+        // TODO data cleanup job
 
-        let base_metric_collection_job_schedule_time =
-            Duration::seconds(config.intervals.base_metric_secs as i64);
-        let base_metric_collection_job = BaseMetricCollectionJob::new(
-            Arc::clone(&storage_engine),
-            base_metric_collection_job_schedule_time,
+        let base_metric_collection_job = Job::new(
+            "Base Metrics",
+            Box::new(BaseMetricCollectionJob::new(storage_engine.clone())),
+            Duration::seconds(config.toml_config().interval_config().base_metric_secs().clone() as i64),
+            15 // TODO implement over the config
         );
-        let base_metric_collection_job =
-            SchedulableJob::new(Box::new(base_metric_collection_job), 10);
+        let data_cleanup_job = Job::new(
+            "Data Cleanup",
+            Box::new(DataCleanupJob::new(storage_engine.clone(), config.toml_config().storage_config().clone())),
+            Duration::seconds(config.toml_config().interval_config().data_cleanup_job_secs().clone().unwrap_or(300) as i64), // TODO set default time more elegant
+            15
+        );
 
         /*let speedtest_stats_collection_job_schedule_time = Duration::seconds(config.intervals.speedtest_secs as i64);
         let speedtest_stats_collection_job = SpeedtestStatsCollectionJob::new(Arc::clone(&storage_engine), speedtest_stats_collection_job_schedule_time);
         let speedtest_stats_collection_job = SchedulableJob::new(Box::new(speedtest_stats_collection_job), 5);*/
 
         let metrics_tunnel = MetricsTunnel::new(
-            config.server.base_server_grpc_url.clone(),
-            config.server.api_key.clone(),
-            Arc::clone(&storage_engine),
+            config.toml_config().client_config().base_server_grpc_url().to_string(),
+            config.toml_config().client_config().api_key().to_string(),
+            storage_engine.clone(),
         );
 
         // -------------- first add essential jobs --------------
         let mut scheduler = Scheduler::new(vec![data_cleanup_job, base_metric_collection_job]);
 
         // -------------- addons like container stats --------------
-        if config.intervals.enable_docker_socket {
-            let container_stats_collection_job_schedule_time =
-                Duration::seconds(config.intervals.docker_secs as i64);
-            let container_stats_collection_job = ContainerStatsCollectionJob::new(
-                Arc::clone(&storage_engine),
-                container_stats_collection_job_schedule_time,
+        if config.toml_config().interval_config().enable_docker_socket().clone() {
+            let container_stats_collection_job = Job::new(
+                "Container Stats",
+                Box::new(ContainerStatsCollectionJob::new(storage_engine.clone())),
+                Duration::seconds(config.toml_config().interval_config().data_cleanup_job_secs().clone().unwrap_or(15) as i64),
+                15
             );
-            let container_stats_collection_job =
-                SchedulableJob::new(Box::new(container_stats_collection_job), 10);
 
             scheduler.add_job(container_stats_collection_job);
         }
@@ -100,7 +99,7 @@ impl SchedulingMaster {
         }
 
         // TODO send shutdown notification
-        std::process::exit(1);
+        exit(1);
     }
 
     async fn pull_machine_name(toml_config: &TomlConfig) -> anyhow::Result<String> {

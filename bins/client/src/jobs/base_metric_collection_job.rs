@@ -13,17 +13,14 @@ use std::sync::Arc;
 
 pub struct BaseMetricCollectionJob {
     storage_engine: Arc<StorageEngine>,
-    schedule_time: Duration,
 }
 
 impl BaseMetricCollectionJob {
     pub fn new(
         storage_engine: Arc<StorageEngine>,
-        schedule_time: Duration,
     ) -> BaseMetricCollectionJob {
         BaseMetricCollectionJob {
-            storage_engine,
-            schedule_time,
+            storage_engine
         }
     }
 }

@@ -14,9 +14,9 @@ pub struct Job {
 }
 
 impl Job {
-    pub fn new(name: String, task: Box<dyn JobTrait>, interval: Duration, fatal_errors_before_termination: u16) -> Job {
+    pub fn new(name: &str, task: Box<dyn JobTrait>, interval: Duration, fatal_errors_before_termination: u16) -> Job {
         Job{
-            name,
+            name: name.to_string(),
             task,
             interval,
             fatal_errors_before_termination
