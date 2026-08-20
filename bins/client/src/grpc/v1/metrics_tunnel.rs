@@ -7,11 +7,9 @@ use anyhow::{Result, anyhow};
 use chrono::{DateTime, TimeZone, Utc};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
-use tokio_stream::wrappers::ReceiverStream;
 use tonic::transport::Channel;
-use tonic::{Response, Status, metadata::MetadataValue, transport::ClientTlsConfig};
+use tonic::{metadata::MetadataValue, transport::ClientTlsConfig};
 
 /// Which slice of history a request wants: an inclusive `[start, end]` time
 /// range, or just the most recent `n` entries.
@@ -133,12 +131,12 @@ impl MetricsTunnel {
                         Ok(_) => {
                             // TODO log that all went okay
                         }
-                        Err(err) => {
+                        Err(_err) => {
                             // Error handling of transmitting
                         }
                     }
                 }
-                Err(err) => {
+                Err(_err) => {
                     // TODO error implementation
                     // maybe reconnect etc
                     todo!()

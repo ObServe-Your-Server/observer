@@ -1,9 +1,8 @@
-use crate::config::Config;
 use crate::scheduling::job::Job;
 use crate::storage_engine::storage_engine::StorageEngine;
 use anyhow::Result;
 use async_trait::async_trait;
-use chrono::{Duration, Utc};
+use chrono::Duration;
 use open_eye::collector::cpu::collector::CpuStats;
 use open_eye::collector::disk::collector::{DiskInfo, DiskStats};
 use open_eye::collector::memory::collector::MemoryStats;
@@ -11,7 +10,6 @@ use open_eye::collector::network::collector::NetworkStats;
 use open_eye::collector::systemstats::collector::SystemStats;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tokio::sync::Mutex;
 
 pub struct BaseMetricCollectionJob {
     storage_engine: Arc<StorageEngine>,

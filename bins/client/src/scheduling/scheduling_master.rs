@@ -23,7 +23,7 @@ impl SchedulingMaster {
         );
         log::info!("Database connected with no errors.");
 
-        let machine_name = Self::pull_machine_name(&config).await.unwrap_or_else(|e| {
+        let _machine_name = Self::pull_machine_name(&config).await.unwrap_or_else(|e| {
             log::error!("Failed to fetch machine name: {}", e);
             "Unknown".to_string()
         });

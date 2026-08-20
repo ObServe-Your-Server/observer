@@ -1,6 +1,6 @@
 use crate::grpc::v1::{MetricsRequest, MetricsResponse};
 
-pub async fn build_metrics_response(request: MetricsRequest) -> MetricsResponse {
+pub async fn build_metrics_response(_request: MetricsRequest) -> MetricsResponse {
     todo!()
 }
 /*

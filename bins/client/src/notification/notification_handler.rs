@@ -2,9 +2,6 @@ use crate::notification::push_notification::PushNotification;
 use anyhow::{Result, anyhow};
 use reqwest::Client;
 use reqwest::StatusCode;
-use serde::Serialize;
-use std::fmt;
-use std::fmt::Formatter;
 
 #[derive(Clone)]
 pub struct NotificationHandler {

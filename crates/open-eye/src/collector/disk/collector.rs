@@ -65,7 +65,7 @@ mod linux {
         }
         dev.children
             .as_ref()
-            .map_or(false, |kids| kids.iter().any(is_zfs_member))
+            .is_some_and(|kids| kids.iter().any(is_zfs_member))
     }
 
     fn sum_used(dev: &BlockDevice) -> u64 {
