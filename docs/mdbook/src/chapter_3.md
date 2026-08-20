@@ -23,7 +23,7 @@ fn main() {
 | Key             | Type   | Required | Description          |
 |-----------------|--------|----------|----------------------|
 | `api_key`       | string | yes      | Authentication key   |
-| `metric_secs`   | int    | no       | Collection interval  |
+| `base_metric_secs`   | int    | no       | Collection interval  |
 | `speedtest_secs`| int    | no       | Speedtest interval   |
 
 > **Note:** All interval values must be within the allowed range defined in the config.

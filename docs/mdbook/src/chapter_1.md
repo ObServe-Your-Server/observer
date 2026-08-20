@@ -37,7 +37,7 @@ speedtest_secs = 300
 |-----|---------|-------------|
 | `base_metrics_url` | — | Endpoint to POST metrics to |
 | `api_key` | — | Authentication key |
-| `metric_secs` | `5` | How often to collect metrics (2–60s) |
+| `base_metric_secs` | `5` | How often to collect metrics (2–60s) |
 | `speedtest_secs` | `300` | How often to run a speedtest (60–86400s) |
 | `docker_secs` | `10` | Docker container poll interval |
 

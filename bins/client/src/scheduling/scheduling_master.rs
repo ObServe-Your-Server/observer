@@ -1,4 +1,3 @@
-use crate::config::Config;
 use crate::grpc::v1::metrics_tunnel::MetricsTunnel;
 use crate::jobs::base_metric_collection_job::BaseMetricCollectionJob;
 use crate::jobs::container_stats_collection_job::ContainerStatsCollectionJob;
@@ -9,11 +8,14 @@ use anyhow::anyhow;
 use chrono::Duration;
 use reqwest::{Client, StatusCode};
 use std::sync::Arc;
+use crate::config::app_config::AppConfig;
 
 pub struct SchedulingMaster {}
 
+/*
 impl SchedulingMaster {
-    pub async fn register_and_start_background_jobs(config: Config) {
+    pub async fn register_and_start_background_jobs(config: AppConfig) {
+
         // we can clone it around because the db connection is thread save and with the pool meant to be cloned
         let storage_engine = Arc::new(
             StorageEngine::new(config.server.database_url.clone())
@@ -39,7 +41,7 @@ impl SchedulingMaster {
         let data_cleanup_job = SchedulableJob::new(Box::new(data_cleanup_job), 5);
 
         let base_metric_collection_job_schedule_time =
-            Duration::seconds(config.intervals.metric_secs as i64);
+            Duration::seconds(config.intervals.base_metric_secs as i64);
         let base_metric_collection_job = BaseMetricCollectionJob::new(
             Arc::clone(&storage_engine),
             base_metric_collection_job_schedule_time,
@@ -101,7 +103,7 @@ impl SchedulingMaster {
         std::process::exit(1);
     }
 
-    async fn pull_machine_name(config: &Config) -> anyhow::Result<String> {
+    async fn pull_machine_name(config: &AppConfig) -> anyhow::Result<String> {
         let client = Client::new();
 
         let res = client
@@ -135,3 +137,5 @@ impl SchedulingMaster {
         }
     }
 }
+
+ */
