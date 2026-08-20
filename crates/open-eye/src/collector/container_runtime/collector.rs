@@ -220,11 +220,10 @@ async fn build_container_stats_from_summary(
 }
 
 pub async fn get_current_stats() -> Result<Option<ContainerRuntimeStats>> {
-    let container_runtimes =
-        check_runtime_availability().ok_or_else(|| {
-            log::info!("No continer runtime found.");
-            anyhow!("No container runtime found.")
-        })?;
+    let container_runtimes = check_runtime_availability().ok_or_else(|| {
+        log::info!("No continer runtime found.");
+        anyhow!("No container runtime found.")
+    })?;
 
     let mut all_container_stats: Vec<ContainerStats> = Vec::new();
     let _seen_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -250,18 +249,23 @@ pub async fn get_current_stats() -> Result<Option<ContainerRuntimeStats>> {
             .await?;
         debug!("Collected summaries");
 
-        let mut container_stats_collected: Vec<ContainerStats> = futures_util::stream::iter(summaries)
-            .map(|summary| {
-                let containers_api = &containers_api;
-                let container_runtime = container_runtime.clone();
-                async move {
-                    build_container_stats_from_summary(summary, containers_api, container_runtime)
+        let mut container_stats_collected: Vec<ContainerStats> =
+            futures_util::stream::iter(summaries)
+                .map(|summary| {
+                    let containers_api = &containers_api;
+                    let container_runtime = container_runtime.clone();
+                    async move {
+                        build_container_stats_from_summary(
+                            summary,
+                            containers_api,
+                            container_runtime,
+                        )
                         .await
-                }
-            })
-            .buffer_unordered(8)
-            .collect()
-            .await;
+                    }
+                })
+                .buffer_unordered(8)
+                .collect()
+                .await;
         all_container_stats.append(&mut container_stats_collected);
     }
     debug!("Container vec: {:#?}", all_container_stats);

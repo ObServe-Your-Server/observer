@@ -1,10 +1,10 @@
+use crate::notification::push_notification::PushNotification;
+use anyhow::{Result, anyhow};
+use reqwest::Client;
+use reqwest::StatusCode;
+use serde::Serialize;
 use std::fmt;
 use std::fmt::Formatter;
-use reqwest::Client;
-use serde::Serialize;
-use anyhow::{anyhow, Result};
-use reqwest::StatusCode;
-use crate::notification::push_notification::PushNotification;
 
 #[derive(Clone)]
 pub struct NotificationHandler {
@@ -13,24 +13,28 @@ pub struct NotificationHandler {
     machine_name: String,
 }
 
-
 impl NotificationHandler {
-    pub fn new(push_notification_url: &str, api_key: &str, machine_name: &str) -> NotificationHandler {
-        NotificationHandler{
+    pub fn new(
+        push_notification_url: &str,
+        api_key: &str,
+        machine_name: &str,
+    ) -> NotificationHandler {
+        NotificationHandler {
             push_notification_url: push_notification_url.to_string(),
             api_key: api_key.to_string(),
             machine_name: machine_name.to_string(),
         }
     }
-    pub async fn send_push_notification(&self, push_notification: &PushNotification) -> Result<()>{
+    pub async fn send_push_notification(&self, push_notification: &PushNotification) -> Result<()> {
         let client = Client::new();
 
-        let push_notification = PushNotification{
-            title: format!("{}: {}",self.machine_name, push_notification.title),
+        let push_notification = PushNotification {
+            title: format!("{}: {}", self.machine_name, push_notification.title),
             body: push_notification.body.clone(),
         };
 
-        let response = client.post(&self.push_notification_url)
+        let response = client
+            .post(&self.push_notification_url)
             .header("X-Api-Key", &self.api_key)
             .json(&push_notification)
             .send()
@@ -40,7 +44,7 @@ impl NotificationHandler {
             StatusCode::OK => {
                 log::info!("Sent notification: {}", push_notification);
                 Ok(())
-            },
+            }
             err => Err(anyhow!("Error sending notification: {}", err)),
         }
     }

@@ -1,16 +1,17 @@
-
+use crate::grpc::v1::MetricsRequest;
+use crate::grpc::v1::metrics_request::Query;
+use crate::grpc::v1::metrics_tunnel_client::MetricsTunnelClient;
+use crate::grpc::v1::response_builder::build_metrics_response;
 use crate::storage_engine::storage_engine::StorageEngine;
+use anyhow::{Result, anyhow};
 use chrono::{DateTime, TimeZone, Utc};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
+use tokio_stream::StreamExt;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::transport::Channel;
-use tonic::{metadata::MetadataValue, transport::ClientTlsConfig};
-use anyhow::{anyhow, Result};
-use crate::grpc::v1::metrics_request::Query;
-use crate::grpc::v1::metrics_tunnel_client::MetricsTunnelClient;
-use crate::grpc::v1::{MetricsRequest, MetricsResponse};
+use tonic::{Response, Status, metadata::MetadataValue, transport::ClientTlsConfig};
 
 /// Which slice of history a request wants: an inclusive `[start, end]` time
 /// range, or just the most recent `n` entries.
@@ -25,15 +26,20 @@ impl QueryRange {
         match &request.query {
             Some(Query::LastN(n)) => QueryRange::LastN((*n).max(0) as u64),
             Some(Query::Range(range)) => {
-                let start = Utc.timestamp_opt(range.start, 0).single().unwrap_or_else(Utc::now);
-                let end = Utc.timestamp_opt(range.end, 0).single().unwrap_or_else(Utc::now);
+                let start = Utc
+                    .timestamp_opt(range.start, 0)
+                    .single()
+                    .unwrap_or_else(Utc::now);
+                let end = Utc
+                    .timestamp_opt(range.end, 0)
+                    .single()
+                    .unwrap_or_else(Utc::now);
                 QueryRange::Between(start, end)
             }
             None => QueryRange::Between(Utc::now(), Utc::now()),
         }
     }
 }
-
 
 pub struct MetricsTunnel {
     url: String,
@@ -77,7 +83,10 @@ impl MetricsTunnel {
             }
 
             if tokio::time::Instant::now() >= deadline {
-                return Err(anyhow!(format!("Tunnel kept failing for over {}", self.reconnect_budget.as_secs())))
+                return Err(anyhow!(format!(
+                    "Tunnel kept failing for over {}",
+                    self.reconnect_budget.as_secs()
+                )));
             }
 
             tokio::time::sleep(Duration::from_secs(5)).await;
@@ -100,26 +109,51 @@ impl MetricsTunnel {
         let api_key = match MetadataValue::try_from(self.api_key.to_string()) {
             Ok(key) => key,
             Err(err) => {
+                // TODO error implementation
                 log::error!("Invalid string as api key. Error: {}", err);
-                return Err(anyhow!(err).context("Invalid string as api key."))
+                return Err(anyhow!(err).context("Invalid string as api key."));
             }
         };
         initial_request.metadata_mut().insert("x-api-key", api_key);
 
-        match client.tunnel(initial_request).await {
-            Ok(_rx) => {}
+        let mut request_stream = match client.tunnel(initial_request).await {
+            Ok(r) => r.into_inner(),
             Err(err) => {
+                // TODO error implementation
                 log::error!("Received error in metrics tunnel: {}", err);
-                return Err(anyhow!("TODO                "))
+                return Err(anyhow!("TODO"));
             }
         };
 
+        while let Some(request) = request_stream.next().await {
+            match request {
+                Ok(request) => {
+                    let response = build_metrics_response(request).await;
+                    match client.metrics_response(response).await {
+                        Ok(_) => {
+                            // TODO log that all went okay
+                        }
+                        Err(err) => {
+                            // Error handling of transmitting
+                        }
+                    }
+                }
+                Err(err) => {
+                    // TODO error implementation
+                    // maybe reconnect etc
+                    todo!()
+                }
+            }
+        }
+
+        /*
         //---- not for the tonic gRPC stream. This is a general message stream which i then use to stream messages to
         // the tonic gRPC socket.
         // build the channel from tokio to send and receive over
         let (_tx, rx) = mpsc::channel::<MetricsResponse>(16);
         // above receiver doesnt implement stream so wrap it
         let _outbound = ReceiverStream::new(rx);
+        */
 
         /*
         /*

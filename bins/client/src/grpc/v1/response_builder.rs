@@ -1,7 +1,8 @@
-//! One builder per metric kind. Each queries the storage engine for the
-//! requested slice of history and maps the rows onto its proto response type,
-//! so `metrics_tunnel` only has to dispatch on the request kind.
+use crate::grpc::v1::{MetricsRequest, MetricsResponse};
 
+pub async fn build_metrics_response(request: MetricsRequest) -> MetricsResponse {
+    todo!()
+}
 /*
 use crate::storage_engine::storage_engine::StorageEngine;
 use anyhow::Result;

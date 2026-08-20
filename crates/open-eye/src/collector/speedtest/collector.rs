@@ -1,4 +1,5 @@
 use bytes::Bytes;
+use chrono::Utc;
 use futures_util::StreamExt;
 use log::{debug, info};
 use reqwest::Client;
@@ -8,7 +9,6 @@ use std::sync::{
     Arc, LazyLock,
 };
 use std::time::{Duration, Instant};
-use chrono::Utc;
 
 const DOWNLOAD_URL: &str = "https://speed.cloudflare.com/__down?bytes=90000000";
 const UPLOAD_URL: &str = "https://speed.cloudflare.com/__up";
@@ -232,7 +232,7 @@ pub async fn run() -> Result<SpeedtestResult, SpeedtestError> {
         download_mbps,
         upload_mbps,
         ping_ms,
-        collected_at: Utc::now()
+        collected_at: Utc::now(),
     })
 }
 

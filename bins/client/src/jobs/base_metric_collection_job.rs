@@ -1,3 +1,4 @@
+use crate::config::Config;
 use crate::scheduling::job::Job;
 use crate::storage_engine::storage_engine::StorageEngine;
 use anyhow::Result;
@@ -11,7 +12,6 @@ use open_eye::collector::systemstats::collector::SystemStats;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::config::Config;
 
 pub struct BaseMetricCollectionJob {
     storage_engine: Arc<StorageEngine>,
@@ -34,7 +34,10 @@ impl BaseMetricCollectionJob {
 impl Job for BaseMetricCollectionJob {
     async fn run(&self) -> Result<()> {
         let base_metrics = BaseMetrics::collect().await;
-        Ok(self.storage_engine.save_base_metrics_to_db(base_metrics).await?)
+        Ok(self
+            .storage_engine
+            .save_base_metrics_to_db(base_metrics)
+            .await?)
     }
 
     fn schedule_time(&self) -> Duration {
@@ -67,7 +70,9 @@ impl BaseMetrics {
         );
 
         BaseMetrics {
-            cpu: cpu.map_err(|e| log::error!("cpu collector panicked: {e}")).ok(),
+            cpu: cpu
+                .map_err(|e| log::error!("cpu collector panicked: {e}"))
+                .ok(),
             memory: memory
                 .map_err(|e| log::error!("memory collector panicked: {e}"))
                 .ok(),

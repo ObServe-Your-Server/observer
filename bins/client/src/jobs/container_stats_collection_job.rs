@@ -1,10 +1,12 @@
+use crate::scheduling::job::Job;
 use crate::storage_engine::storage_engine::StorageEngine;
-use chrono::Duration;
-use std::sync::Arc;
 use anyhow::anyhow;
 use async_trait::async_trait;
-use open_eye::collector::container_runtime::collector::{check_runtime_availability, get_current_stats};
-use crate::scheduling::job::Job;
+use chrono::Duration;
+use open_eye::collector::container_runtime::collector::{
+    check_runtime_availability, get_current_stats,
+};
+use std::sync::Arc;
 
 pub struct ContainerStatsCollectionJob {
     storage_engine: Arc<StorageEngine>,
@@ -35,7 +37,9 @@ impl Job for ContainerStatsCollectionJob {
         match res {
             None => return Ok(()),
             Some(container_stats) => {
-                self.storage_engine.save_container_runtime_stats_to_db(container_stats).await?;
+                self.storage_engine
+                    .save_container_runtime_stats_to_db(container_stats)
+                    .await?;
             }
         }
         Ok(())

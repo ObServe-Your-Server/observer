@@ -1,5 +1,6 @@
 use super::TestDb;
 use crate::entities::{process_stats, processes_stats};
+use crate::jobs::base_metric_collection_job::BaseMetrics;
 use chrono::{DateTime, Utc};
 use open_eye::collector::container_runtime::collector::{
     ContainerRuntime, ContainerRuntimeStats, ContainerStats,
@@ -10,7 +11,6 @@ use open_eye::collector::memory::collector::MemoryStats;
 use open_eye::collector::network::collector::NetworkStats;
 use open_eye::collector::speedtest::collector::SpeedtestResult;
 use open_eye::collector::systemstats::collector::SystemStats;
-use crate::jobs::base_metric_collection_job::BaseMetrics;
 use sea_orm::{ActiveValue::Set, EntityTrait};
 
 pub fn sample_cpu(collected_at: DateTime<Utc>) -> CpuStats {
@@ -137,9 +137,16 @@ impl TestDb {
             .expect("failed to seed speedtest stats");
     }
 
-    pub async fn seed_container_runtime(&self, collected_at: DateTime<Utc>, container_ids: &[&str]) {
+    pub async fn seed_container_runtime(
+        &self,
+        collected_at: DateTime<Utc>,
+        container_ids: &[&str],
+    ) {
         self.engine()
-            .save_container_runtime_stats_to_db(sample_container_runtime(collected_at, container_ids))
+            .save_container_runtime_stats_to_db(sample_container_runtime(
+                collected_at,
+                container_ids,
+            ))
             .await
             .expect("failed to seed container runtime stats");
     }

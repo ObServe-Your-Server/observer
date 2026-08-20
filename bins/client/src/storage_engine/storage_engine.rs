@@ -14,7 +14,6 @@ use sea_orm::{
 };
 use std::sync::OnceLock;
 use std::time::Duration;
-use crate::macros::CallSite;
 
 pub struct StorageEngine {
     database_path: String,
@@ -141,30 +140,31 @@ impl StorageEngine {
         }
 
         if let Some(disks) = base_metrics.disks
-            && let Some(first_disk) = disks.first() {
-                let entry_model = disk_entry::ActiveModel {
-                    collected_at: Set(first_disk.collected_at.into()),
+            && let Some(first_disk) = disks.first()
+        {
+            let entry_model = disk_entry::ActiveModel {
+                collected_at: Set(first_disk.collected_at.into()),
+                ..Default::default()
+            };
+            //gets the id to reference it
+            let inserted_entry = disk_entry::Entity::insert(entry_model).exec(db).await?;
+
+            for disk in disks {
+                let model = disk_stats::ActiveModel {
+                    disk_entry_id: Set(inserted_entry.last_insert_id),
+                    name: Set(disk.name),
+                    total_bytes: Set(disk.total_bytes as i64),
+                    used_bytes: Set(disk.used_bytes as i64),
+                    available_bytes: Set(disk.available_bytes as i64),
+                    used_blocks: Set(disk.used_blocks as i64),
+                    available_blocks: Set(disk.available_blocks as i64),
+                    block_size: Set(disk.block_size as i64),
+                    collected_at: Set(disk.collected_at.into()),
                     ..Default::default()
                 };
-                //gets the id to reference it
-                let inserted_entry = disk_entry::Entity::insert(entry_model).exec(db).await?;
-
-                for disk in disks {
-                    let model = disk_stats::ActiveModel {
-                        disk_entry_id: Set(inserted_entry.last_insert_id),
-                        name: Set(disk.name),
-                        total_bytes: Set(disk.total_bytes as i64),
-                        used_bytes: Set(disk.used_bytes as i64),
-                        available_bytes: Set(disk.available_bytes as i64),
-                        used_blocks: Set(disk.used_blocks as i64),
-                        available_blocks: Set(disk.available_blocks as i64),
-                        block_size: Set(disk.block_size as i64),
-                        collected_at: Set(disk.collected_at.into()),
-                        ..Default::default()
-                    };
-                    disk_stats::Entity::insert(model).exec(db).await?;
-                }
+                disk_stats::Entity::insert(model).exec(db).await?;
             }
+        }
 
         if let Some(network) = base_metrics.network {
             let model = network_stats::ActiveModel {
@@ -465,15 +465,19 @@ impl StorageEngine {
 
         let latest_ids: Vec<i64> = container_runtime_stats::Entity::find()
             .order_by_desc(container_runtime_stats::Column::CollectedAt)
-            .limit(last_n).all(db).await?
+            .limit(last_n)
+            .all(db)
+            .await?
             .into_iter()
-            .map(|e| e.id).collect();
+            .map(|e| e.id)
+            .collect();
 
         let mut rows = container_runtime_stats::Entity::find()
             .filter(container_runtime_stats::Column::Id.is_in(latest_ids))
             .order_by_desc(container_runtime_stats::Column::CollectedAt)
             .find_with_related(container_stats::Entity)
-            .all(db).await?;
+            .all(db)
+            .await?;
         rows.reverse();
         Ok(rows)
     }
@@ -491,10 +495,4 @@ impl StorageEngine {
         rows.reverse();
         Ok(rows)
     }
-
-    pub(super) async fn save_error_report(&self, _error_message: &str, _call_site: CallSite<'_>) {
-        todo!()
-    }
 }
-
-

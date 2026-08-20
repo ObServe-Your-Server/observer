@@ -1,9 +1,9 @@
+use serde::Serialize;
 use std::fmt;
 use std::fmt::Formatter;
-use serde::Serialize;
 
 #[derive(Serialize)]
-pub struct PushNotification{
+pub struct PushNotification {
     pub title: String,
     pub body: String,
 }

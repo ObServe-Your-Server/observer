@@ -1,17 +1,20 @@
-use std::sync::Arc;
-use async_trait::async_trait;
-use chrono::Duration;
 use crate::scheduling::job::Job;
 use crate::storage_engine::storage_engine::StorageEngine;
+use async_trait::async_trait;
+use chrono::Duration;
+use std::sync::Arc;
 
-pub struct SpeedtestStatsCollectionJob{
+pub struct SpeedtestStatsCollectionJob {
     schedule_time: Duration,
     storage_engine: Arc<StorageEngine>,
 }
 
 impl SpeedtestStatsCollectionJob {
-    pub fn new(storage_engine: Arc<StorageEngine>, schedule_time: Duration) -> SpeedtestStatsCollectionJob {
-        SpeedtestStatsCollectionJob{
+    pub fn new(
+        storage_engine: Arc<StorageEngine>,
+        schedule_time: Duration,
+    ) -> SpeedtestStatsCollectionJob {
+        SpeedtestStatsCollectionJob {
             storage_engine,
             schedule_time,
         }

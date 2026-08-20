@@ -8,21 +8,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::env::set_var("PROTOC", protoc);
         std::env::set_var("PROTOC_INCLUDE", include);
     }
-    configure()
-        .compile_protos(
-            &[
-                "proto/observer/v1/metrics_tunnel.proto",
-                "proto/observer/v1/metrics/cpu.proto",
-                "proto/observer/v1/metrics/memory.proto",
-                "proto/observer/v1/metrics/disk.proto",
-                "proto/observer/v1/metrics/network.proto",
-                "proto/observer/v1/metrics/system.proto",
-                "proto/observer/v1/metrics/process.proto",
-                "proto/observer/v1/metrics/container_runtime.proto",
-                "proto/observer/v1/metrics/speedtest.proto",
-            ],
-            &["proto"],
-        )?;
+    configure().compile_protos(
+        &[
+            "proto/observer/v1/metrics_tunnel.proto",
+            "proto/observer/v1/metrics/cpu.proto",
+            "proto/observer/v1/metrics/memory.proto",
+            "proto/observer/v1/metrics/disk.proto",
+            "proto/observer/v1/metrics/network.proto",
+            "proto/observer/v1/metrics/system.proto",
+            "proto/observer/v1/metrics/process.proto",
+            "proto/observer/v1/metrics/container_runtime.proto",
+            "proto/observer/v1/metrics/speedtest.proto",
+        ],
+        &["proto"],
+    )?;
     println!("[build] Observer proto files compiled successfully");
     Ok(())
 }

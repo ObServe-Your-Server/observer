@@ -1,7 +1,7 @@
+use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::sync::OnceLock;
-use anyhow::{anyhow, Result};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -51,7 +51,6 @@ pub struct Config {
 }
 
 impl Config {
-
     pub fn load_config(path: &str) -> Result<Config> {
         let raw = fs::read_to_string(path)?;
 
@@ -70,8 +69,5 @@ impl Config {
     }
 }
 
-
 #[cfg(test)]
-mod tests {
-
-}
+mod tests {}

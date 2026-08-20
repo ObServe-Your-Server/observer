@@ -4,7 +4,10 @@ use crate::entities::{
     container_runtime_stats, container_stats, cpu_core_stats, cpu_stats, disk_entry, disk_stats,
     memory_stats, network_stats, speedtest_stats, system_stats,
 };
-use crate::grpc::v1::metrics::{ContainerMetrics, ContainerRuntimeMetrics, CoreMetrics, CpuMetrics, DiskEntry, DiskMetrics, MemoryMetrics, NetworkMetrics, ProcessStatsKind, SpeedtestMetrics, SystemMetrics};
+use crate::grpc::v1::metrics::{
+    ContainerMetrics, ContainerRuntimeMetrics, CoreMetrics, CpuMetrics, DiskEntry, DiskMetrics,
+    MemoryMetrics, NetworkMetrics, ProcessStatsKind, SpeedtestMetrics, SystemMetrics,
+};
 
 fn to_timestamp(time: chrono::DateTime<chrono::FixedOffset>) -> prost_types::Timestamp {
     prost_types::Timestamp {
@@ -97,10 +100,7 @@ fn process_stats_kind(kind: &str) -> ProcessStatsKind {
 }
 
 pub fn container_runtime_stats(
-    row: (
-        container_runtime_stats::Model,
-        Vec<container_stats::Model>,
-    ),
+    row: (container_runtime_stats::Model, Vec<container_stats::Model>),
 ) -> ContainerRuntimeMetrics {
     let (runtime, containers) = row;
     ContainerRuntimeMetrics {

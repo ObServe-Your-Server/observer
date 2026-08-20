@@ -9,7 +9,7 @@ mod m20260713_143612_process_stats;
 mod m20260713_143619_speedtest_stats;
 mod m20260713_143634_system_stats;
 mod m20260813_115107_tunnel_access_log;
-mod m20260813_115239_error_stats;
+mod m20260813_115239_errors;
 
 pub struct Migrator;
 
@@ -26,7 +26,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260713_143619_speedtest_stats::Migration),
             Box::new(m20260713_143634_system_stats::Migration),
             Box::new(m20260813_115107_tunnel_access_log::Migration),
-            Box::new(m20260813_115239_error_stats::Migration),
+            Box::new(m20260813_115239_errors::Migration),
         ]
     }
 }

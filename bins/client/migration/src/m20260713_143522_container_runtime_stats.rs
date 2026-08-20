@@ -17,9 +17,7 @@ impl MigrationTrait for Migration {
                     .table(ContainerRuntimeStats::Table)
                     .if_not_exists()
                     .col(pk_auto(ContainerRuntimeStats::Id))
-                    .col(timestamp_with_time_zone(
-                        ContainerRuntimeStats::CollectedAt,
-                    ))
+                    .col(timestamp_with_time_zone(ContainerRuntimeStats::CollectedAt))
                     .to_owned(),
             )
             .await?;

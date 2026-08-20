@@ -1,8 +1,8 @@
+use crate::collector::DataCreationTime;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use sysinfo::{Components, RefreshKind, System};
-use crate::collector::DataCreationTime;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CpuStats {

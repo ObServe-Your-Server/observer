@@ -1,15 +1,15 @@
 use crate::scheduling::job::Job;
+use anyhow::{Result, anyhow};
 use std::time::{Duration, Instant};
+use tokio::task::JoinSet;
 use tokio::time;
 use tokio::time::MissedTickBehavior;
-use anyhow::{anyhow, Result};
-use tokio::task::JoinSet;
 
 pub struct Scheduler {
-    job_list: Vec<SchedulableJob>
+    job_list: Vec<SchedulableJob>,
 }
 
-pub struct SchedulableJob{
+pub struct SchedulableJob {
     job: Box<dyn Job>,
     error_count: u32,
     max_error_count: u32,
@@ -27,10 +27,10 @@ impl SchedulableJob {
 
 impl Scheduler {
     pub fn new(job_list: Vec<SchedulableJob>) -> Scheduler {
-        Scheduler{job_list}
+        Scheduler { job_list }
     }
 
-    pub fn add_job(&mut self, job: SchedulableJob){
+    pub fn add_job(&mut self, job: SchedulableJob) {
         self.job_list.push(job);
     }
 
@@ -63,13 +63,13 @@ impl Scheduler {
     }
 }
 
-async fn run(mut schedulable_job: SchedulableJob) -> Result<()>{
+async fn run(mut schedulable_job: SchedulableJob) -> Result<()> {
     let job = &schedulable_job.job;
     log::info!(
-            "Scheduler [{}] starting, running every {}s",
-            job.name(),
-            job.schedule_time().as_seconds_f64()
-        );
+        "Scheduler [{}] starting, running every {}s",
+        job.name(),
+        job.schedule_time().as_seconds_f64()
+    );
 
     let duration = Duration::from_secs_f64(job.schedule_time().as_seconds_f64());
     let mut interval = time::interval(duration);
@@ -85,11 +85,20 @@ async fn run(mut schedulable_job: SchedulableJob) -> Result<()>{
         // run the job and wait on the result
         match time::timeout(duration, job.run()).await {
             Ok(Ok(_)) => {
-                log::debug!("Job: {} run successfully. Duration: {:.3}s", job.name(), timer.elapsed().as_secs_f32());
+                log::debug!(
+                    "Job: {} run successfully. Duration: {:.3}s",
+                    job.name(),
+                    timer.elapsed().as_secs_f32()
+                );
                 schedulable_job.error_count = 0;
             }
             Ok(Err(e)) => {
-                log::error!("Scheduler [{}] job failed: {} after {:.3}s", job.name(), e, timer.elapsed().as_secs_f32());
+                log::error!(
+                    "Scheduler [{}] job failed: {} after {:.3}s",
+                    job.name(),
+                    e,
+                    timer.elapsed().as_secs_f32()
+                );
                 schedulable_job.error_count += 1;
                 if schedulable_job.error_count >= schedulable_job.max_error_count {
                     return Err(anyhow!(
@@ -101,7 +110,11 @@ async fn run(mut schedulable_job: SchedulableJob) -> Result<()>{
             }
             Err(_) => {
                 // executes when the job takes too long
-                log::error!("Scheduler [{}] job timed out after {:?}", job.name(), duration);
+                log::error!(
+                    "Scheduler [{}] job timed out after {:?}",
+                    job.name(),
+                    duration
+                );
                 schedulable_job.error_count += 1;
                 if schedulable_job.error_count >= schedulable_job.max_error_count {
                     return Err(anyhow!(

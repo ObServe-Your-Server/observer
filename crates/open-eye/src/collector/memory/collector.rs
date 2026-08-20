@@ -1,7 +1,7 @@
+use crate::collector::DataCreationTime;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sysinfo::{RefreshKind, System};
-use crate::collector::DataCreationTime;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MemoryStats {
