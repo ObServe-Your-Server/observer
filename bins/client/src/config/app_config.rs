@@ -35,6 +35,7 @@ mod tests {
     use std::path::PathBuf;
     use crate::config::app_config::AppConfig;
 
+    #[ignore = "Needs config for this to work"]
     #[test]
     fn load_config() {
         let config_path = PathBuf::from(env::current_dir().unwrap());

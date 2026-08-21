@@ -29,6 +29,7 @@ impl SchedulingMaster {
         );
         log::info!("Database connected with no errors.");
 
+        // TODO solve problem when self hosted and no server for machine name
         let machine_name = Self::pull_machine_name(&config.toml_config()).await.unwrap_or_else(|e| {
             log::error!("Failed to fetch machine name: {}", e);
             exit(1);
