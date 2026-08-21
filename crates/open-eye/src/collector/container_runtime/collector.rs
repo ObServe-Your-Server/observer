@@ -238,9 +238,7 @@ pub async fn get_current_stats() -> Result<Option<ContainerRuntimeStats>> {
         debug!("Sending ping...");
         docker.ping().await?;
         debug!("Ping succeeded");
-
-        println!("{:#?}", docker.info().await);
-
+        
         debug!("Listing containers...");
         let containers_api = docker.containers();
         debug!("Collecting summaries...");
@@ -282,6 +280,7 @@ pub async fn get_current_stats() -> Result<Option<ContainerRuntimeStats>> {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Instant;
     use super::*;
 
     #[ignore = "requires a running podman socket"] // fails unpredictably when no podman is installed
@@ -312,10 +311,13 @@ mod tests {
     #[ignore = "requires a running Docker socket"]
     #[tokio::test]
     async fn test_list_containers() {
+        let start_time = Instant::now();
         let Some(result) = get_current_stats().await.unwrap() else {
             println!("No container runtime available, skipping test");
             return;
         };
+        let duration = start_time.elapsed();
+        println!("Task duration: {}", duration.as_secs_f64());
 
         for c in &result.container_stats {
             println!("---");
