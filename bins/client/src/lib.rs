@@ -11,6 +11,3 @@ pub mod logging;
 mod notification;
 pub mod scheduling;
 mod storage_engine;
-
-#[cfg(test)]
-mod test_support;

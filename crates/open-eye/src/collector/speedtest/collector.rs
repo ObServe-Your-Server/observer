@@ -223,7 +223,7 @@ pub async fn run() -> Result<SpeedtestResult, SpeedtestError> {
     let upload_mbps = measure_upload().await?;
     debug!("Speedtest: upload {:.2} Mbit/s", upload_mbps);
 
-    info!(
+    debug!(
         "Speedtest: ↓ {:.1} Mbit/s  ↑ {:.1} Mbit/s  ping {:.1} ms",
         download_mbps, upload_mbps, ping_ms
     );

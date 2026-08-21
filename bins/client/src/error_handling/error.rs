@@ -1,8 +1,11 @@
 use std::panic::Location;
+use getset::Getters;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Getters)]
 pub struct CallSite {
+    #[getset(get = "pub")]
     file: String,
+    #[getset(get = "pub")]
     line: u32,
 }
 
@@ -13,10 +16,23 @@ pub enum Severity {
     FATAL,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+impl std::fmt::Display for Severity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Severity::LOW => write!(f, "low"),
+            Severity::MEDIUM => write!(f, "medium"),
+            Severity::FATAL => write!(f, "fatal"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Getters)]
 pub struct Error {
+    #[getset(get = "pub")]
     severity: Severity,
+    #[getset(get = "pub")]
     call_site: CallSite,
+    #[getset(get = "pub")]
     message: String,
 }
 

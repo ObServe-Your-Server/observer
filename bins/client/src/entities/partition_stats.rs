@@ -3,12 +3,15 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
-#[sea_orm(table_name = "disk_stats")]
+#[sea_orm(table_name = "partition_stats")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i64,
-    pub disk_entry_id: i64,
+    pub partition_entry_id: i64,
     pub name: String,
+    pub device: String,
+    pub mount_point: String,
+    pub fs_type: String,
     pub total_bytes: i64,
     pub used_bytes: i64,
     pub available_bytes: i64,
@@ -21,18 +24,18 @@ pub struct Model {
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(
-        belongs_to = "super::disk_entry::Entity",
-        from = "Column::DiskEntryId",
-        to = "super::disk_entry::Column::Id",
+        belongs_to = "super::partition_entry::Entity",
+        from = "Column::PartitionEntryId",
+        to = "super::partition_entry::Column::Id",
         on_update = "NoAction",
         on_delete = "Cascade"
     )]
-    DiskEntry,
+    PartitionEntry,
 }
 
-impl Related<super::disk_entry::Entity> for Entity {
+impl Related<super::partition_entry::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::DiskEntry.def()
+        Relation::PartitionEntry.def()
     }
 }
 

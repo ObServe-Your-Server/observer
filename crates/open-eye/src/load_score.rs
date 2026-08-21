@@ -1,7 +1,7 @@
 use crate::collector::cpu::collector::CpuStats;
-use crate::collector::disk::collector::DiskInfo;
 use crate::collector::memory::collector::MemoryStats;
 use crate::collector::network::collector::NetworkStats;
+use crate::collector::partition::collector::PartitionInfo;
 
 const CPU_WEIGHT: f64 = 0.4;
 const MEMORY_WEIGHT: f64 = 0.3;
@@ -11,7 +11,7 @@ const NETWORK_WEIGHT: f64 = 0.1;
 pub fn compute_score(
     cpu: Option<&CpuStats>,
     memory: Option<&MemoryStats>,
-    disks: Option<&Vec<DiskInfo>>,
+    disks: Option<&Vec<PartitionInfo>>,
     network: Option<&NetworkStats>,
 ) -> Option<f64> {
     fn shaped(raw: f64) -> f64 {

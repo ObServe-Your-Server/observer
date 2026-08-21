@@ -3,9 +3,16 @@ syntax = "proto3";
 package observer.v1.metrics;
 
 import "google/protobuf/timestamp.proto";
-import "observer/v1/metrics_request.proto";
 
-message TunnelAccessLog {
-  MetricsRequest request_type = 1;
-  google.protobuf.Timestamp collected_at = 4;
+// request
+message TunnelAccessLogRequest {}
+
+// response
+message TunnelAccessLogResponse {
+  repeated TunnelAccessLogMetrics items = 1;
+}
+
+message TunnelAccessLogMetrics {
+  string sent_data = 1;
+  google.protobuf.Timestamp sent_at = 2;
 }

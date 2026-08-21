@@ -2,7 +2,7 @@ pub use sea_orm_migration::prelude::*;
 
 mod m20260712_221402_cpu_stats;
 mod m20260713_143522_container_runtime_stats;
-mod m20260713_143538_disk_stats;
+mod m20260713_143538_partition_stats;
 mod m20260713_143549_memory_stats;
 mod m20260713_143558_network_stats;
 mod m20260713_143612_process_stats;
@@ -19,7 +19,7 @@ impl MigratorTrait for Migrator {
         vec![
             Box::new(m20260712_221402_cpu_stats::Migration),
             Box::new(m20260713_143522_container_runtime_stats::Migration),
-            Box::new(m20260713_143538_disk_stats::Migration),
+            Box::new(m20260713_143538_partition_stats::Migration),
             Box::new(m20260713_143549_memory_stats::Migration),
             Box::new(m20260713_143558_network_stats::Migration),
             Box::new(m20260713_143612_process_stats::Migration),

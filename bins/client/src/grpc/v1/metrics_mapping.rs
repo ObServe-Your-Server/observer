@@ -1,4 +1,4 @@
-//! Converts SeaORM entity models (as stored in the DB) into the proto metric types.
+/*//! Converts SeaORM entity models (as stored in the DB) into the proto metric types.
 
 use crate::entities::{
     container_runtime_stats, container_stats, cpu_core_stats, cpu_stats, disk_entry, disk_stats,
@@ -133,3 +133,4 @@ pub fn speedtest_metrics(speedtest: speedtest_stats::Model) -> SpeedtestMetrics 
         collected_at: Some(to_timestamp(speedtest.collected_at)),
     }
 }
+*/

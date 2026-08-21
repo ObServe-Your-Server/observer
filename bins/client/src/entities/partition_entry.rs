@@ -3,7 +3,7 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
-#[sea_orm(table_name = "disk_entry")]
+#[sea_orm(table_name = "partition_entry")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i64,
@@ -12,13 +12,13 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(has_many = "super::disk_stats::Entity")]
-    DiskStats,
+    #[sea_orm(has_many = "super::partition_stats::Entity")]
+    PartitionStats,
 }
 
-impl Related<super::disk_stats::Entity> for Entity {
+impl Related<super::partition_stats::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::DiskStats.def()
+        Relation::PartitionStats.def()
     }
 }
 

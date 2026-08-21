@@ -10,6 +10,7 @@ use reqwest::{Client, StatusCode};
 use std::sync::Arc;
 use crate::config::app_config::AppConfig;
 use crate::config::toml_config::TomlConfig;
+use crate::jobs::speedtest_stats_collection_job::SpeedtestStatsCollectionJob;
 use crate::scheduling::job::Job;
 use crate::scheduling::scheduler::Scheduler;
 
@@ -35,7 +36,6 @@ impl SchedulingMaster {
 
         //let notification_handler = NotificationHandler::new(config.server.push_notification_url.to_string().clone(), config.server.api_key.clone(), machine_name.clone());
 
-        // TODO data cleanup job
 
         let base_metric_collection_job = Job::new(
             "Base Metrics",
@@ -49,10 +49,13 @@ impl SchedulingMaster {
             Duration::seconds(config.toml_config().interval_config().data_cleanup_job_secs().clone().unwrap_or(300) as i64), // TODO set default time more elegant
             15
         );
+        let speed_test_job = Job::new(
+            "Speedtest",
+            Box::new(SpeedtestStatsCollectionJob::new(storage_engine.clone())),
+            Duration::seconds(config.toml_config().interval_config().speedtest_secs().clone() as i64), // TODO set default time more elegant
+            15
+        );
 
-        /*let speedtest_stats_collection_job_schedule_time = Duration::seconds(config.intervals.speedtest_secs as i64);
-        let speedtest_stats_collection_job = SpeedtestStatsCollectionJob::new(Arc::clone(&storage_engine), speedtest_stats_collection_job_schedule_time);
-        let speedtest_stats_collection_job = SchedulableJob::new(Box::new(speedtest_stats_collection_job), 5);*/
 
         let metrics_tunnel = MetricsTunnel::new(
             config.toml_config().client_config().base_server_grpc_url().to_string(),
@@ -61,7 +64,7 @@ impl SchedulingMaster {
         );
 
         // -------------- first add essential jobs --------------
-        let mut scheduler = Scheduler::new(vec![data_cleanup_job, base_metric_collection_job]);
+        let mut scheduler = Scheduler::new(vec![data_cleanup_job, base_metric_collection_job, speed_test_job]);
 
         // -------------- addons like container stats --------------
         if config.toml_config().interval_config().enable_docker_socket().clone() {
@@ -75,7 +78,7 @@ impl SchedulingMaster {
             scheduler.add_job(container_stats_collection_job);
         }
 
-        // scheduler in own task
+        // -------------- start the jobs --------------
         let scheduler_future_handle =
             tokio::spawn(async move { scheduler.start_jobs_blocking().await });
 
@@ -99,6 +102,11 @@ impl SchedulingMaster {
         }
 
         // TODO send shutdown notification
+
+        if let Err(e) = storage_engine.close().await {
+            log::error!("Failed to close database connection: {}", e);
+        }
+
         exit(1);
     }
 

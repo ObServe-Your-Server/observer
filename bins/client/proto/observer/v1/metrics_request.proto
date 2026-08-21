@@ -4,12 +4,14 @@ package observer.v1;
 
 import "observer/v1/metrics/container_runtime.proto";
 import "observer/v1/metrics/cpu.proto";
-import "observer/v1/metrics/disk.proto";
+import "observer/v1/metrics/error_stats.proto";
+import "observer/v1/metrics/partition.proto";
 import "observer/v1/metrics/memory.proto";
 import "observer/v1/metrics/network.proto";
 import "observer/v1/metrics/process.proto";
 import "observer/v1/metrics/speedtest.proto";
 import "observer/v1/metrics/system.proto";
+import "observer/v1/metrics/tunnel_access_log.proto";
 
 // Requests every available metric at once.
 message FullRequest {}
@@ -27,13 +29,15 @@ message MetricsRequest {
 
   oneof requested_metric {
     observer.v1.metrics.CpuRequest cpu_request = 2;
-    observer.v1.metrics.DiskRequest disk_request = 3;
+    observer.v1.metrics.PartitionRequest partition_request = 3;
     observer.v1.metrics.MemoryRequest memory_request = 4;
     observer.v1.metrics.NetworkRequest network_request = 5;
     observer.v1.metrics.ProcessRequest process_request = 6;
     observer.v1.metrics.SpeedtestRequest speedtest_request = 7;
     observer.v1.metrics.SystemRequest system_request = 8;
     observer.v1.metrics.ContainerRuntimeRequest container_runtime_request = 9;
+    observer.v1.metrics.ErrorStatsRequest error_stats_request = 13;
+    observer.v1.metrics.TunnelAccessLogRequest tunnel_access_log_request = 14;
     FullRequest full_request = 10;
   }
 

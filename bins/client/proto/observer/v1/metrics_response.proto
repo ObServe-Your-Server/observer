@@ -4,12 +4,14 @@ package observer.v1;
 
 import "observer/v1/metrics/container_runtime.proto";
 import "observer/v1/metrics/cpu.proto";
-import "observer/v1/metrics/disk.proto";
+import "observer/v1/metrics/error_stats.proto";
+import "observer/v1/metrics/partition.proto";
 import "observer/v1/metrics/memory.proto";
 import "observer/v1/metrics/network.proto";
 import "observer/v1/metrics/process.proto";
 import "observer/v1/metrics/speedtest.proto";
 import "observer/v1/metrics/system.proto";
+import "observer/v1/metrics/tunnel_access_log.proto";
 
 message MetricsResponse {
   string request_id = 1;
@@ -17,13 +19,15 @@ message MetricsResponse {
   // Mirrors the `requested_metric` of the request this answers.
   oneof returned_metric {
     observer.v1.metrics.CpuResponse cpu_response = 2;
-    observer.v1.metrics.DiskResponse disk_response = 3;
+    observer.v1.metrics.PartitionResponse partition_response = 3;
     observer.v1.metrics.MemoryResponse memory_response = 4;
     observer.v1.metrics.NetworkResponse network_response = 5;
     observer.v1.metrics.ProcessResponse process_response = 6;
     observer.v1.metrics.SpeedtestResponse speedtest_response = 7;
     observer.v1.metrics.SystemResponse system_response = 8;
     observer.v1.metrics.ContainerRuntimeResponse container_runtime_response = 9;
+    observer.v1.metrics.ErrorStatsResponse error_stats_response = 11;
+    observer.v1.metrics.TunnelAccessLogResponse tunnel_access_log_response = 12;
     FullResponse full_response = 10;
   }
 }
@@ -31,11 +35,13 @@ message MetricsResponse {
 // Aggregate answer to a `FullRequest`.
 message FullResponse {
   observer.v1.metrics.CpuResponse cpu_response = 1;
-  observer.v1.metrics.DiskResponse disk_response = 2;
+  observer.v1.metrics.PartitionResponse partition_response = 2;
   observer.v1.metrics.MemoryResponse memory_response = 3;
   observer.v1.metrics.NetworkResponse network_response = 4;
   observer.v1.metrics.ProcessResponse process_response = 5;
   observer.v1.metrics.SpeedtestResponse speedtest_response = 6;
   observer.v1.metrics.SystemResponse system_response = 7;
   observer.v1.metrics.ContainerRuntimeResponse container_runtime_response = 8;
+  observer.v1.metrics.ErrorStatsResponse error_stats_response = 9;
+  observer.v1.metrics.TunnelAccessLogResponse tunnel_access_log_response = 10;
 }

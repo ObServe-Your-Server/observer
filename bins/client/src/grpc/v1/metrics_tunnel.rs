@@ -1,6 +1,3 @@
-use crate::grpc::v1::MetricsRequest;
-use crate::grpc::v1::metrics_request::Query;
-use crate::grpc::v1::metrics_tunnel_client::MetricsTunnelClient;
 use crate::grpc::v1::response_builder::build_metrics_response;
 use crate::storage_engine::storage_engine::StorageEngine;
 use anyhow::{Result, anyhow};
@@ -10,6 +7,9 @@ use std::time::Duration;
 use tokio_stream::StreamExt;
 use tonic::transport::Channel;
 use tonic::{metadata::MetadataValue, transport::ClientTlsConfig};
+use crate::grpc::v1::metrics_request::Query;
+use crate::grpc::v1::metrics_tunnel_client::MetricsTunnelClient;
+use crate::grpc::v1::MetricsRequest;
 
 /// Which slice of history a request wants: an inclusive `[start, end]` time
 /// range, or just the most recent `n` entries.
@@ -143,71 +143,6 @@ impl MetricsTunnel {
                 }
             }
         }
-
-        /*
-        //---- not for the tonic gRPC stream. This is a general message stream which i then use to stream messages to
-        // the tonic gRPC socket.
-        // build the channel from tokio to send and receive over
-        let (_tx, rx) = mpsc::channel::<MetricsResponse>(16);
-        // above receiver doesnt implement stream so wrap it
-        let _outbound = ReceiverStream::new(rx);
-        */
-
-        /*
-        /*
-        code                           tonic / network
-        ┌─────────┐                    ┌──────────────────┐
-        │ tx.send │ ──channel──> rx ──▶│ outbound (Stream)│──▶ over the wire ──▶ server
-        └─────────┘                    └──────────────────┘
-         */
-        // hands over the stream where I can send messages to tonic. This is a general request
-        let mut request = Request::new(outbound);
-        let api_key = match MetadataValue::try_from(self.api_key.as_str()) {
-            Ok(v) => v,
-            Err(e) => {
-                log::error!("invalid api_key: {e}");
-                return Ok(());
-            }
-        };
-        request.metadata_mut().insert("x-api-key", api_key);
-
-        // open the bidi stream — server sends MetricsRequest, we send MetricsResponse back.
-        // Non-retryable statuses (bad/expired api key etc.) are propagated so the
-        // caller stops instead of hammering the server in a tight reconnect loop;
-        // everything else is treated as a transient connect failure.
-        let response = match client.base_transfer(request).await {
-            Ok(r) => r,
-            Err(e) => {
-                log::error!("base_transfer call failed: {e}");
-                match e.code() {
-                    tonic::Code::Unauthenticated | tonic::Code::PermissionDenied | tonic::Code::InvalidArgument => {
-                        return Err(e);
-                    }
-                    _ => return Ok(()),
-                }
-            }
-        };
-        // get the inner stream to receive incoming requests from the server
-        let mut inbound = response.into_inner();
-
-        while let Some(result) = inbound.next().await {
-            match result {
-                Ok(req_data) => {
-                    log::debug!("received request: {:?}", req_data);
-                    let response = build_response(&req_data, self.storage_engine.clone()).await;
-                    if tx.send(response).await.is_err() {
-                        log::error!("response channel closed");
-                        break;
-                    }
-                }
-                Err(e) => {
-                    log::error!("Error receiving metrics request: {}", e);
-                    break;
-                }
-            }
-        }*/
-
-        // stream ended (cleanly closed or errored) — caller will reconnect and restart
         Ok(())
     }
 

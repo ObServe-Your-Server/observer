@@ -13,7 +13,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "proto/observer/v1/metrics_tunnel.proto",
             "proto/observer/v1/metrics/cpu.proto",
             "proto/observer/v1/metrics/memory.proto",
-            "proto/observer/v1/metrics/disk.proto",
+            "proto/observer/v1/metrics/partition.proto",
             "proto/observer/v1/metrics/network.proto",
             "proto/observer/v1/metrics/system.proto",
             "proto/observer/v1/metrics/process.proto",

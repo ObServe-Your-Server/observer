@@ -1,6 +1,6 @@
 pub mod container_runtime;
 pub mod cpu;
-pub mod disk;
+pub mod partition;
 pub mod gpu;
 pub mod memory;
 pub mod network;
