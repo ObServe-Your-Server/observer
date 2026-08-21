@@ -1,9 +1,11 @@
 use serde::{Deserialize, Serialize};
-use getset::Getters;
+use getset::{Getters, Setters};
 
-#[derive(Debug, Deserialize, Serialize, Getters)]
+#[derive(Debug, Deserialize, Serialize, Getters, Setters)]
 #[serde(rename_all = "snake_case")]
 pub struct ClientConfig {
+    #[getset(get = "pub", set = "pub")]
+    machine_name: Option<String>,
     #[getset(get = "pub")]
     base_server_grpc_url: String,
     #[getset(get = "pub")]

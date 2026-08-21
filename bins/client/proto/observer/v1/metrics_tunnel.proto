@@ -5,8 +5,33 @@ package observer.v1;
 import "google/protobuf/empty.proto";
 import "observer/v1/metrics_request.proto";
 import "observer/v1/metrics_response.proto";
+import "observer/v1/metrics/cpu.proto";
+import "observer/v1/metrics/container_runtime.proto";
+import "observer/v1/metrics/error_stats.proto";
+import "observer/v1/metrics/memory.proto";
+import "observer/v1/metrics/network.proto";
+import "observer/v1/metrics/partition.proto";
+import "observer/v1/metrics/process.proto";
+import "observer/v1/metrics/speedtest.proto";
+import "observer/v1/metrics/system.proto";
+import "observer/v1/metrics/tunnel_access_log.proto";
 
 service MetricsTunnel {
   rpc Tunnel(google.protobuf.Empty) returns (stream observer.v1.MetricsRequest);
   rpc MetricsResponse(observer.v1.MetricsResponse) returns (google.protobuf.Empty);
+}
+
+// use for website or other connections which
+// requiere observer to function as a server
+service MetricsServer {
+  rpc GetCpuMetrics(observer.v1.TimeRange) returns (observer.v1.metrics.CpuResponse);
+  rpc GetMemoryMetrics(observer.v1.TimeRange) returns (observer.v1.metrics.MemoryResponse);
+  rpc GetPartitionMetrics(observer.v1.TimeRange) returns (observer.v1.metrics.PartitionResponse);
+  rpc GetNetworkMetrics(observer.v1.TimeRange) returns (observer.v1.metrics.NetworkResponse);
+  rpc GetProcessMetrics(observer.v1.TimeRange) returns (observer.v1.metrics.ProcessResponse);
+  rpc GetSpeedtestMetrics(observer.v1.TimeRange) returns (observer.v1.metrics.SpeedtestResponse);
+  rpc GetSystemMetrics(observer.v1.TimeRange) returns (observer.v1.metrics.SystemResponse);
+  rpc GetContainerRuntimeMetrics(observer.v1.TimeRange) returns (observer.v1.metrics.ContainerRuntimeResponse);
+  rpc GetErrorStatsMetrics(observer.v1.TimeRange) returns (observer.v1.metrics.ErrorStatsResponse);
+  rpc GetTunnelAccessLogMetrics(observer.v1.TimeRange) returns (observer.v1.metrics.TunnelAccessLogResponse);
 }

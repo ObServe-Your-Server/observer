@@ -1,17 +1,17 @@
 use std::{fs, io};
 use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
-use getset::Getters;
+use getset::{Getters, MutGetters};
 use crate::config::config_parts::client_config::ClientConfig;
 use crate::config::config_parts::interval_config::IntervalConfig;
 use crate::config::config_parts::storage_config::StorageConfig;
 use anyhow::Result;
 use crate::config::config_parts::notification_config::NotificationConfig;
 
-#[derive(Debug, Deserialize, Serialize, Getters)]
+#[derive(Debug, Deserialize, Serialize, Getters, MutGetters)]
 #[serde(rename_all = "snake_case")]
 pub struct TomlConfig {
-    #[getset(get = "pub")]
+    #[getset(get = "pub", get_mut = "pub")]
     client_config: ClientConfig,
     #[getset(get = "pub")]
     interval_config: IntervalConfig,

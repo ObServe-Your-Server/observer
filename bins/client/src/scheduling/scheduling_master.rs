@@ -29,12 +29,6 @@ impl SchedulingMaster {
         );
         log::info!("Database connected with no errors.");
 
-        // TODO solve problem when self hosted and no server for machine name
-        let machine_name = Self::pull_machine_name(&config.toml_config()).await.unwrap_or_else(|e| {
-            log::error!("Failed to fetch machine name: {}", e);
-            exit(1);
-        });
-
         //let notification_handler = NotificationHandler::new(config.server.push_notification_url.to_string().clone(), config.server.api_key.clone(), machine_name.clone());
 
 
@@ -109,24 +103,6 @@ impl SchedulingMaster {
         }
 
         exit(1);
-    }
-
-    async fn pull_machine_name(toml_config: &TomlConfig) -> anyhow::Result<String> {
-        let client = Client::new();
-
-        let res = client
-            .get(format!(
-                "{}/machines/machine-name-over-api-key",
-                toml_config.client_config().base_server_http_url()
-            ))
-            .header("X-Api-Key", toml_config.client_config().api_key())
-            .send()
-            .await?;
-
-        match res.status() {
-            StatusCode::OK => Ok(res.text().await?),
-            status => Err(anyhow!("Failed to pull machine name: {}", status)),
-        }
     }
 
     /// Resolves once SIGTERM or SIGINT is received. Can be awaited on its own

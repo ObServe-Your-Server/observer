@@ -51,7 +51,7 @@ impl MetricsTunnel {
         Self {
             url,
             api_key,
-            reconnect_budget: Duration::from_secs(5 * 60),
+            reconnect_budget: Duration::from_hours(24),
             storage_engine,
         }
     }
