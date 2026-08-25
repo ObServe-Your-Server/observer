@@ -1,6 +1,73 @@
-use crate::grpc::v1::{MetricsRequest, MetricsResponse};
+use std::sync::Arc;
+use crate::grpc::v1::{FullRequest, MetricsRequest, MetricsResponse};
+use crate::grpc::v1::metrics::ContainerRuntimeRequest;
+use crate::grpc::v1::metrics_request::RequestedMetric;
+use crate::grpc::v1::query_range::QueryRange;
+use crate::storage_engine::storage_engine::StorageEngine;
 
-pub async fn build_metrics_response(_request: MetricsRequest) -> MetricsResponse {
+pub async fn build_metrics_response(storage_engine: Arc<StorageEngine>, request: MetricsRequest) -> MetricsResponse {
+    let query_range = QueryRange::from_request(&request);
+
+    let requested_metric = request.requested_metric.unwrap_or(RequestedMetric::FullRequest(FullRequest{}));
+    match requested_metric {
+        RequestedMetric::CpuRequest(_) => {build_cpu_response(storage_engine, query_range)}
+        RequestedMetric::PartitionRequest(_) => {build_partition_response(storage_engine, query_range)}
+        RequestedMetric::MemoryRequest(_) => {build_memory_response(storage_engine, query_range)}
+        RequestedMetric::NetworkRequest(_) => {build_network_response(storage_engine, query_range)}
+        RequestedMetric::ProcessRequest(_) => {build_process_response(storage_engine, query_range)}
+        RequestedMetric::SpeedtestRequest(_) => {build_speedtest_response(storage_engine, query_range)}
+        RequestedMetric::SystemRequest(_) => {build_system_response(storage_engine, query_range)}
+        RequestedMetric::ContainerRuntimeRequest(req) => {build_container_runtime_response(storage_engine, query_range, req)}
+        RequestedMetric::ErrorStatsRequest(_) => {build_error_stats_response(storage_engine, query_range)}
+        RequestedMetric::TunnelAccessLogRequest(_) => {build_tunnel_access_log_response(storage_engine, query_range)}
+        RequestedMetric::FullRequest(_) => {build_full_response(storage_engine, query_range)}
+    }
+
+
+    todo!()
+}
+
+fn build_full_response(p0: Arc<StorageEngine>, p1: QueryRange) {
+    todo!()
+}
+
+fn build_tunnel_access_log_response(p0: Arc<StorageEngine>, p1: QueryRange) {
+    todo!()
+}
+
+fn build_container_runtime_response(p0: Arc<StorageEngine>, p1: QueryRange, p2: ContainerRuntimeRequest) {
+    todo!()
+}
+
+fn build_error_stats_response(p0: Arc<StorageEngine>, p1: QueryRange) {
+    todo!()
+}
+
+fn build_system_response(p0: Arc<StorageEngine>, p1: QueryRange) {
+    todo!()
+}
+
+fn build_speedtest_response(p0: Arc<StorageEngine>, p1: QueryRange) {
+    todo!()
+}
+
+fn build_process_response(p0: Arc<StorageEngine>, p1: QueryRange) {
+    todo!()
+}
+
+fn build_network_response(p0: Arc<StorageEngine>, p1: QueryRange) {
+    todo!()
+}
+
+fn build_memory_response(p0: Arc<StorageEngine>, p1: QueryRange) {
+    todo!()
+}
+
+fn build_partition_response(p0: Arc<StorageEngine>, p1: QueryRange) {
+    todo!()
+}
+
+fn build_cpu_response(p0: Arc<StorageEngine>, p1: QueryRange) {
     todo!()
 }
 /*
