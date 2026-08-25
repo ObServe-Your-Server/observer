@@ -86,10 +86,10 @@ impl SchedulingMaster {
         // whichever terminates first (cleanly, via signal, or not) brings the whole process down
         tokio::select! {
             res = scheduler_future_handle => {
-                log::error!("Scheduler termination: {}", res.err().unwrap())
+                log::error!("Scheduler termination: {:?}", res)
             }
             res = metrics_tunnel_future_handle => {
-                log::error!("Metrics tunnel terminated: {}", res.err().unwrap());
+                log::error!("Metrics tunnel terminated: {:?}", res);
             }
             _ = Self::watch_for_termination() => {
                 log::info!("Termination signal received");

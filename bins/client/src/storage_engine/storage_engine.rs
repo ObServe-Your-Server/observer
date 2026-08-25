@@ -1,6 +1,17 @@
-use crate::entities::{container_runtime_stats, container_stats, cpu_core_stats, cpu_stats, error, memory_stats, network_stats, partition_entry, partition_stats, process_stats, processes_stats, speedtest_stats, system_stats, tunnel_access_log};
+use crate::entities::{
+    container_runtime_stats, container_stats, cpu_core_stats, cpu_stats, error, memory_stats,
+    network_stats, partition_entry, partition_stats, process_stats, processes_stats,
+    speedtest_stats, system_stats, tunnel_access_log,
+};
+use crate::error_handling::error::Error;
+use crate::error_handling::error_store::ErrorStoreStorageEngine;
+use crate::jobs::base_metric_collection_job::BaseMetricCollectionStorageEngine;
 use crate::jobs::base_metric_collection_job::BaseMetrics;
+use crate::jobs::container_stats_collection_job::ContainerStatsCollectionStorageEngine;
+use crate::jobs::data_cleanup_job::DataCleanupStorageEngine;
+use crate::jobs::speedtest_stats_collection_job::SpeedtestStatsCollectionStorageEngine;
 use anyhow::{Result, anyhow};
+use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use migration::{Migrator, MigratorTrait};
 use open_eye::collector::container_runtime::collector::ContainerRuntimeStats;
@@ -11,13 +22,6 @@ use sea_orm::{
 };
 use std::sync::OnceLock;
 use std::time::Duration;
-use async_trait::async_trait;
-use crate::jobs::data_cleanup_job::DataCleanupStorageEngine;
-use crate::jobs::base_metric_collection_job::BaseMetricCollectionStorageEngine;
-use crate::jobs::container_stats_collection_job::ContainerStatsCollectionStorageEngine;
-use crate::jobs::speedtest_stats_collection_job::SpeedtestStatsCollectionStorageEngine;
-use crate::error_handling::error::Error;
-use crate::error_handling::error_store::ErrorStoreStorageEngine;
 
 pub struct StorageEngine {
     database_path: String,
@@ -135,7 +139,7 @@ impl StorageEngine {
             .await?)
     }
 
-    pub async fn get_partition_stats_between(
+    async fn get_partition_stats_between(
         &self,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
@@ -485,7 +489,9 @@ impl BaseMetricCollectionStorageEngine for StorageEngine {
                 ..Default::default()
             };
             //gets the id to reference it
-            let inserted_entry = partition_entry::Entity::insert(entry_model).exec(db).await?;
+            let inserted_entry = partition_entry::Entity::insert(entry_model)
+                .exec(db)
+                .await?;
 
             for partition in partitions {
                 let model = partition_stats::ActiveModel {
@@ -546,34 +552,44 @@ impl DataCleanupStorageEngine for StorageEngine {
 
         container_runtime_stats::Entity::delete_many()
             .filter(container_runtime_stats::Column::CollectedAt.lt(cutoff_time))
-            .exec(db).await?;
+            .exec(db)
+            .await?;
         cpu_stats::Entity::delete_many()
             .filter(cpu_stats::Column::CollectedAt.lt(cutoff_time))
-            .exec(db).await?;
+            .exec(db)
+            .await?;
         memory_stats::Entity::delete_many()
             .filter(memory_stats::Column::CollectedAt.lt(cutoff_time))
-            .exec(db).await?;
+            .exec(db)
+            .await?;
         partition_entry::Entity::delete_many()
             .filter(partition_entry::Column::CollectedAt.lt(cutoff_time))
-            .exec(db).await?;
+            .exec(db)
+            .await?;
         network_stats::Entity::delete_many()
             .filter(network_stats::Column::CollectedAt.lt(cutoff_time))
-            .exec(db).await?;
+            .exec(db)
+            .await?;
         system_stats::Entity::delete_many()
             .filter(system_stats::Column::CollectedAt.lt(cutoff_time))
-            .exec(db).await?;
+            .exec(db)
+            .await?;
         processes_stats::Entity::delete_many()
             .filter(processes_stats::Column::CollectedAt.lt(cutoff_time))
-            .exec(db).await?;
+            .exec(db)
+            .await?;
         speedtest_stats::Entity::delete_many()
             .filter(speedtest_stats::Column::CollectedAt.lt(cutoff_time))
-            .exec(db).await?;
+            .exec(db)
+            .await?;
         error::Entity::delete_many()
             .filter(error::Column::CollectedAt.lt(cutoff_time))
-            .exec(db).await?;
+            .exec(db)
+            .await?;
         tunnel_access_log::Entity::delete_many()
             .filter(tunnel_access_log::Column::SentAt.lt(cutoff_time))
-            .exec(db).await?;
+            .exec(db)
+            .await?;
 
         Ok(())
     }
