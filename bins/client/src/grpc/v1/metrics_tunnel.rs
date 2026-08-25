@@ -10,7 +10,7 @@ use crate::grpc::v1::{
 use crate::storage_engine::storage_engine::StorageEngine;
 use chrono::{DateTime, TimeZone, Utc};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
@@ -332,7 +332,9 @@ impl MetricsTunnel {
             match result {
                 Ok(req_data) => {
                     log::debug!("received request: {:?}", req_data);
+                    let start = Instant::now();
                     let response = build_response(&req_data, &self.storage_engine).await;
+                    println!("Response building took: {}ms", start.elapsed().as_millis());
                     if tx.send(response).await.is_err() {
                         log::error!("response channel closed");
                         break;
