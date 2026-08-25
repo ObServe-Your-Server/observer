@@ -23,6 +23,16 @@ impl MigrationTrait for Migration {
             .await?;
 
         manager
+            .create_index(
+                Index::create()
+                    .name("idx_processes_stats_collected_at")
+                    .table(ProcessesStats::Table)
+                    .col(ProcessesStats::CollectedAt)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
             .create_table(
                 Table::create()
                     .table(ProcessStats::Table)

@@ -23,6 +23,16 @@ impl MigrationTrait for Migration {
             .await?;
 
         manager
+            .create_index(
+                Index::create()
+                    .name("idx_partition_entry_collected_at")
+                    .table(PartitionEntry::Table)
+                    .col(PartitionEntry::CollectedAt)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
             .create_table(
                 Table::create()
                     .table(PartitionStats::Table)
@@ -47,6 +57,26 @@ impl MigrationTrait for Migration {
                             .to(PartitionEntry::Table, PartitionEntry::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_partition_stats_collected_at")
+                    .table(PartitionStats::Table)
+                    .col(PartitionStats::CollectedAt)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_partition_stats_name")
+                    .table(PartitionStats::Table)
+                    .col(PartitionStats::Name)
                     .to_owned(),
             )
             .await

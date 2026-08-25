@@ -22,6 +22,16 @@ impl MigrationTrait for Migration {
                     .col(timestamp_with_time_zone(TunnelAccessLog::SentAt))
                     .to_owned(),
             )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_tunnel_access_log_sent_at")
+                    .table(TunnelAccessLog::Table)
+                    .col(TunnelAccessLog::SentAt)
+                    .to_owned(),
+            )
             .await
     }
 

@@ -25,6 +25,16 @@ impl MigrationTrait for Migration {
                     .col(timestamp_with_time_zone(NetworkStats::CollectedAt))
                     .to_owned(),
             )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_network_stats_collected_at")
+                    .table(NetworkStats::Table)
+                    .col(NetworkStats::CollectedAt)
+                    .to_owned(),
+            )
             .await
     }
 

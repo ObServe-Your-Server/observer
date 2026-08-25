@@ -28,6 +28,16 @@ impl MigrationTrait for Migration {
             .await?;
 
         manager
+            .create_index(
+                Index::create()
+                    .name("idx_cpu_stats_collected_at")
+                    .table(CpuStats::Table)
+                    .col(CpuStats::CollectedAt)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
             .create_table(
                 Table::create()
                     .table(CpuCoreStats::Table)

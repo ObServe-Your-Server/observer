@@ -24,6 +24,16 @@ impl MigrationTrait for Migration {
                     .col(timestamp_with_time_zone(SystemStats::CollectedAt))
                     .to_owned(),
             )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_system_stats_collected_at")
+                    .table(SystemStats::Table)
+                    .col(SystemStats::CollectedAt)
+                    .to_owned(),
+            )
             .await
     }
 

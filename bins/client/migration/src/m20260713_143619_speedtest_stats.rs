@@ -23,6 +23,16 @@ impl MigrationTrait for Migration {
                     .col(timestamp_with_time_zone(SpeedtestStats::CollectedAt))
                     .to_owned(),
             )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_speedtest_stats_collected_at")
+                    .table(SpeedtestStats::Table)
+                    .col(SpeedtestStats::CollectedAt)
+                    .to_owned(),
+            )
             .await
     }
 

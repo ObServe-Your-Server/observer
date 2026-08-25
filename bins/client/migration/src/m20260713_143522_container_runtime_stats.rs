@@ -23,6 +23,16 @@ impl MigrationTrait for Migration {
             .await?;
 
         manager
+            .create_index(
+                Index::create()
+                    .name("idx_container_runtime_stats_collected_at")
+                    .table(ContainerRuntimeStats::Table)
+                    .col(ContainerRuntimeStats::CollectedAt)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
             .create_table(
                 Table::create()
                     .table(ContainerStats::Table)
@@ -51,6 +61,26 @@ impl MigrationTrait for Migration {
                             .to(ContainerRuntimeStats::Table, ContainerRuntimeStats::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_container_stats_collected_at")
+                    .table(ContainerStats::Table)
+                    .col(ContainerStats::CollectedAt)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_container_stats_container_id")
+                    .table(ContainerStats::Table)
+                    .col(ContainerStats::ContainerId)
                     .to_owned(),
             )
             .await

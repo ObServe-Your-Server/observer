@@ -27,6 +27,16 @@ impl MigrationTrait for Migration {
                     .col(timestamp_with_time_zone(Error::CollectedAt))
                     .to_owned(),
             )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_errors_collected_at")
+                    .table(Error::Table)
+                    .col(Error::CollectedAt)
+                    .to_owned(),
+            )
             .await
     }
 

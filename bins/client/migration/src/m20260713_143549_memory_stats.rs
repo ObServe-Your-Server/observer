@@ -26,6 +26,16 @@ impl MigrationTrait for Migration {
                     .col(timestamp_with_time_zone(MemoryStats::CollectedAt))
                     .to_owned(),
             )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_memory_stats_collected_at")
+                    .table(MemoryStats::Table)
+                    .col(MemoryStats::CollectedAt)
+                    .to_owned(),
+            )
             .await
     }
 
