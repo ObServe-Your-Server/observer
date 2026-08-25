@@ -1,6 +1,10 @@
 name: Test
 on:
   push:
+    # branch pushes only excludes tag pushes so release/prerelease workflows
+    # don't trigger this a second time via their own tag-push + workflow_call
+    branches:
+      - "**"
   workflow_call:
 
 jobs:

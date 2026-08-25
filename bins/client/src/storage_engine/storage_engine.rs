@@ -454,9 +454,18 @@ impl StorageEngine {
         last_n: u64,
     ) -> Result<Vec<(processes_stats::Model, Vec<process_stats::Model>)>> {
         let db = self.db()?;
-        let mut rows = processes_stats::Entity::find()
+        let latest_ids: Vec<i64> = processes_stats::Entity::find()
             .order_by_desc(processes_stats::Column::CollectedAt)
             .limit(last_n)
+            .all(db)
+            .await?
+            .into_iter()
+            .map(|m| m.id)
+            .collect();
+
+        let mut rows = processes_stats::Entity::find()
+            .filter(processes_stats::Column::Id.is_in(latest_ids))
+            .order_by_desc(processes_stats::Column::CollectedAt)
             .find_with_related(process_stats::Entity)
             .all(db)
             .await?;
@@ -469,9 +478,18 @@ impl StorageEngine {
         last_n: u64,
     ) -> Result<Vec<(container_runtime_stats::Model, Vec<container_stats::Model>)>> {
         let db = self.db()?;
-        let mut rows = container_runtime_stats::Entity::find()
+        let latest_ids: Vec<i64> = container_runtime_stats::Entity::find()
             .order_by_desc(container_runtime_stats::Column::CollectedAt)
             .limit(last_n)
+            .all(db)
+            .await?
+            .into_iter()
+            .map(|m| m.id)
+            .collect();
+
+        let mut rows = container_runtime_stats::Entity::find()
+            .filter(container_runtime_stats::Column::Id.is_in(latest_ids))
+            .order_by_desc(container_runtime_stats::Column::CollectedAt)
             .find_with_related(container_stats::Entity)
             .all(db)
             .await?;
@@ -493,3 +511,4 @@ impl StorageEngine {
         Ok(rows)
     }
 }
+
