@@ -88,6 +88,18 @@ impl StorageEngine {
             .filter(system_stats::Column::CollectedAt.lt(clean_older_than))
             .exec(db)
             .await?;
+        processes_stats::Entity::delete_many()
+            .filter(processes_stats::Column::CollectedAt.lt(clean_older_than))
+            .exec(db)
+            .await?;
+        speedtest_stats::Entity::delete_many()
+            .filter(speedtest_stats::Column::CollectedAt.lt(clean_older_than))
+            .exec(db)
+            .await?;
+        container_runtime_stats::Entity::delete_many()
+            .filter(container_runtime_stats::Column::CollectedAt.lt(clean_older_than))
+            .exec(db)
+            .await?;
 
         Ok(())
     }

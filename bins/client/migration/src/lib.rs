@@ -8,6 +8,7 @@ mod m20260713_143558_network_stats;
 mod m20260713_143612_process_stats;
 mod m20260713_143619_speedtest_stats;
 mod m20260713_143634_system_stats;
+mod m20260825_180329_add_metrics_indexes;
 
 pub struct Migrator;
 
@@ -23,6 +24,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260713_143612_process_stats::Migration),
             Box::new(m20260713_143619_speedtest_stats::Migration),
             Box::new(m20260713_143634_system_stats::Migration),
+            Box::new(m20260825_180329_add_metrics_indexes::Migration),
         ]
     }
 }
