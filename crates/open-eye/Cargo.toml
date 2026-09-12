@@ -30,3 +30,10 @@ reqwest = { version = "0.12", features = ["stream", "rustls-tls", "json", "http2
 bytes = "1"
 chrono = { version = "0.4.45", features = ["serde"] }
 anyhow = "1.0.103"
+
+[dev-dependencies]
+criterion = { version = "0.8", features = ["html_reports"] }
+
+[[bench]]
+name = "collectors"
+harness = false

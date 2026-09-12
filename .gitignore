@@ -44,3 +44,5 @@ gpu-test/*.egg-info/
 libre-speed-config
 
 observer.db*
+
+*.DS_Store

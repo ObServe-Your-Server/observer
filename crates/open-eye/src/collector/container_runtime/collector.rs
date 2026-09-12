@@ -18,6 +18,168 @@ pub struct ContainerRuntimeStats {
     pub container_stats: Vec<ContainerStats>,
 }
 
+impl ContainerRuntimeStats {
+    pub async fn get_current_stats() -> Result<Option<ContainerRuntimeStats>> {
+        let container_runtimes = ContainerRuntime::check_runtime_availability().ok_or_else(|| {
+            log::info!("No continer runtime found.");
+            anyhow!("No container runtime found.")
+        })?;
+
+        let mut all_container_stats: Vec<ContainerStats> = Vec::new();
+        let _seen_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+        for container_runtime in container_runtimes {
+            let socket_uri = container_runtime.socket_uri();
+            debug!("Attempting to connect to {}", socket_uri);
+
+            let docker = docker_api::Docker::new(&socket_uri)?;
+            debug!("Client created successfully");
+
+            debug!("Sending ping...");
+            docker.ping().await?;
+            debug!("Ping succeeded");
+
+            debug!("Listing containers...");
+            let containers_api = docker.containers();
+            debug!("Collecting summaries...");
+            let summaries = containers_api
+                .list(&ContainerListOpts::builder().all(true).build())
+                .await?;
+            debug!("Collected summaries");
+
+            let mut container_stats_collected: Vec<ContainerStats> =
+                futures_util::stream::iter(summaries)
+                    .map(|summary| {
+                        let containers_api = &containers_api;
+                        let container_runtime = container_runtime.clone();
+                        async move {
+                            Self::build_container_stats_from_summary(
+                                summary,
+                                containers_api,
+                                container_runtime,
+                            )
+                                .await
+                        }
+                    })
+                    .buffer_unordered(8)
+                    .collect()
+                    .await;
+            all_container_stats.append(&mut container_stats_collected);
+        }
+        debug!("Container vec: {:#?}", all_container_stats);
+
+        if all_container_stats.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(ContainerRuntimeStats {
+                collected_at: chrono::Utc::now(),
+                container_stats: all_container_stats,
+            }))
+        }
+    }
+
+    async fn build_container_stats_from_summary(
+        container_summary: ContainerSummary,
+        container_api: &Containers,
+        container_runtime: ContainerRuntime,
+    ) -> ContainerStats {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let id = container_summary.id.unwrap_or_default();
+        let host_name = container_summary
+            .names
+            .as_ref()
+            .and_then(|n| n.first())
+            .map(|n| n.trim_start_matches('/').to_string())
+            .unwrap_or_default();
+        let created_at = container_summary.created.unwrap_or(0);
+        let status = container_summary.status.unwrap_or_default();
+        let state = container_summary.state.unwrap_or_default();
+        let running = state == "running";
+        let running_for_seconds = if running && created_at > 0 {
+            now.saturating_sub(created_at as u64)
+        } else {
+            0
+        };
+        let image_name = container_summary.image.unwrap_or_default();
+        let networks = container_summary
+            .network_settings
+            .and_then(|ns| ns.networks)
+            .map(|map| map.into_keys().collect())
+            .unwrap_or_default();
+
+        // Fetch one stats sample (only available for running containers)
+        let container = container_api.get(&id);
+        let (cpu_usage_percent, memory_usage_bytes) = if running {
+            let mut stream = container.stats();
+            let next = stream.next().await;
+            //println!("Container stats: {:#?}", next);
+            if let Some(Ok(snapshot)) = next {
+                let mem = snapshot["memory_stats"]["usage"].as_u64().unwrap_or(0);
+                let cpu = Self::parse_cpu_percent(snapshot);
+                (cpu, mem)
+            } else {
+                (0.0, 0)
+            }
+        } else {
+            (0.0, 0)
+        };
+
+        ContainerStats {
+            container_runtime: container_runtime.clone(),
+            id,
+            host_name,
+            created_at,
+            status,
+            running,
+            running_for_seconds,
+            image_name,
+            networks,
+            cpu_usage_percent,
+            memory_usage_bytes,
+            collected_at: Utc::now(),
+        }
+    }
+
+    /// Calculates CPU usage % from a Docker stats JSON snapshot.
+    /// Docker requires two samples to compute a delta; the stats stream emits
+    /// the previous sample in `precpu_stats` alongside the current `cpu_stats`.
+    fn parse_cpu_percent(stats: serde_json::Value) -> f64 {
+        let cpu_delta = stats["cpu_stats"]["cpu_usage"]["total_usage"]
+            .as_u64()
+            .unwrap_or(0)
+            .saturating_sub(
+                stats["precpu_stats"]["cpu_usage"]["total_usage"]
+                    .as_u64()
+                    .unwrap_or(0),
+            );
+
+        let system_delta = stats["cpu_stats"]["system_cpu_usage"]
+            .as_u64()
+            .unwrap_or(0)
+            .saturating_sub(
+                stats["precpu_stats"]["system_cpu_usage"]
+                    .as_u64()
+                    .unwrap_or(0),
+            );
+
+        let num_cpus = stats["cpu_stats"]["online_cpus"]
+            .as_u64()
+            .unwrap_or(1)
+            .max(1);
+
+        if system_delta == 0 {
+            return 0.0;
+        }
+
+        (cpu_delta as f64 / system_delta as f64) * num_cpus as f64 * 100.0
+    }
+
+}
+
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct ContainerStats {
     pub container_runtime: ContainerRuntime,
@@ -79,6 +241,33 @@ impl ContainerRuntime {
             }
         }
     }
+
+    pub fn check_runtime_availability() -> Option<Vec<ContainerRuntime>> {
+        let runtimes = [
+            ContainerRuntime::Docker,
+            ContainerRuntime::DockerDesktop,
+            ContainerRuntime::Podman,
+        ];
+
+        let mut available_runtimes = Vec::new();
+
+        for runtime in runtimes.iter() {
+            let socket_uri = runtime.socket_uri();
+            let socket_path = socket_uri.trim_start_matches("unix://");
+            debug!("Checking availability of {} at {}", runtime, socket_path);
+            if std::path::Path::new(socket_path).exists() {
+                debug!("Found available container runtime: {}", runtime);
+                available_runtimes.push(runtime.clone());
+            }
+        }
+
+        if available_runtimes.is_empty() {
+            debug!("No container runtime sockets found");
+            None
+        } else {
+            Some(available_runtimes)
+        }
+    }
 }
 
 impl fmt::Display for ContainerRuntime {
@@ -92,191 +281,8 @@ impl fmt::Display for ContainerRuntime {
     }
 }
 
-pub fn check_runtime_availability() -> Option<Vec<ContainerRuntime>> {
-    let runtimes = [
-        ContainerRuntime::Docker,
-        ContainerRuntime::DockerDesktop,
-        ContainerRuntime::Podman,
-    ];
 
-    let mut available_runtimes = Vec::new();
 
-    for runtime in runtimes.iter() {
-        let socket_uri = runtime.socket_uri();
-        let socket_path = socket_uri.trim_start_matches("unix://");
-        debug!("Checking availability of {} at {}", runtime, socket_path);
-        if std::path::Path::new(socket_path).exists() {
-            debug!("Found available container runtime: {}", runtime);
-            available_runtimes.push(runtime.clone());
-        }
-    }
-
-    if available_runtimes.is_empty() {
-        debug!("No container runtime sockets found");
-        None
-    } else {
-        Some(available_runtimes)
-    }
-}
-
-/// Calculates CPU usage % from a Docker stats JSON snapshot.
-/// Docker requires two samples to compute a delta; the stats stream emits
-/// the previous sample in `precpu_stats` alongside the current `cpu_stats`.
-fn parse_cpu_percent(stats: serde_json::Value) -> f64 {
-    let cpu_delta = stats["cpu_stats"]["cpu_usage"]["total_usage"]
-        .as_u64()
-        .unwrap_or(0)
-        .saturating_sub(
-            stats["precpu_stats"]["cpu_usage"]["total_usage"]
-                .as_u64()
-                .unwrap_or(0),
-        );
-
-    let system_delta = stats["cpu_stats"]["system_cpu_usage"]
-        .as_u64()
-        .unwrap_or(0)
-        .saturating_sub(
-            stats["precpu_stats"]["system_cpu_usage"]
-                .as_u64()
-                .unwrap_or(0),
-        );
-
-    let num_cpus = stats["cpu_stats"]["online_cpus"]
-        .as_u64()
-        .unwrap_or(1)
-        .max(1);
-
-    if system_delta == 0 {
-        return 0.0;
-    }
-
-    (cpu_delta as f64 / system_delta as f64) * num_cpus as f64 * 100.0
-}
-
-async fn build_container_stats_from_summary(
-    container_summary: ContainerSummary,
-    container_api: &Containers,
-    container_runtime: ContainerRuntime,
-) -> ContainerStats {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-
-    let id = container_summary.id.unwrap_or_default();
-    let host_name = container_summary
-        .names
-        .as_ref()
-        .and_then(|n| n.first())
-        .map(|n| n.trim_start_matches('/').to_string())
-        .unwrap_or_default();
-    let created_at = container_summary.created.unwrap_or(0);
-    let status = container_summary.status.unwrap_or_default();
-    let state = container_summary.state.unwrap_or_default();
-    let running = state == "running";
-    let running_for_seconds = if running && created_at > 0 {
-        now.saturating_sub(created_at as u64)
-    } else {
-        0
-    };
-    let image_name = container_summary.image.unwrap_or_default();
-    let networks = container_summary
-        .network_settings
-        .and_then(|ns| ns.networks)
-        .map(|map| map.into_keys().collect())
-        .unwrap_or_default();
-
-    // Fetch one stats sample (only available for running containers)
-    let container = container_api.get(&id);
-    let (cpu_usage_percent, memory_usage_bytes) = if running {
-        let mut stream = container.stats();
-        let next = stream.next().await;
-        //println!("Container stats: {:#?}", next);
-        if let Some(Ok(snapshot)) = next {
-            let mem = snapshot["memory_stats"]["usage"].as_u64().unwrap_or(0);
-            let cpu = parse_cpu_percent(snapshot);
-            (cpu, mem)
-        } else {
-            (0.0, 0)
-        }
-    } else {
-        (0.0, 0)
-    };
-
-    ContainerStats {
-        container_runtime: container_runtime.clone(),
-        id,
-        host_name,
-        created_at,
-        status,
-        running,
-        running_for_seconds,
-        image_name,
-        networks,
-        cpu_usage_percent,
-        memory_usage_bytes,
-        collected_at: Utc::now(),
-    }
-}
-
-pub async fn get_current_stats() -> Result<Option<ContainerRuntimeStats>> {
-    let container_runtimes = check_runtime_availability().ok_or_else(|| {
-        log::info!("No continer runtime found.");
-        anyhow!("No container runtime found.")
-    })?;
-
-    let mut all_container_stats: Vec<ContainerStats> = Vec::new();
-    let _seen_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
-
-    for container_runtime in container_runtimes {
-        let socket_uri = container_runtime.socket_uri();
-        debug!("Attempting to connect to {}", socket_uri);
-
-        let docker = docker_api::Docker::new(&socket_uri)?;
-        debug!("Client created successfully");
-
-        debug!("Sending ping...");
-        docker.ping().await?;
-        debug!("Ping succeeded");
-        
-        debug!("Listing containers...");
-        let containers_api = docker.containers();
-        debug!("Collecting summaries...");
-        let summaries = containers_api
-            .list(&ContainerListOpts::builder().all(true).build())
-            .await?;
-        debug!("Collected summaries");
-
-        let mut container_stats_collected: Vec<ContainerStats> =
-            futures_util::stream::iter(summaries)
-                .map(|summary| {
-                    let containers_api = &containers_api;
-                    let container_runtime = container_runtime.clone();
-                    async move {
-                        build_container_stats_from_summary(
-                            summary,
-                            containers_api,
-                            container_runtime,
-                        )
-                        .await
-                    }
-                })
-                .buffer_unordered(8)
-                .collect()
-                .await;
-        all_container_stats.append(&mut container_stats_collected);
-    }
-    debug!("Container vec: {:#?}", all_container_stats);
-
-    if all_container_stats.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(ContainerRuntimeStats {
-            collected_at: chrono::Utc::now(),
-            container_stats: all_container_stats,
-        }))
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -312,7 +318,7 @@ mod tests {
     #[tokio::test]
     async fn test_list_containers() {
         let start_time = Instant::now();
-        let Some(result) = get_current_stats().await.unwrap() else {
+        let Some(result) = ContainerRuntimeStats::get_current_stats().await.unwrap() else {
             println!("No container runtime available, skipping test");
             return;
         };
