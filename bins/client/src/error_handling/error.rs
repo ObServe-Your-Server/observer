@@ -38,7 +38,7 @@ pub struct Error {
 
 impl Error {
     #[track_caller]
-    pub fn new(message: &str, severity: Severity) -> Error {
+    pub fn new(message: impl Into<String>, severity: Severity) -> Error {
         let loc = Location::caller();
         Error {
             call_site: CallSite {
@@ -46,7 +46,7 @@ impl Error {
                 line: loc.line(),
             },
             severity,
-            message: message.to_string(),
+            message: message.into(),
         }
     }
 }

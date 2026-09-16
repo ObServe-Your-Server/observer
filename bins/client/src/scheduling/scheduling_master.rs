@@ -22,7 +22,7 @@ impl SchedulingMaster {
 
         // we can clone it around because the db connection is thread save and with the pool meant to be cloned
         let storage_engine = Arc::new(
-            StorageEngine::new(config.toml_config().storage_config().database_url())
+            StorageEngine::new(&config.toml_config().storage_config().database_url)
                 .connect_to_db_and_migrate()
                 .await
                 .unwrap(),
@@ -35,26 +35,26 @@ impl SchedulingMaster {
         let base_metric_collection_job = Job::new(
             "Base Metrics",
             Box::new(BaseMetricCollectionJob::new(storage_engine.clone())),
-            Duration::seconds(config.toml_config().interval_config().base_metric_secs().clone() as i64),
+            Duration::seconds(config.toml_config().interval_config().base_metric_secs as i64),
             15 // TODO implement over the config
         );
         let data_cleanup_job = Job::new(
             "Data Cleanup",
             Box::new(DataCleanupJob::new(storage_engine.clone(), config.toml_config().storage_config().clone())),
-            Duration::seconds(config.toml_config().interval_config().data_cleanup_job_secs().clone().unwrap_or(300) as i64), // TODO set default time more elegant
+            Duration::seconds(config.toml_config().interval_config().data_cleanup_job_secs.unwrap_or(300) as i64), // TODO set default time more elegant
             15
         );
         let speed_test_job = Job::new(
             "Speedtest",
             Box::new(SpeedtestStatsCollectionJob::new(storage_engine.clone())),
-            Duration::seconds(config.toml_config().interval_config().speedtest_secs().clone() as i64), // TODO set default time more elegant
+            Duration::seconds(config.toml_config().interval_config().speedtest_secs as i64), // TODO set default time more elegant
             15
         );
 
 
         let metrics_tunnel = MetricsTunnel::new(
-            config.toml_config().client_config().base_server_grpc_url().to_string(),
-            config.toml_config().client_config().api_key().to_string(),
+            &config.toml_config().client_config().base_server_grpc_url,
+            &config.toml_config().client_config().api_key,
             storage_engine.clone(),
         );
 
@@ -62,11 +62,11 @@ impl SchedulingMaster {
         let mut scheduler = Scheduler::new(vec![data_cleanup_job, base_metric_collection_job, speed_test_job]);
 
         // -------------- addons like container stats --------------
-        if config.toml_config().interval_config().enable_docker_socket().clone() {
+        if config.toml_config().interval_config().enable_docker_socket {
             let container_stats_collection_job = Job::new(
                 "Container Stats",
                 Box::new(ContainerStatsCollectionJob::new(storage_engine.clone())),
-                Duration::seconds(config.toml_config().interval_config().data_cleanup_job_secs().clone().unwrap_or(15) as i64),
+                Duration::seconds(config.toml_config().interval_config().data_cleanup_job_secs.unwrap_or(15) as i64),
                 15
             );
 

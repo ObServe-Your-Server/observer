@@ -21,10 +21,10 @@ pub struct MetricsTunnel {
 }
 
 impl MetricsTunnel {
-    pub fn new(url: String, api_key: String, storage_engine: Arc<StorageEngine>) -> Self {
+    pub fn new(url: impl Into<String>, api_key: impl Into<String>, storage_engine: Arc<StorageEngine>) -> Self {
         Self {
-            url,
-            api_key,
+            url: url.into(),
+            api_key: api_key.into(),
             reconnect_budget: Duration::from_hours(24),
             storage_engine,
         }

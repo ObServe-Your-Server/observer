@@ -35,8 +35,8 @@ impl JobTrait for DataCleanupJob {
         // TODO implement the thinout of data
         let cutoff_time = {
             Utc::now()
-                - (Duration::hours(self.storage_config.metrics_retention_hours_reduced_resolution().clone().try_into()?)
-                + Duration::hours(self.storage_config.metrics_retention_hours_full_resolution().clone().try_into()?))
+                - (Duration::hours(self.storage_config.metrics_retention_hours_reduced_resolution.try_into()?)
+                + Duration::hours(self.storage_config.metrics_retention_hours_full_resolution.try_into()?))
         };
         debug!("Cutoff time for metrics: {}", cutoff_time);
         self.storage_engine.remove_all_older_than(cutoff_time).await

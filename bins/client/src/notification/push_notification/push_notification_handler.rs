@@ -8,10 +8,10 @@ pub struct PushNotificationHandler {
 }
 
 impl PushNotificationHandler {
-    pub fn new(push_notification_url: &str, api_key: &str) -> PushNotificationHandler {
+    pub fn new(push_notification_url: impl Into<String>, api_key: impl Into<String>) -> PushNotificationHandler {
         PushNotificationHandler{
-            push_notification_url: push_notification_url.to_string(),
-            api_key: api_key.to_string(),
+            push_notification_url: push_notification_url.into(),
+            api_key: api_key.into(),
         }
     }
     

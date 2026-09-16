@@ -6,14 +6,9 @@ use getset::{Getters, Setters};
 pub struct ClientConfig {
     #[getset(get = "pub", set = "pub")]
     machine_name: Option<String>,
-    #[getset(get = "pub")]
-    base_server_grpc_url: String,
-    #[getset(get = "pub")]
-    base_server_http_url: String,
-    #[getset(get = "pub")]
-    push_notification_url: String,
-    #[getset(get = "pub")]
-    api_key: String,
-    #[getset(get = "pub")]
-    enable_container_metrics_collector: bool
+    pub base_server_grpc_url: String,
+    pub base_server_http_url: String,
+    pub push_notification_url: String,
+    pub api_key: String,
+    pub enable_container_metrics_collector: bool
 }

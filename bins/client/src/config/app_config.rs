@@ -47,9 +47,9 @@ impl AppConfig {
         let res = client
             .get(format!(
                 "{}/machines/machine-name-over-api-key",
-                client_config.base_server_http_url()
+                client_config.base_server_http_url
             ))
-            .header("X-Api-Key", client_config.api_key())
+            .header("X-Api-Key", &client_config.api_key)
             .send()
             .await?;
 
