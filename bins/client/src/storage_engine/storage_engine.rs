@@ -139,7 +139,7 @@ impl StorageEngine {
             .await?)
     }
 
-    async fn get_partition_stats_between(
+    pub async fn get_partition_stats_between(
         &self,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
@@ -351,6 +351,57 @@ impl StorageEngine {
         let db = self.db()?;
         let mut rows = speedtest_stats::Entity::find()
             .order_by_desc(speedtest_stats::Column::CollectedAt)
+            .limit(last_n)
+            .all(db)
+            .await?;
+        rows.reverse();
+        Ok(rows)
+    }
+
+    pub async fn get_error_stats_between(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<error::Model>> {
+        let db = self.db()?;
+        Ok(error::Entity::find()
+            .filter(error::Column::CollectedAt.between(start, end))
+            .order_by_asc(error::Column::CollectedAt)
+            .all(db)
+            .await?)
+    }
+
+    pub async fn get_error_stats_latest(&self, last_n: u64) -> Result<Vec<error::Model>> {
+        let db = self.db()?;
+        let mut rows = error::Entity::find()
+            .order_by_desc(error::Column::CollectedAt)
+            .limit(last_n)
+            .all(db)
+            .await?;
+        rows.reverse();
+        Ok(rows)
+    }
+
+    pub async fn get_tunnel_access_log_between(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<tunnel_access_log::Model>> {
+        let db = self.db()?;
+        Ok(tunnel_access_log::Entity::find()
+            .filter(tunnel_access_log::Column::SentAt.between(start, end))
+            .order_by_asc(tunnel_access_log::Column::SentAt)
+            .all(db)
+            .await?)
+    }
+
+    pub async fn get_tunnel_access_log_latest(
+        &self,
+        last_n: u64,
+    ) -> Result<Vec<tunnel_access_log::Model>> {
+        let db = self.db()?;
+        let mut rows = tunnel_access_log::Entity::find()
+            .order_by_desc(tunnel_access_log::Column::SentAt)
             .limit(last_n)
             .all(db)
             .await?;

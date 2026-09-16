@@ -1,12 +1,14 @@
-/*//! Converts SeaORM entity models (as stored in the DB) into the proto metric types.
+//! Converts SeaORM entity models (as stored in the DB) into the proto metric types.
 
 use crate::entities::{
-    container_runtime_stats, container_stats, cpu_core_stats, cpu_stats, disk_entry, disk_stats,
-    memory_stats, network_stats, speedtest_stats, system_stats,
+    container_runtime_stats, container_stats, cpu_core_stats, cpu_stats, error, memory_stats,
+    network_stats, partition_entry, partition_stats, process_stats, processes_stats,
+    speedtest_stats, system_stats, tunnel_access_log,
 };
 use crate::grpc::v1::metrics::{
-    ContainerMetrics, ContainerRuntimeMetrics, CoreMetrics, CpuMetrics, DiskEntry, DiskMetrics,
-    MemoryMetrics, NetworkMetrics, ProcessStatsKind, SpeedtestMetrics, SystemMetrics,
+    ContainerMetrics, ContainerRuntimeMetrics, CoreMetrics, CpuMetrics, ErrorStatsMetrics,
+    MemoryMetrics, NetworkMetrics, PartitionEntry, PartitionMetrics, ProcessStats,
+    ProcessStatsKind, ProcessesStats, SpeedtestMetrics, SystemMetrics, TunnelAccessLogMetrics,
 };
 
 fn to_timestamp(time: chrono::DateTime<chrono::FixedOffset>) -> prost_types::Timestamp {
@@ -49,23 +51,28 @@ pub fn memory_metrics(memory: memory_stats::Model) -> MemoryMetrics {
     }
 }
 
-pub fn disk_metrics(disk: disk_stats::Model) -> DiskMetrics {
-    DiskMetrics {
-        name: disk.name,
-        total_bytes: disk.total_bytes as u64,
-        used_bytes: disk.used_bytes as u64,
-        used_blocks: disk.used_blocks as u64,
-        available_bytes: disk.available_bytes as u64,
-        available_blocks: disk.available_blocks as u64,
-        block_size: disk.block_size as u64,
-        collected_at: Some(to_timestamp(disk.collected_at)),
+pub fn partition_metrics(partition: partition_stats::Model) -> PartitionMetrics {
+    PartitionMetrics {
+        name: partition.name,
+        device: partition.device,
+        mount_point: partition.mount_point,
+        fs_type: partition.fs_type,
+        total_bytes: partition.total_bytes as u64,
+        used_bytes: partition.used_bytes as u64,
+        available_bytes: partition.available_bytes as u64,
+        used_blocks: partition.used_blocks as u64,
+        available_blocks: partition.available_blocks as u64,
+        block_size: partition.block_size as u64,
+        collected_at: Some(to_timestamp(partition.collected_at)),
     }
 }
 
-pub fn disk_entry(row: (disk_entry::Model, Vec<disk_stats::Model>)) -> DiskEntry {
-    let (entry, disks) = row;
-    DiskEntry {
-        disks: disks.into_iter().map(disk_metrics).collect(),
+pub fn partition_entry(
+    row: (partition_entry::Model, Vec<partition_stats::Model>),
+) -> PartitionEntry {
+    let (entry, partitions) = row;
+    PartitionEntry {
+        partitions: partitions.into_iter().map(partition_metrics).collect(),
         collected_at: Some(to_timestamp(entry.collected_at)),
     }
 }
@@ -91,14 +98,6 @@ pub fn system_metrics(system: system_stats::Model) -> SystemMetrics {
     }
 }
 
-fn process_stats_kind(kind: &str) -> ProcessStatsKind {
-    match kind {
-        "cpu" => ProcessStatsKind::Cpu,
-        "memory" => ProcessStatsKind::Memory,
-        _ => ProcessStatsKind::Unspecified,
-    }
-}
-
 pub fn container_runtime_stats(
     row: (container_runtime_stats::Model, Vec<container_stats::Model>),
 ) -> ContainerRuntimeMetrics {
@@ -115,7 +114,7 @@ pub fn container_runtime_stats(
                 running: container.running,
                 running_for_seconds: container.running_for_seconds as u64,
                 image_name: container.image_name,
-                networks: container.networks.split(',').map(str::to_string).collect(),
+                networks: container.networks.split('|').map(str::to_string).collect(),
                 cpu_usage_percent: container.cpu_usage_percent,
                 memory_usage_bytes: container.memory_usage_bytes as u64,
                 collected_at: Some(to_timestamp(container.collected_at)),
@@ -133,4 +132,56 @@ pub fn speedtest_metrics(speedtest: speedtest_stats::Model) -> SpeedtestMetrics 
         collected_at: Some(to_timestamp(speedtest.collected_at)),
     }
 }
-*/
+
+pub fn error_stats_metrics(error: error::Model) -> ErrorStatsMetrics {
+    ErrorStatsMetrics {
+        file: error.file,
+        line: error.line as u64,
+        severity: error.severity,
+        message: error.message,
+        collected_at: Some(to_timestamp(error.collected_at)),
+    }
+}
+
+fn process_stats_kind(kind: &str) -> ProcessStatsKind {
+    match kind {
+        "cpu" => ProcessStatsKind::Cpu,
+        "memory" => ProcessStatsKind::Memory,
+        _ => ProcessStatsKind::Unspecified,
+    }
+}
+
+fn process_stats(process: process_stats::Model) -> ProcessStats {
+    ProcessStats {
+        kind: process_stats_kind(&process.kind) as i32,
+        pid: process.pid as u32,
+        name: process.name,
+        user_name: process.user_name,
+        status: process.status,
+        cpu_usage_percent: process.cpu_usage_percent,
+        memory_usage_bytes: process.memory_usage_bytes as u64,
+    }
+}
+
+pub fn processes_stats(
+    row: (processes_stats::Model, Vec<process_stats::Model>),
+) -> ProcessesStats {
+    let (stats, processes) = row;
+    let (top_cpu, top_memory): (Vec<_>, Vec<_>) = processes
+        .into_iter()
+        .map(process_stats)
+        .partition(|p| p.kind == ProcessStatsKind::Cpu as i32);
+
+    ProcessesStats {
+        top_cpu,
+        top_memory,
+        collected_at: Some(to_timestamp(stats.collected_at)),
+    }
+}
+
+pub fn tunnel_access_log_metrics(log: tunnel_access_log::Model) -> TunnelAccessLogMetrics {
+    TunnelAccessLogMetrics {
+        sent_data: log.sent_data.to_string(),
+        sent_at: Some(to_timestamp(log.sent_at)),
+    }
+}
