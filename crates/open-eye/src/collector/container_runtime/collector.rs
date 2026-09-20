@@ -61,7 +61,7 @@ impl ContainerRuntimeStats {
                                 .await
                         }
                     })
-                    .buffer_unordered(8)
+                    .buffer_unordered(12)
                     .collect()
                     .await;
             all_container_stats.append(&mut container_stats_collected);

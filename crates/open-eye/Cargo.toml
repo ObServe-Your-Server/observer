@@ -32,7 +32,7 @@ chrono = { version = "0.4.45", features = ["serde"] }
 anyhow = "1.0.103"
 
 [dev-dependencies]
-criterion = { version = "0.8", features = ["html_reports"] }
+criterion = { version = "0.8", features = ["html_reports", "async_tokio"] }
 
 [[bench]]
 name = "collectors"
