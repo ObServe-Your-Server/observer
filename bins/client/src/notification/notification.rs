@@ -1,5 +1,9 @@
-use crate::notification::push_notification::PushNotification;
+use crate::notification::notification_kind::NotificationKind;
+use crate::notification::notification_urgency::NotificationUrgency;
 
-pub enum Notification {
-    Push(PushNotification)
+pub trait Notification {
+    fn kind(&self) -> NotificationKind;
+    fn urgency(&self) -> NotificationUrgency;
+    fn title(&self) -> &str;
+    fn body(&self) -> &str;
 }
