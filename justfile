@@ -10,6 +10,7 @@ dev-setup:
     @echo "Setting up development environment..."
     cargo install --locked cargo-nextest
 
+# generates a migration file for a new db entry
 migrate-generate name:
     @echo "Generating migration {{name}}..."
     cd bins/client && sea-orm-cli migrate generate {{name}}
