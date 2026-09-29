@@ -11,7 +11,7 @@ use std::sync::Arc;
 use crate::config::app_config::AppConfig;
 use crate::config::toml_config::TomlConfig;
 use crate::jobs::speedtest_stats_collection_job::SpeedtestStatsCollectionJob;
-use crate::scheduling::job::Job;
+use crate::jobs::job::Job;
 use crate::scheduling::scheduler::Scheduler;
 
 pub struct SchedulingMaster {}

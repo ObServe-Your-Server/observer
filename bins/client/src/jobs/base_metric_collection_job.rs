@@ -1,4 +1,4 @@
-use crate::scheduling::job::JobTrait;
+use crate::jobs::job::JobTrait;
 use crate::storage_engine::storage_engine::StorageEngine;
 use anyhow::Result;
 use async_trait::async_trait;

@@ -1,4 +1,4 @@
-use crate::scheduling::job::{Job, JobTrait};
+use crate::jobs::job::{Job, JobTrait};
 use anyhow::{Result, anyhow};
 use std::time::{Duration, Instant};
 use log::error;

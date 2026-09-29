@@ -1,4 +1,4 @@
-use crate::scheduling::job::JobTrait;
+use crate::jobs::job::JobTrait;
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::Duration;

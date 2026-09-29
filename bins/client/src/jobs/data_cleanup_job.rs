@@ -1,4 +1,4 @@
-use crate::scheduling::job::JobTrait;
+use crate::jobs::job::JobTrait;
 use crate::storage_engine::storage_engine::StorageEngine;
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Timelike, Utc};
