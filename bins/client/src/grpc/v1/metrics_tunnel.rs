@@ -103,9 +103,11 @@ impl MetricsTunnel {
                     let response = build_metrics_response(self.storage_engine.clone(), request).await;
                     match client.metrics_response(response).await {
                         Ok(_) => {
+                            todo!()
                             // TODO log that all went okay
                         }
                         Err(_err) => {
+                            todo!()
                             // Error handling of transmitting
                         }
                     }
