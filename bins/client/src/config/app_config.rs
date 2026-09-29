@@ -8,7 +8,7 @@ use reqwest::{Client, StatusCode};
 use crate::config::config_parts::client_config::ClientConfig;
 use crate::config::toml_config::TomlConfig;
 
-#[derive(Debug, Serialize, Getters)]
+#[derive(Debug, Clone, Serialize, Getters)]
 #[serde(rename_all = "snake_case")]
 pub struct AppConfig {
     #[getset(get = "pub")]

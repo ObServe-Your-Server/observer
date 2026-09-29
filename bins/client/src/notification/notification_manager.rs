@@ -1,3 +1,4 @@
+use std::cmp::PartialEq;
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::Mutex;
@@ -24,7 +25,7 @@ pub struct NotificationManager{
 }
 
 impl NotificationManager {
-    pub fn notification_manager(notification_config: NotificationConfig,
+    pub fn new(notification_config: NotificationConfig,
                                          client_config: ClientConfig) -> NotificationManager{
         NotificationManager{
             notification_config,
@@ -41,19 +42,20 @@ impl NotificationManager {
         match self.notification_config.notification_way {
             NotificationWay::PushNotification => self.send_push_notification(notification.title(), notification.body()).await?
         }
+        log::debug!("Sent notification: {} - {}", notification.title(), notification.body());
 
         let mut last_sent = tokio::time::timeout(LOCK_TIMEOUT, self.last_sent.lock())
             .await
             .map_err(|_| anyhow!("timed out waiting for notification state lock"))?;
-        last_sent.insert(notification.kind(), SentState {
-            urgency: notification.urgency(),
+        last_sent.insert(notification.kind().clone(), SentState {
+            urgency: notification.urgency().clone(),
             suppressed_count: 0,
         });
 
         Ok(())
     }
 
-    pub async fn send_push_notification(&self, title: &str, body: &str) -> Result<()> {
+    async fn send_push_notification(&self, title: &str, body: &str) -> Result<()> {
         let client = Client::new();
         #[derive(Serialize)]
         pub struct PushNotification<'a> {
@@ -85,33 +87,36 @@ impl NotificationManager {
     }
 
     async fn should_notification_be_sent(&self, notification: &dyn Notification) -> Result<bool> {
-        let urgency = notification.urgency();
-        if urgency == NotificationUrgency::AlwaysDeliver {
+        if notification.urgency().clone() == NotificationUrgency::AlwaysDeliver {
             return Ok(true);
         }
 
-        let kind = notification.kind();
-        let mode = self.notification_mode_for(kind);
-        let renotify_after = self.renotify_after_for(kind);
-
+        let kind = notification.kind().clone();
         let mut last_sent = tokio::time::timeout(LOCK_TIMEOUT, self.last_sent.lock())
             .await
             .map_err(|_| anyhow!("timed out waiting for notification state lock"))?;
 
-        Ok(match last_sent.get_mut(&kind) {
-            None => true,
-            Some(state) if state.urgency != urgency => true,
-            Some(state) => match mode {
-                NotificationMode::Continuous => true,
-                NotificationMode::Once => match renotify_after {
-                    None => false,
-                    Some(threshold) => {
-                        state.suppressed_count += 1;
-                        state.suppressed_count >= threshold
-                    }
-                },
-            },
-        })
+        let previous = match last_sent.get_mut(&kind) {
+            None => return Ok(false),
+            Some(previous) => previous,
+        };
+
+        if previous.urgency != *notification.urgency() {
+            return Ok(true);
+        }
+
+        // Same kind, same urgency as last time: it's the notification mode's call now.
+        match self.notification_mode_for(kind.clone()) {
+            NotificationMode::Once => Ok(false),
+            NotificationMode::Continuous => {
+                let Some(renotify_after) = self.renotify_after_for(kind) else {
+                    return Ok(true);
+                };
+
+                previous.suppressed_count += 1;
+                Ok(previous.suppressed_count >= renotify_after)
+            }
+        }
     }
 
     fn notification_mode_for(&self, kind: NotificationKind) -> NotificationMode {

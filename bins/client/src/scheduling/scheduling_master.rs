@@ -12,6 +12,7 @@ use crate::config::app_config::AppConfig;
 use crate::config::toml_config::TomlConfig;
 use crate::jobs::speedtest_stats_collection_job::SpeedtestStatsCollectionJob;
 use crate::jobs::job::Job;
+use crate::notification::notification_manager::NotificationManager;
 use crate::scheduling::scheduler::Scheduler;
 
 pub struct SchedulingMaster {}
@@ -30,11 +31,15 @@ impl SchedulingMaster {
         log::info!("Database connected with no errors.");
 
         //let notification_handler = NotificationHandler::new(config.server.push_notification_url.to_string().clone(), config.server.api_key.clone(), machine_name.clone());
-
-
+        let notification_manager = Arc::new(NotificationManager::new(config.toml_config().notification_config().clone(), config.toml_config().client_config().clone()));
+        
         let base_metric_collection_job = Job::new(
             "Base Metrics",
-            Box::new(BaseMetricCollectionJob::new(storage_engine.clone())),
+            Box::new(BaseMetricCollectionJob::new(
+                storage_engine.clone(),
+                notification_manager.clone(),
+                config.toml_config().notification_config().clone(),
+            )),
             Duration::seconds(config.toml_config().interval_config().base_metric_secs as i64),
             15 // TODO implement over the config
         );

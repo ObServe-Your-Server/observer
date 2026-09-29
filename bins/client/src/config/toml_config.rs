@@ -8,7 +8,7 @@ use crate::config::config_parts::storage_config::StorageConfig;
 use anyhow::Result;
 use crate::config::config_parts::notification_config::NotificationConfig;
 
-#[derive(Debug, Deserialize, Serialize, Getters, MutGetters)]
+#[derive(Debug, Clone, Deserialize, Serialize, Getters, MutGetters)]
 #[serde(rename_all = "snake_case")]
 pub struct TomlConfig {
     #[getset(get = "pub", get_mut = "pub")]

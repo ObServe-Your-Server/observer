@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use getset::{Getters, Setters};
 
-#[derive(Debug, Deserialize, Serialize, Getters, Setters)]
+#[derive(Debug, Clone, Deserialize, Serialize, Getters, Setters)]
 #[serde(rename_all = "snake_case")]
 pub struct ClientConfig {
     #[getset(get = "pub", set = "pub")]
