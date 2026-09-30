@@ -109,9 +109,7 @@ impl SchedulingMaster {
 
         exit(1);
     }
-
-    /// Resolves once SIGTERM or SIGINT is received. Can be awaited on its own
-    /// or raced against other futures (e.g. inside a `tokio::select!`).
+    
     pub async fn watch_for_termination() {
         use tokio::signal::unix::{SignalKind, signal};
 

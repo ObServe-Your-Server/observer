@@ -22,7 +22,6 @@ pub struct NotificationConfig {
     pub memory_low_percentage: Option<u8>,
 
     pub enable_disk_notification: bool,
-    pub disk_notification_mode: Option<NotificationMode>,
     pub disk_renotify_after_x: Option<u16>,
     pub disk_high_percentage: Option<u8>,
     pub disk_low_percentage: Option<u8>,
@@ -36,7 +35,7 @@ pub struct NotificationConfig {
     pub container_socket_notify_on_container_down: Option<bool>,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum NotificationMode {
     Once,
