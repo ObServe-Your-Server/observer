@@ -1,7 +1,7 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NotificationUrgency{
+    DontDeliver,
     LowUsage,
-    MediumUsage,
     HighUsage,
     AlwaysDeliver
 }

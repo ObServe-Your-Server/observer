@@ -29,13 +29,13 @@ impl AppConfig {
     }
 
     pub async fn resolve_machine_name(&mut self) -> Result<()> {
-        if self.toml_config.client_config().machine_name().is_some() {
+        if self.toml_config.client_config().machine_name.is_some() {
             log::debug!("Machine name already set");
             return Ok(());
         }
 
         let machine_name = Self::pull_machine_name(self.toml_config.client_config()).await?;
-        self.toml_config.client_config_mut().set_machine_name(Some(machine_name));
+        self.toml_config.client_config_mut().machine_name = (Some(machine_name));
         Ok(())
     }
 

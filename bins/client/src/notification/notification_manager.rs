@@ -1,28 +1,29 @@
-use std::collections::HashMap;
-use std::time::Duration;
-use tokio::sync::Mutex;
 use crate::config::config_parts::client_config::ClientConfig;
-use crate::config::config_parts::notification_config::{NotificationConfig, NotificationMode, NotificationWay};
+use crate::config::config_parts::notification_config::{NotificationConfig, NotificationWay};
 use crate::notification::notification::Notification;
-use anyhow::{anyhow, Result};
+use crate::notification::reporting::notification_urgency::NotificationUrgency;
+use crate::notification::reporting::reporter::Reporter;
+use anyhow::{Result, anyhow};
 use reqwest::{Client, StatusCode};
 use serde::Serialize;
-use crate::notification::notification_kind::NotificationKind;
-use crate::notification::notification_urgency::NotificationUrgency;
+use std::collections::{BTreeMap, HashMap};
+use std::time::Duration;
+use log::__private_api::loc;
+use tokio::sync::Mutex;
+use tokio::time::timeout;
 
-const LOCK_TIMEOUT: Duration = Duration::from_secs(1);
+const LOCK_TIMEOUT: Duration = Duration::from_millis(250);
 
+#[derive(Clone)]
 struct MetricState {
-    confirmed: Option<NotificationUrgency>,
-    candidate: NotificationUrgency,
-    candidate_streak: u32,
-    repeat_count: u16,
+    urgency: NotificationUrgency,
+    repeated_report: u64,
 }
 
 pub struct NotificationManager{
     notification_config: NotificationConfig,
     client_config: ClientConfig,
-    metric_states: Mutex<HashMap<NotificationKind, MetricState>>,
+    metric_states: Mutex<BTreeMap<Reporter, MetricState>>,
 }
 
 impl NotificationManager {
@@ -31,7 +32,7 @@ impl NotificationManager {
         NotificationManager{
             notification_config,
             client_config,
-            metric_states: Mutex::new(HashMap::new()),
+            metric_states: Mutex::new(BTreeMap::new()),
         }
     }
 
@@ -80,106 +81,56 @@ impl NotificationManager {
     }
 
     async fn should_notification_be_sent(&self, notification: &dyn Notification) -> Result<bool> {
-        let kind = *notification.kind();
-        let urgency = *notification.urgency();
-
-        if !self.is_enabled(kind) {
-            return Ok(false);
+        // first apply ruleset embedded in notification
+        let urgency = notification.apply_ruleset(&self.notification_config);
+        if urgency == NotificationUrgency::DontDeliver {
+            self.remove_entry(notification).await?;
+            return Ok(false)
         }
-        // Disks are debounced per mount point by the job that measures them.
-        if urgency == NotificationUrgency::AlwaysDeliver || kind == NotificationKind::Disk {
-            return Ok(true);
-        }
-
-        let mut states = tokio::time::timeout(LOCK_TIMEOUT, self.metric_states.lock())
-            .await
-            .map_err(|_| anyhow!("timed out waiting for notification state lock"))?;
-        let state = states
-            .entry(kind)
-            .or_insert(MetricState {
-                confirmed: None,
-                candidate: urgency,
-                candidate_streak: 0,
-                repeat_count: 0,
-            });
-
-        if state.candidate == urgency {
-            state.candidate_streak += 1;
-        } else {
-            state.candidate = urgency;
-            state.candidate_streak = 1;
-        }
-        if state.candidate_streak < self.confirm_after(kind, urgency) {
-            return Ok(false);
+        if urgency == NotificationUrgency::AlwaysDeliver {
+            return Ok(true)
         }
 
-        if state.confirmed != Some(urgency) {
-            let first_status = state.confirmed.is_none();
-            state.confirmed = Some(urgency);
-            state.repeat_count = 0;
-            return Ok(match urgency {
-                NotificationUrgency::HighUsage => true,
-                NotificationUrgency::LowUsage => !first_status,
-                _ => false,
-            });
-        }
+        // evaluate rest base of notify after x etc
 
-        // Status unchanged: only continuous mode repeats, and only while usage is high.
-        if urgency != NotificationUrgency::HighUsage
-            || self.notification_mode_for(kind) != NotificationMode::Continuous
-        {
-            return Ok(false);
-        }
-        let Some(renotify_after) = self.renotify_after_for(kind) else {
-            return Ok(false);
-        };
 
-        state.repeat_count += 1;
-        if state.repeat_count >= renotify_after {
-            state.repeat_count = 0;
-            return Ok(true);
-        }
-        Ok(false)
+        todo!()
     }
 
-    fn confirm_after(&self, kind: NotificationKind, urgency: NotificationUrgency) -> u32 {
-        let config = &self.notification_config;
-        let after = match (kind, urgency) {
-            (NotificationKind::Cpu, NotificationUrgency::HighUsage) => config.cpu_high_after,
-            (NotificationKind::Cpu, NotificationUrgency::LowUsage) => config.cpu_low_after,
-            (NotificationKind::Memory, NotificationUrgency::HighUsage) => config.memory_high_after,
-            (NotificationKind::Memory, NotificationUrgency::LowUsage) => config.memory_low_after,
-            _ => None,
-        };
-        after.unwrap_or(1).max(1)
+    fn get_target_repetition_count(&self, reporter: &Reporter, urgency: NotificationUrgency) -> Option<u32> {
+        match reporter {
+            Reporter::System => None,
+            Reporter::Cpu => {
+                // TODO
+            }
+            Reporter::Memory => {}
+            Reporter::Disk => {}
+            Reporter::ContainerSocket => {}
+        }
+        todo!()
     }
 
-    fn is_enabled(&self, kind: NotificationKind) -> bool {
-        let config = &self.notification_config;
-        match kind {
-            NotificationKind::Cpu => config.enable_cpu_notification,
-            NotificationKind::Memory => config.enable_memory_notification,
-            NotificationKind::Disk => config.enable_disk_notification,
-            NotificationKind::ContainerSocket => config.enable_advanced_container_socket_notifications,
+    async fn get_entry(&self, reporter: &Reporter) -> Result<Option<MetricState>> {
+        match timeout(LOCK_TIMEOUT, self.metric_states.lock()).await {
+            Ok(states) => {
+                match states.get(reporter) {
+                    None => Ok(None),
+                    Some(removed) => Ok(Some(removed.clone()))
+                }
+            }
+            Err(_) => Err(anyhow!("Unable to acquire lock for metric_states")),
         }
     }
 
-    fn notification_mode_for(&self, kind: NotificationKind) -> NotificationMode {
-        let mode = match kind {
-            NotificationKind::Cpu => self.notification_config.cpu_notification_mode,
-            NotificationKind::Memory => self.notification_config.memory_notification_mode,
-            NotificationKind::Disk => Some(NotificationMode::Once),
-            NotificationKind::ContainerSocket => self.notification_config.container_socket_notification_mode,
-        };
-        mode.unwrap_or(NotificationMode::Once)
-    }
-
-    fn renotify_after_for(&self, kind: NotificationKind) -> Option<u16> {
-        match kind {
-            NotificationKind::Cpu => self.notification_config.cpu_renotify_after_x,
-            NotificationKind::Memory => self.notification_config.memory_renotify_after_x,
-            NotificationKind::Disk => self.notification_config.disk_renotify_after_x,
-            NotificationKind::ContainerSocket => self.notification_config.container_socket_renotify_after_x,
+    async fn remove_entry(&self, notification: &dyn Notification) -> Result<Option<MetricState>> {
+        match timeout(LOCK_TIMEOUT, self.metric_states.lock()).await {
+            Ok(mut states) => {
+            match states.remove(notification.reporter()) {
+                None => Ok(None),
+                Some(removed) => Ok(Some(removed))
+            }
+            }
+            Err(_) => Err(anyhow!("Unable to acquire lock for metric_states")),
         }
     }
 }
