@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use chrono::Utc;
 use futures_util::StreamExt;
-use log::{debug, info};
+use log::debug;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::sync::{

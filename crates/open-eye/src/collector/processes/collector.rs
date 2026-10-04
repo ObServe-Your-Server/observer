@@ -41,7 +41,7 @@ impl ProcessStats {
         processes.sort_by(|a, b| b.cpu_usage_percent.total_cmp(&a.cpu_usage_percent));
         let top_cpu = processes.iter().take(top_n).cloned().collect::<Vec<_>>();
 
-        processes.sort_by(|a, b| b.memory_usage_bytes.cmp(&a.memory_usage_bytes));
+        processes.sort_by_key(|a| std::cmp::Reverse(a.memory_usage_bytes));
         let top_memory = processes.iter().take(top_n).cloned().collect::<Vec<_>>();
 
         ProcessesStats {

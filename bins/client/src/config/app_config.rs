@@ -1,7 +1,5 @@
-use crate::config::config_parts::interval_config::IntervalConfig;
 use anyhow::{anyhow, Result};
-use serde::{Deserialize, Serialize};
-use std::fs;
+use serde::Serialize;
 use std::path::PathBuf;
 use getset::Getters;
 use reqwest::{Client, StatusCode};

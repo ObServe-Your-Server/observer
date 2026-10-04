@@ -1,7 +1,6 @@
 use crate::jobs::job::JobTrait;
 use anyhow::Result;
 use async_trait::async_trait;
-use chrono::Duration;
 use open_eye::collector::speedtest::collector::SpeedtestResult;
 use std::sync::Arc;
 

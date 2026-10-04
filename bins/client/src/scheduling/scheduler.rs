@@ -1,7 +1,6 @@
 use crate::jobs::job::{Job, JobTrait};
 use anyhow::{Result, anyhow};
 use std::time::{Duration, Instant};
-use log::error;
 use tokio::task::JoinSet;
 use tokio::time;
 use tokio::time::MissedTickBehavior;
@@ -48,7 +47,7 @@ impl Scheduler {
     }
 }
 
-async fn run(mut job: Job) -> Result<()> {
+async fn run(job: Job) -> Result<()> {
     log::info!(
         "Scheduler [{}] starting, running every {}s",
         job.name(),
