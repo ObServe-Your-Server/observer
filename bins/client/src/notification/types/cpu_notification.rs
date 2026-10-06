@@ -23,7 +23,7 @@ impl Notification for CpuNotification {
         }
         NotificationDeliveryType::Decide
     }
-    
+
     fn notification_usage_type(&self, notification_config: &NotificationConfig) -> NotificationUsageType {
         match notification_config.cpu_high_percentage {
             None => {

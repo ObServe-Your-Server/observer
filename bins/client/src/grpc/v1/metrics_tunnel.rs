@@ -69,28 +69,27 @@ impl MetricsTunnel {
             .await
             .map_err(|e| tonic::Status::unavailable(e.to_string()))?;
 
-        let mut client = MetricsTunnelClient::new(channel);
-
-        // now establish the base tunnel connection
-        // first create a receiver stream and the initial connection request to init the stream
-
-        let mut initial_request = tonic::Request::new(());
-        let api_key = match MetadataValue::try_from(self.api_key.to_string()) {
+        let api_key: MetadataValue<_> = match MetadataValue::try_from(self.api_key.to_string()) {
             Ok(key) => key,
             Err(err) => {
-                // TODO error implementation
                 log::error!("Invalid string as api key. Error: {}", err);
                 return Err(anyhow!(err).context("Invalid string as api key."));
             }
         };
-        initial_request.metadata_mut().insert("x-api-key", api_key);
 
-        let mut request_stream = match client.tunnel(initial_request).await {
+        // the server authenticates every call, so the interceptor adds the key to all of them
+        let mut client = MetricsTunnelClient::with_interceptor(channel, move |mut request: tonic::Request<()>| {
+            request.metadata_mut().insert("x-api-key", api_key.clone());
+            Ok(request)
+        });
+
+        log::info!("Established connection to grpc server");
+        // now establish the base tunnel connection
+        let mut request_stream = match client.tunnel(tonic::Request::new(())).await {
             Ok(r) => r.into_inner(),
             Err(err) => {
-                // TODO error implementation
                 log::error!("Received error in metrics tunnel: {}", err);
-                return Err(anyhow!("TODO"));
+                return Err(anyhow!("Received error in metrics tunnel: {}", err));
             }
         };
 
@@ -100,19 +99,19 @@ impl MetricsTunnel {
                     let response = build_metrics_response(self.storage_engine.clone(), request).await;
                     match client.metrics_response(response).await {
                         Ok(_) => {
-                            todo!()
-                            // TODO log that all went okay
+                            log::debug!("Sent metrics response through the tunnel");
                         }
-                        Err(_err) => {
-                            todo!()
-                            // Error handling of transmitting
+                        Err(err) => {
+                            // a single failed response must not tear down the tunnel,
+                            // if the connection is really broken the stream below ends with an error
+                            log::error!("Failed to transmit metrics response: {}", err);
                         }
                     }
                 }
-                Err(_err) => {
-                    // TODO error implementation
-                    // maybe reconnect etc
-                    todo!()
+                Err(err) => {
+                    // the stream broke, leave the loop so run_blocking can reconnect
+                    log::warn!("Metrics tunnel stream error: {}", err);
+                    break;
                 }
             }
         }
@@ -127,7 +126,6 @@ impl MetricsTunnel {
             // connect the socket to the given url
             match Self::connect_socket(&self.url).await {
                 Ok(channel) => {
-                    log::info!("Connected to the server at {}", self.url);
                     return Ok(channel);
                 }
                 Err(e) => {

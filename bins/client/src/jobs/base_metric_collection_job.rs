@@ -10,7 +10,9 @@ use open_eye::collector::partition::collector::PartitionInfo;
 use open_eye::collector::systemstats::collector::SystemStats;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt::format;
 use std::sync::{Arc, Mutex};
+use crate::notification::types::cpu_notification::CpuNotification;
 
 #[async_trait]
 pub trait BaseMetricCollectionStorageEngine: Send + Sync {
@@ -42,6 +44,17 @@ impl JobTrait for BaseMetricCollectionJob {
     async fn run(&self) -> Result<()> {
         let base_metrics = BaseMetrics::collect().await;
         self.storage_engine.save_base_metrics(base_metrics.clone()).await?;
+
+        match base_metrics.cpu {
+            None => {}
+            Some(cpu_stats) => {
+                self.notification_manager.send_notification(&CpuNotification{
+                    cpu_usage_in_percent: (cpu_stats.cpu_usage_percent) as u8,
+                    title: "Cpu".to_string(),
+                    body: format!("Cpu at {}%", (cpu_stats.cpu_usage_percent) as u8),
+                }).await?;
+            }
+        }
 
         Ok(())
     }

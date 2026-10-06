@@ -45,15 +45,16 @@ impl NotificationManager {
 
     async fn send_push_notification(&self, title: &str, body: &str) -> Result<()> {
         let client = Client::new();
-        #[derive(Serialize)]
+        #[derive(Debug, Serialize)]
         pub struct PushNotification<'a> {
             pub title: &'a str,
             pub body: &'a str,
         }
         let push_notification = PushNotification {
-            title,
+            title: &format!("{} - {}", self.client_config.machine_name.clone().unwrap_or("".to_string()), title),
             body
         };
+
 
         let response = client
             .post(&self.client_config.push_notification_url)
@@ -100,6 +101,7 @@ impl NotificationManager {
             None => return Ok(false),
             Some(vec) => vec,
         };
+        //self.print_notification_vec(reporter, &notification_vec);
 
         let target_repetition = self.get_target_repetition_count(reporter) as usize;
 
@@ -134,6 +136,21 @@ impl NotificationManager {
         Ok(false)
     }
 
+    /// Debug helper: prints every queued notification with its usage type.
+    #[allow(dead_code)]
+    fn print_notification_vec(&self, reporter: &Reporter, notification_vec: &[Box<dyn Notification>]) {
+        println!("notification_vec for {:?} (size={}):", reporter, notification_vec.len());
+        for (index, entry) in notification_vec.iter().enumerate() {
+            println!(
+                "  [{}] usage={:?} title={:?} body={:?}",
+                index,
+                entry.notification_usage_type(&self.notification_config),
+                entry.title(),
+                entry.body(),
+            );
+        }
+    }
+
     async fn get_notification_list_for_type(&self, reporter: &Reporter) -> Result<Option<Vec<Box<dyn Notification>>>> {
         match timeout(LOCK_TIMEOUT, self.metric_states.lock()).await {
             Ok(states) => {
@@ -151,9 +168,9 @@ impl NotificationManager {
     fn get_target_repetition_count(&self, reporter: &Reporter) -> u32 {
         match reporter {
             Reporter::System => 0,
-            Reporter::Cpu => self.notification_config.cpu_notify_after.unwrap_or(0) as u32,
-            Reporter::Memory => self.notification_config.memory_notify_after.unwrap_or(0) as u32,
-            Reporter::Disk => self.notification_config.disk_notify_after.unwrap_or(0) as u32,
+            Reporter::Cpu => self.notification_config.cpu_notify_after.unwrap_or(1) as u32,
+            Reporter::Memory => self.notification_config.memory_notify_after.unwrap_or(1) as u32,
+            Reporter::Disk => self.notification_config.disk_notify_after.unwrap_or(1) as u32,
             Reporter::ContainerSocket => todo!()
         }
     }

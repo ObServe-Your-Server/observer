@@ -77,7 +77,7 @@ async fn run(job: Job) -> Result<()> {
             Ok(Err(e)) => Err(anyhow!("Job failed with error: {}", e))?,
             Err(_) => {
                 // timeout
-                Err(anyhow!("Job timeouted"))?
+                Err(anyhow!("Job [{}] timeouted", job.name()))?
             }
         }
     }
