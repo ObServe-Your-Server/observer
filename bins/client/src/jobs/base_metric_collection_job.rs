@@ -1,8 +1,11 @@
 use crate::config::config_parts::notification_config::NotificationConfig;
 use crate::jobs::job::JobTrait;
-use crate::notification::notification_manager::NotificationManager;
-use anyhow::Result;
+use crate::notification::notification_manager::{NotificationManager, NotificationSender};
+use crate::notification::types::cpu_notification::CpuNotification;
+use crate::notification::types::memory_notification::MemoryNotification;
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
+use futures::future::OptionFuture;
 use open_eye::collector::cpu::collector::CpuStats;
 use open_eye::collector::memory::collector::MemoryStats;
 use open_eye::collector::network::collector::NetworkStats;
@@ -12,7 +15,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::format;
 use std::sync::{Arc, Mutex};
-use crate::notification::types::cpu_notification::CpuNotification;
 
 #[async_trait]
 pub trait BaseMetricCollectionStorageEngine: Send + Sync {
@@ -22,39 +24,91 @@ pub trait BaseMetricCollectionStorageEngine: Send + Sync {
 
 pub struct BaseMetricCollectionJob {
     storage_engine: Arc<dyn BaseMetricCollectionStorageEngine>,
-    notification_manager: Arc<NotificationManager>,
+    notification_manager: Arc<dyn NotificationSender>,
+}
+
+fn flatten<T>(
+    name: &str,
+    res: Option<Result<anyhow::Result<T>, tokio::task::JoinError>>,
+) -> anyhow::Result<()> {
+    match res {
+        None => {
+            log::debug!("No notification call because no {name} data");
+            Ok(())
+        }
+        Some(Ok(Ok(_))) => Ok(()),
+        Some(Ok(Err(err))) => Err(err.context(format!("{name} notification failed"))),
+        Some(Err(err)) => Err(anyhow!("Failed to join on {name} future: {err}")),
+    }
 }
 
 impl BaseMetricCollectionJob {
     pub fn new(
         storage_engine: Arc<dyn BaseMetricCollectionStorageEngine>,
         notification_manager: Arc<NotificationManager>,
-        notification_config: NotificationConfig,
     ) -> BaseMetricCollectionJob {
         BaseMetricCollectionJob {
             storage_engine,
             notification_manager,
         }
     }
-
 }
 
 #[async_trait]
 impl JobTrait for BaseMetricCollectionJob {
     async fn run(&self) -> Result<()> {
         let base_metrics = BaseMetrics::collect().await;
-        self.storage_engine.save_base_metrics(base_metrics.clone()).await?;
+        self.storage_engine
+            .save_base_metrics(base_metrics.clone())
+            .await?;
 
-        match base_metrics.cpu {
-            None => {}
-            Some(cpu_stats) => {
-                self.notification_manager.send_notification(&CpuNotification{
-                    cpu_usage_in_percent: (cpu_stats.cpu_usage_percent) as u8,
-                    title: "Cpu".to_string(),
-                    body: format!("Cpu at {}%", (cpu_stats.cpu_usage_percent) as u8),
-                }).await?;
-            }
-        }
+        let cpu_metrics = base_metrics.cpu;
+        let cpu_handle = cpu_metrics.map(|stats| {
+            // needed because otherwise not movable out of &self into future
+            let notification_manager = self.notification_manager.clone();
+            tokio::spawn(async move {
+                notification_manager
+                    .suggest_notification(&MemoryNotification {
+                        memory_usage_in_percent: stats.cpu_usage_percent as u8,
+                        title: "Cpu".to_string(),
+                        body: format!("Cpu at {}%", stats.cpu_usage_percent as u8),
+                    })
+                    .await
+            })
+        });
+
+        let memory_metrics = base_metrics.memory;
+        let memory_handle = memory_metrics.map(|memory_metrics| {
+            let notification_manager = self.notification_manager.clone();
+            tokio::spawn(async move {
+                notification_manager
+                    .suggest_notification(&MemoryNotification {
+                        memory_usage_in_percent: (memory_metrics.used_memory_in_byte
+                            / memory_metrics.available_memory_in_byte)
+                            as u8,
+                        title: "Memory".to_string(),
+                        body: format!(
+                            "Memory at {}%",
+                            (memory_metrics.used_memory_in_byte
+                                / memory_metrics.available_memory_in_byte)
+                                as u8
+                        ),
+                    })
+                    .await
+            })
+        });
+
+        let (cpu_res, mem_res) = tokio::join!(
+            OptionFuture::from(cpu_handle),
+            OptionFuture::from(memory_handle)
+        );
+
+        // both tasks are finished here
+        let cpu = flatten("cpu", cpu_res);
+        let mem = flatten("memory", mem_res);
+
+        cpu?;
+        mem?;
 
         Ok(())
     }

@@ -35,7 +35,6 @@ impl SchedulingMaster {
             Box::new(BaseMetricCollectionJob::new(
                 storage_engine.clone(),
                 notification_manager.clone(),
-                config.toml_config().notification_config().clone(),
             )),
             Duration::seconds(config.toml_config().interval_config().base_metric_secs as i64),
             15 // TODO implement over the config

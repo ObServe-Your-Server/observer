@@ -8,9 +8,15 @@ use reqwest::{Client, StatusCode};
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap};
 use std::time::Duration;
+use async_trait::async_trait;
 use tokio::sync::Mutex;
 use tokio::time::timeout;
 use crate::notification::reporting::notification_usage_type::NotificationUsageType;
+
+#[async_trait]
+pub trait NotificationSender: Send + Sync {
+    async fn suggest_notification(&self, notification: &dyn Notification)-> Result<()>;
+}
 
 const LOCK_TIMEOUT: Duration = Duration::from_millis(250);
 
@@ -28,19 +34,6 @@ impl NotificationManager {
             client_config,
             metric_states: Mutex::new(BTreeMap::new()),
         }
-    }
-
-    pub async fn send_notification(&self, notification: &dyn Notification) -> Result<()> {
-        if !self.should_notification_be_send(notification).await? {
-            return Ok(())
-        }
-
-        match self.notification_config.notification_way {
-            NotificationWay::PushNotification => self.send_push_notification(notification.title(), notification.body()).await?
-        }
-        log::debug!("Sent notification: {} - {}", notification.title(), notification.body());
-
-        Ok(())
     }
 
     async fn should_notification_be_send(&self, notification: &dyn Notification) -> Result<bool> {
@@ -198,6 +191,22 @@ impl NotificationManager {
                 Err(anyhow!("Error sending notification: {}", err))
             },
         }
+    }
+}
+
+#[async_trait]
+impl NotificationSender for NotificationManager {
+    async fn suggest_notification(&self, notification: &dyn Notification) -> Result<()> {
+        if !self.should_notification_be_send(notification).await? {
+            return Ok(())
+        }
+
+        match self.notification_config.notification_way {
+            NotificationWay::PushNotification => self.send_push_notification(notification.title(), notification.body()).await?
+        }
+        log::debug!("Sent notification: {} - {}", notification.title(), notification.body());
+
+        Ok(())
     }
 }
 
