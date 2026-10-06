@@ -1,7 +1,7 @@
 use crate::config::config_parts::client_config::ClientConfig;
 use crate::config::config_parts::notification_config::{NotificationConfig, NotificationWay};
 use crate::notification::notification::Notification;
-use crate::notification::reporting::notification_delivery_type::NotificationDeliveryType;
+use crate::notification::reporting::notification_delivery_mode::NotificationDeliveryMode;
 use crate::notification::reporting::reporter::Reporter;
 use anyhow::{Result, anyhow};
 use reqwest::{Client, StatusCode};
@@ -43,46 +43,14 @@ impl NotificationManager {
         Ok(())
     }
 
-    async fn send_push_notification(&self, title: &str, body: &str) -> Result<()> {
-        let client = Client::new();
-        #[derive(Debug, Serialize)]
-        pub struct PushNotification<'a> {
-            pub title: &'a str,
-            pub body: &'a str,
-        }
-        let push_notification = PushNotification {
-            title: &format!("{} - {}", self.client_config.machine_name.clone().unwrap_or("".to_string()), title),
-            body
-        };
-
-
-        let response = client
-            .post(&self.client_config.push_notification_url)
-            .header("X-Api-Key", &self.client_config.api_key)
-            .json(&push_notification)
-            .send()
-            .await?;
-
-        match response.status() {
-            StatusCode::OK => {
-                log::debug!("Sent push notification title: {} body: {}", push_notification.title, push_notification.body);
-                Ok(())
-            }
-            err => {
-                // TODO: log the error. If not registered on us, notify
-                Err(anyhow!("Error sending notification: {}", err))
-            },
-        }
-    }
-
     async fn should_notification_be_send(&self, notification: &dyn Notification) -> Result<bool> {
         // first apply ruleset embedded in notification
         let urgency = notification.should_deliver_based_on_ruleset(&self.notification_config);
 
         match urgency {
-            NotificationDeliveryType::DeactivatedFromConfig => Ok(false),
-            NotificationDeliveryType::AlwaysDeliver => Ok(true),
-            NotificationDeliveryType::Decide => {
+            NotificationDeliveryMode::DeactivatedFromConfig => Ok(false),
+            NotificationDeliveryMode::AlwaysDeliver => Ok(true),
+            NotificationDeliveryMode::Decide => {
                 let target_repetition_count = self.get_target_repetition_count(notification.reporter());
                 // when no count set instant deliver
                 if target_repetition_count == 0 {
@@ -164,7 +132,8 @@ impl NotificationManager {
 
 
     /// Give the reporting system and an urgency.
-    /// Returns the number for the queueing system
+    /// Returns the number for the queueing system. `0` is instant on every message. `1` normal mode where
+    /// the same message doesnt get sent twice
     fn get_target_repetition_count(&self, reporter: &Reporter) -> u32 {
         match reporter {
             Reporter::System => 0,
@@ -196,6 +165,38 @@ impl NotificationManager {
     fn remove_oldest_over_limit(entries: &mut Vec<Box<dyn Notification>>, max_len: usize) {
         if entries.len() > max_len {
             entries.drain(..entries.len() - max_len);
+        }
+    }
+
+    async fn send_push_notification(&self, title: &str, body: &str) -> Result<()> {
+        let client = Client::new();
+        #[derive(Debug, Serialize)]
+        pub struct PushNotification<'a> {
+            pub title: &'a str,
+            pub body: &'a str,
+        }
+        let push_notification = PushNotification {
+            title: &format!("{} - {}", self.client_config.machine_name.clone().unwrap_or("".to_string()), title),
+            body
+        };
+
+
+        let response = client
+            .post(&self.client_config.push_notification_url)
+            .header("X-Api-Key", &self.client_config.api_key)
+            .json(&push_notification)
+            .send()
+            .await?;
+
+        match response.status() {
+            StatusCode::OK => {
+                log::debug!("Sent push notification title: {} body: {}", push_notification.title, push_notification.body);
+                Ok(())
+            }
+            err => {
+                // TODO: log the error. If not registered on us, notify
+                Err(anyhow!("Error sending notification: {}", err))
+            },
         }
     }
 }

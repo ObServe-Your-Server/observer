@@ -1,5 +1,5 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NotificationDeliveryType {
+pub enum NotificationDeliveryMode {
     DeactivatedFromConfig,
     AlwaysDeliver,
     Decide

@@ -1,6 +1,6 @@
 use crate::config::config_parts::notification_config::NotificationConfig;
 use crate::notification::notification::Notification;
-use crate::notification::reporting::notification_delivery_type::NotificationDeliveryType;
+use crate::notification::reporting::notification_delivery_mode::NotificationDeliveryMode;
 use crate::notification::reporting::notification_usage_type::NotificationUsageType;
 use crate::notification::reporting::reporter::Reporter;
 
@@ -17,11 +17,11 @@ impl Notification for CpuNotification {
         &Reporter::Cpu
     }
 
-    fn should_deliver_based_on_ruleset(&self, notification_config: &NotificationConfig) -> NotificationDeliveryType {
+    fn should_deliver_based_on_ruleset(&self, notification_config: &NotificationConfig) -> NotificationDeliveryMode {
         if !notification_config.enable_cpu_notification {
-            return NotificationDeliveryType::DeactivatedFromConfig;
+            return NotificationDeliveryMode::DeactivatedFromConfig;
         }
-        NotificationDeliveryType::Decide
+        NotificationDeliveryMode::Decide
     }
 
     fn notification_usage_type(&self, notification_config: &NotificationConfig) -> NotificationUsageType {
