@@ -41,7 +41,7 @@ impl Notification for CpuNotification {
     }
 
     fn body(&self) -> &str {
-        &self.title
+        &self.body
     }
 
     fn boxed_self(&self) -> Box<dyn Notification> {
