@@ -1,0 +1,4 @@
+# needed for buf lsp
+version: v2
+modules:
+  - path: bins/client/proto

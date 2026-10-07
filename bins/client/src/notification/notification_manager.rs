@@ -13,6 +13,7 @@ use tokio::sync::Mutex;
 use tokio::time::timeout;
 use crate::notification::reporting::notification_usage_type::NotificationUsageType;
 
+// needs to be send +  sync, because tokio (async run time) moves workload between executor threads
 #[async_trait]
 pub trait NotificationSender: Send + Sync {
     async fn suggest_notification(&self, notification: &dyn Notification)-> Result<()>;
