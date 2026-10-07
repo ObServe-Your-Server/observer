@@ -35,7 +35,7 @@ impl AppConfig {
         }
 
         let machine_name = Self::pull_machine_name(self.toml_config.client_config()).await?;
-        self.toml_config.client_config_mut().machine_name = (Some(machine_name));
+        self.toml_config.client_config_mut().machine_name = Some(machine_name) ;
         Ok(())
     }
 

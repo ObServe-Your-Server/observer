@@ -1,7 +1,6 @@
 use crate::config::config_parts::notification_config::NotificationConfig;
 use crate::notification::reporting::notification_delivery_mode::NotificationDeliveryMode;
 use crate::notification::reporting::reporter::Reporter;
-use anyhow::Result;
 use crate::notification::reporting::notification_usage_type::NotificationUsageType;
 
 pub trait Notification: Send + Sync {

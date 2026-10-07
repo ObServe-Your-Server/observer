@@ -1,7 +1,5 @@
-use crate::config::config_parts::notification_config::NotificationConfig;
 use crate::jobs::job::JobTrait;
 use crate::notification::notification_manager::{NotificationManager, NotificationSender};
-use crate::notification::types::cpu_notification::CpuNotification;
 use crate::notification::types::memory_notification::MemoryNotification;
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
@@ -12,9 +10,7 @@ use open_eye::collector::network::collector::NetworkStats;
 use open_eye::collector::partition::collector::PartitionInfo;
 use open_eye::collector::systemstats::collector::SystemStats;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::fmt::format;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 #[async_trait]
 pub trait BaseMetricCollectionStorageEngine: Send + Sync {

@@ -6,12 +6,11 @@ use crate::notification::reporting::reporter::Reporter;
 use anyhow::{Result, anyhow};
 use reqwest::{Client, StatusCode};
 use serde::Serialize;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::time::Duration;
 use async_trait::async_trait;
 use tokio::sync::Mutex;
 use tokio::time::timeout;
-use crate::notification::reporting::notification_usage_type::NotificationUsageType;
 
 // needs to be send +  sync, because tokio (async run time) moves workload between executor threads
 #[async_trait]
@@ -140,7 +139,7 @@ impl NotificationManager {
 
 
     async fn insert_notification_into_states_and_delete_old_entry(&self, notification: Box<dyn Notification>) -> Result<()> {
-        let reporter = notification.reporter().clone();
+        let reporter = *notification.reporter();
         // window = the frame that has to be uniform + one entry before it as the comparison baseline
         let max_len = self.get_target_repetition_count(&reporter) as usize + 1;
 
