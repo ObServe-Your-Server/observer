@@ -54,12 +54,11 @@ impl BaseMetricCollectionJob {
 impl JobTrait for BaseMetricCollectionJob {
     async fn run(&self) -> Result<()> {
         let base_metrics = BaseMetrics::collect().await;
-        self.storage_engine
-            .save_base_metrics(base_metrics.clone())
-            .await?;
+        let save_metrics_fut = self.storage_engine
+            .save_base_metrics(base_metrics.clone());
 
         let cpu_metrics = base_metrics.cpu;
-        let cpu_handle = cpu_metrics.map(|stats| {
+        let cpu_notification_fut = cpu_metrics.map(|stats| {
             // needed because otherwise not movable out of &self into future
             let notification_manager = self.notification_manager.clone();
             tokio::spawn(async move {
@@ -74,7 +73,7 @@ impl JobTrait for BaseMetricCollectionJob {
         });
 
         let memory_metrics = base_metrics.memory;
-        let memory_handle = memory_metrics.map(|memory_metrics| {
+        let memory_notification_fut = memory_metrics.map(|memory_metrics| {
             let notification_manager = self.notification_manager.clone();
             tokio::spawn(async move {
                 notification_manager
@@ -94,10 +93,15 @@ impl JobTrait for BaseMetricCollectionJob {
             })
         });
 
-        let (cpu_res, mem_res) = tokio::join!(
-            OptionFuture::from(cpu_handle),
-            OptionFuture::from(memory_handle)
+        let (save_metrics_res, cpu_res, mem_res) = tokio::join!(
+            save_metrics_fut,
+            OptionFuture::from(cpu_notification_fut),
+            OptionFuture::from(memory_notification_fut)
         );
+
+        // saving metrics failed, which doesn't mean notifications worked.
+        // notifications are not that serious so saving metrics throws first
+        save_metrics_res?;
 
         // both tasks are finished here
         let cpu = flatten("cpu", cpu_res);
