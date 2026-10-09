@@ -83,6 +83,17 @@ impl MigrationTrait for Migration {
                     .col(ContainerStats::ContainerId)
                     .to_owned(),
             )
+            .await?;
+
+        // sqlite doesn't index FK columns, needed for find_with_related and cascade deletes
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_container_stats_container_runtime_stats_id")
+                    .table(ContainerStats::Table)
+                    .col(ContainerStats::ContainerRuntimeStatsId)
+                    .to_owned(),
+            )
             .await
     }
 

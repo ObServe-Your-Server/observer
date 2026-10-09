@@ -61,6 +61,17 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
+        // sqlite doesn't index FK columns, needed for find_with_related and cascade deletes
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_partition_stats_partition_entry_id")
+                    .table(PartitionStats::Table)
+                    .col(PartitionStats::PartitionEntryId)
+                    .to_owned(),
+            )
+            .await?;
+
         manager
             .create_index(
                 Index::create()

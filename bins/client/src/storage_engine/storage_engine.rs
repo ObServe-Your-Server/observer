@@ -645,3 +645,104 @@ impl DataCleanupStorageEngine for StorageEngine {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::TimeZone;
+    use open_eye::collector::partition::collector::PartitionInfo;
+    use tempfile::TempDir;
+
+    fn partition(name: &str, collected_at: DateTime<Utc>) -> PartitionInfo {
+        PartitionInfo {
+            name: name.to_string(),
+            device: format!("/dev/{name}"),
+            mount_point: format!("/mnt/{name}"),
+            fs_type: "ext4".to_string(),
+            total_bytes: 1000,
+            used_bytes: 400,
+            available_bytes: 600,
+            used_blocks: 40,
+            available_blocks: 60,
+            block_size: 4096,
+            collected_at,
+        }
+    }
+
+    fn base_metrics_with_disks(disks: Vec<PartitionInfo>) -> BaseMetrics {
+        BaseMetrics {
+            cpu: None,
+            memory: None,
+            disks: Some(disks),
+            network: None,
+            system: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn get_partition_stats_latest_test() {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let engine = StorageEngine::new(format!("sqlite://{}?mode=rwc", db_path.display()))
+            .connect_to_db_and_migrate()
+            .await
+            .unwrap();
+
+        let t1 = Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap();
+        let t2 = Utc.with_ymd_and_hms(2026, 1, 1, 0, 1, 0).unwrap();
+        let t3 = Utc.with_ymd_and_hms(2026, 1, 1, 0, 2, 0).unwrap();
+
+        engine
+            .save_base_metrics(base_metrics_with_disks(vec![partition("sda1", t1)]))
+            .await
+            .unwrap();
+        engine
+            .save_base_metrics(base_metrics_with_disks(vec![
+                partition("sda1", t2),
+                partition("sdb1", t2),
+            ]))
+            .await
+            .unwrap();
+        engine
+            .save_base_metrics(base_metrics_with_disks(vec![
+                partition("sda1", t3),
+                partition("sdb1", t3),
+                partition("nvme0n1p1", t3),
+            ]))
+            .await
+            .unwrap();
+
+        let rows = engine.get_partition_stats_latest(2).await.unwrap();
+
+        // only the 2 newest entries, oldest first
+        assert_eq!(rows.len(), 2);
+        let (entry_a, stats_a) = &rows[0];
+        let (entry_b, stats_b) = &rows[1];
+        assert_eq!(entry_a.collected_at, t2);
+        assert_eq!(entry_b.collected_at, t3);
+
+        // each entry carries exactly its own partitions
+        let mut names_a: Vec<_> = stats_a.iter().map(|s| s.name.as_str()).collect();
+        let mut names_b: Vec<_> = stats_b.iter().map(|s| s.name.as_str()).collect();
+        names_a.sort();
+        names_b.sort();
+        assert_eq!(names_a, vec!["sda1", "sdb1"]);
+        assert_eq!(names_b, vec!["nvme0n1p1", "sda1", "sdb1"]);
+
+        // field values round-trip
+        let sda1 = stats_b.iter().find(|s| s.name == "sda1").unwrap();
+        assert_eq!(sda1.partition_entry_id, entry_b.id);
+        assert_eq!(sda1.device, "/dev/sda1");
+        assert_eq!(sda1.mount_point, "/mnt/sda1");
+        assert_eq!(sda1.fs_type, "ext4");
+        assert_eq!(sda1.total_bytes, 1000);
+        assert_eq!(sda1.used_bytes, 400);
+        assert_eq!(sda1.available_bytes, 600);
+        assert_eq!(sda1.used_blocks, 40);
+        assert_eq!(sda1.available_blocks, 60);
+        assert_eq!(sda1.block_size, 4096);
+        assert_eq!(sda1.collected_at, t3);
+
+        engine.close().await.unwrap();
+    }
+}
