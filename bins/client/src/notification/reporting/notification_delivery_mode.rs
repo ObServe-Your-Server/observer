@@ -2,5 +2,5 @@
 pub enum NotificationDeliveryMode {
     DeactivatedFromConfig,
     AlwaysDeliver,
-    Decide
+    Decide,
 }

@@ -1,5 +1,5 @@
 pub mod base_metric_collection_job;
 pub mod container_stats_collection_job;
 pub mod data_cleanup_job;
-pub mod speedtest_stats_collection_job;
 pub mod job;
+pub mod speedtest_stats_collection_job;

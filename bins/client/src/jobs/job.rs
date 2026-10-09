@@ -14,12 +14,17 @@ pub struct Job {
 }
 
 impl Job {
-    pub fn new(name: impl Into<String>, task: Box<dyn JobTrait>, interval: Duration, fatal_errors_before_termination: u16) -> Job {
-        Job{
+    pub fn new(
+        name: impl Into<String>,
+        task: Box<dyn JobTrait>,
+        interval: Duration,
+        fatal_errors_before_termination: u16,
+    ) -> Job {
+        Job {
             name: name.into(),
             task,
             interval,
-            fatal_errors_before_termination
+            fatal_errors_before_termination,
         }
     }
 

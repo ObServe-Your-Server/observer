@@ -1,9 +1,9 @@
 pub mod container_runtime;
 pub mod cpu;
-pub mod partition;
 pub mod gpu;
 pub mod memory;
 pub mod network;
+pub mod partition;
 pub mod processes;
 pub mod speedtest;
 pub mod systemstats;

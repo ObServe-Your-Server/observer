@@ -1,5 +1,3 @@
-use std::sync::Arc;
-use crate::grpc::v1::{FullRequest, MetricsRequest, MetricsResponse};
 use crate::grpc::v1::metrics::ContainerRuntimeRequest;
 use crate::grpc::v1::metrics::container_runtime_request::MessageType;
 use crate::grpc::v1::metrics::container_runtime_response;
@@ -7,24 +5,49 @@ use crate::grpc::v1::metrics_mapping;
 use crate::grpc::v1::metrics_request::RequestedMetric;
 use crate::grpc::v1::metrics_response::ReturnedMetric;
 use crate::grpc::v1::query_range::QueryRange;
+use crate::grpc::v1::{FullRequest, MetricsRequest, MetricsResponse};
 use crate::storage_engine::storage_engine::StorageEngine;
+use std::sync::Arc;
 
-pub async fn build_metrics_response(storage_engine: Arc<StorageEngine>, request: MetricsRequest) -> MetricsResponse {
+pub async fn build_metrics_response(
+    storage_engine: Arc<StorageEngine>,
+    request: MetricsRequest,
+) -> MetricsResponse {
     let query_range = QueryRange::from_request(&request);
     let request_id = request.request_id.clone();
 
-    let requested_metric = request.requested_metric.unwrap_or(RequestedMetric::FullRequest(FullRequest{}));
+    let requested_metric = request
+        .requested_metric
+        .unwrap_or(RequestedMetric::FullRequest(FullRequest {}));
     let returned_metric = match requested_metric {
         RequestedMetric::CpuRequest(_) => build_cpu_response(storage_engine, query_range).await,
-        RequestedMetric::PartitionRequest(_) => build_partition_response(storage_engine, query_range).await,
-        RequestedMetric::MemoryRequest(_) => build_memory_response(storage_engine, query_range).await,
-        RequestedMetric::NetworkRequest(_) => build_network_response(storage_engine, query_range).await,
-        RequestedMetric::ProcessRequest(_) => build_process_response(storage_engine, query_range).await,
-        RequestedMetric::SpeedtestRequest(_) => build_speedtest_response(storage_engine, query_range).await,
-        RequestedMetric::SystemRequest(_) => build_system_response(storage_engine, query_range).await,
-        RequestedMetric::ContainerRuntimeRequest(req) => build_container_runtime_response(storage_engine, query_range, req).await,
-        RequestedMetric::ErrorStatsRequest(_) => build_error_stats_response(storage_engine, query_range).await,
-        RequestedMetric::TunnelAccessLogRequest(_) => build_tunnel_access_log_response(storage_engine, query_range).await,
+        RequestedMetric::PartitionRequest(_) => {
+            build_partition_response(storage_engine, query_range).await
+        }
+        RequestedMetric::MemoryRequest(_) => {
+            build_memory_response(storage_engine, query_range).await
+        }
+        RequestedMetric::NetworkRequest(_) => {
+            build_network_response(storage_engine, query_range).await
+        }
+        RequestedMetric::ProcessRequest(_) => {
+            build_process_response(storage_engine, query_range).await
+        }
+        RequestedMetric::SpeedtestRequest(_) => {
+            build_speedtest_response(storage_engine, query_range).await
+        }
+        RequestedMetric::SystemRequest(_) => {
+            build_system_response(storage_engine, query_range).await
+        }
+        RequestedMetric::ContainerRuntimeRequest(req) => {
+            build_container_runtime_response(storage_engine, query_range, req).await
+        }
+        RequestedMetric::ErrorStatsRequest(_) => {
+            build_error_stats_response(storage_engine, query_range).await
+        }
+        RequestedMetric::TunnelAccessLogRequest(_) => {
+            build_tunnel_access_log_response(storage_engine, query_range).await
+        }
         RequestedMetric::FullRequest(_) => build_full_response(storage_engine, query_range).await,
     };
 
@@ -34,7 +57,10 @@ pub async fn build_metrics_response(storage_engine: Arc<StorageEngine>, request:
     }
 }
 
-async fn build_full_response(storage_engine: Arc<StorageEngine>, query_range: QueryRange) -> Option<ReturnedMetric> {
+async fn build_full_response(
+    storage_engine: Arc<StorageEngine>,
+    query_range: QueryRange,
+) -> Option<ReturnedMetric> {
     let full_container_request = ContainerRuntimeRequest {
         message_type: Some(MessageType::FullMetrics(
             crate::grpc::v1::metrics::GetFullMetrics {},
@@ -49,13 +75,19 @@ async fn build_full_response(storage_engine: Arc<StorageEngine>, query_range: Qu
         build_system_response(storage_engine.clone(), query_range),
         build_speedtest_response(storage_engine.clone(), query_range),
         build_process_response(storage_engine.clone(), query_range),
-        build_container_runtime_response(storage_engine.clone(), query_range, full_container_request),
+        build_container_runtime_response(
+            storage_engine.clone(),
+            query_range,
+            full_container_request
+        ),
         build_error_stats_response(storage_engine.clone(), query_range),
         build_tunnel_access_log_response(storage_engine.clone(), query_range),
     );
 
     let mut full = crate::grpc::v1::FullResponse::default();
-    for built in [cpu, partition, memory, network, system, speedtest, process, containers, errors, tunnel] {
+    for built in [
+        cpu, partition, memory, network, system, speedtest, process, containers, errors, tunnel,
+    ] {
         match built {
             Some(ReturnedMetric::CpuResponse(r)) => full.cpu_response = Some(r),
             Some(ReturnedMetric::PartitionResponse(r)) => full.partition_response = Some(r),
@@ -64,10 +96,16 @@ async fn build_full_response(storage_engine: Arc<StorageEngine>, query_range: Qu
             Some(ReturnedMetric::SystemResponse(r)) => full.system_response = Some(r),
             Some(ReturnedMetric::SpeedtestResponse(r)) => full.speedtest_response = Some(r),
             Some(ReturnedMetric::ProcessResponse(r)) => full.process_response = Some(r),
-            Some(ReturnedMetric::ContainerRuntimeResponse(r)) => full.container_runtime_response = Some(r),
+            Some(ReturnedMetric::ContainerRuntimeResponse(r)) => {
+                full.container_runtime_response = Some(r)
+            }
             Some(ReturnedMetric::ErrorStatsResponse(r)) => full.error_stats_response = Some(r),
-            Some(ReturnedMetric::TunnelAccessLogResponse(r)) => full.tunnel_access_log_response = Some(r),
-            Some(ReturnedMetric::FullResponse(_)) => log::warn!("nested full response in full metrics, ignoring"),
+            Some(ReturnedMetric::TunnelAccessLogResponse(r)) => {
+                full.tunnel_access_log_response = Some(r)
+            }
+            Some(ReturnedMetric::FullResponse(_)) => {
+                log::warn!("nested full response in full metrics, ignoring")
+            }
             None => {}
         }
     }
@@ -75,14 +113,24 @@ async fn build_full_response(storage_engine: Arc<StorageEngine>, query_range: Qu
     Some(ReturnedMetric::FullResponse(full))
 }
 
-async fn build_tunnel_access_log_response(storage_engine: Arc<StorageEngine>, query_range: QueryRange) -> Option<ReturnedMetric> {
+async fn build_tunnel_access_log_response(
+    storage_engine: Arc<StorageEngine>,
+    query_range: QueryRange,
+) -> Option<ReturnedMetric> {
     let rows = match query_range {
-        QueryRange::Between(start, end) => storage_engine.get_tunnel_access_log_between(start, end).await,
+        QueryRange::Between(start, end) => {
+            storage_engine
+                .get_tunnel_access_log_between(start, end)
+                .await
+        }
         QueryRange::LastN(n) => storage_engine.get_tunnel_access_log_latest(n).await,
     };
 
     let items = match rows {
-        Ok(rows) => rows.into_iter().map(metrics_mapping::tunnel_access_log_metrics).collect(),
+        Ok(rows) => rows
+            .into_iter()
+            .map(metrics_mapping::tunnel_access_log_metrics)
+            .collect(),
         Err(e) => {
             log::error!("failed to build tunnel access log response: {e}");
             return None;
@@ -94,14 +142,24 @@ async fn build_tunnel_access_log_response(storage_engine: Arc<StorageEngine>, qu
     ))
 }
 
-async fn build_container_runtime_response(storage_engine: Arc<StorageEngine>, query_range: QueryRange, request: ContainerRuntimeRequest) -> Option<ReturnedMetric> {
+async fn build_container_runtime_response(
+    storage_engine: Arc<StorageEngine>,
+    query_range: QueryRange,
+    request: ContainerRuntimeRequest,
+) -> Option<ReturnedMetric> {
     let rows = match query_range {
-        QueryRange::Between(start, end) => storage_engine.get_container_runtime_stats_between(start, end).await,
+        QueryRange::Between(start, end) => {
+            storage_engine
+                .get_container_runtime_stats_between(start, end)
+                .await
+        }
         QueryRange::LastN(n) => storage_engine.get_container_runtime_stats_latest(n).await,
     };
 
     let metrics = match rows {
-        Ok(rows) => rows.into_iter().map(metrics_mapping::container_runtime_stats),
+        Ok(rows) => rows
+            .into_iter()
+            .map(metrics_mapping::container_runtime_stats),
         Err(e) => {
             log::error!("failed to build container runtime response: {e}");
             return None;
@@ -136,14 +194,20 @@ async fn build_container_runtime_response(storage_engine: Arc<StorageEngine>, qu
     ))
 }
 
-async fn build_error_stats_response(storage_engine: Arc<StorageEngine>, query_range: QueryRange) -> Option<ReturnedMetric> {
+async fn build_error_stats_response(
+    storage_engine: Arc<StorageEngine>,
+    query_range: QueryRange,
+) -> Option<ReturnedMetric> {
     let rows = match query_range {
         QueryRange::Between(start, end) => storage_engine.get_error_stats_between(start, end).await,
         QueryRange::LastN(n) => storage_engine.get_error_stats_latest(n).await,
     };
 
     let items = match rows {
-        Ok(rows) => rows.into_iter().map(metrics_mapping::error_stats_metrics).collect(),
+        Ok(rows) => rows
+            .into_iter()
+            .map(metrics_mapping::error_stats_metrics)
+            .collect(),
         Err(e) => {
             log::error!("failed to build error stats response: {e}");
             return None;
@@ -155,14 +219,22 @@ async fn build_error_stats_response(storage_engine: Arc<StorageEngine>, query_ra
     ))
 }
 
-async fn build_system_response(storage_engine: Arc<StorageEngine>, query_range: QueryRange) -> Option<ReturnedMetric> {
+async fn build_system_response(
+    storage_engine: Arc<StorageEngine>,
+    query_range: QueryRange,
+) -> Option<ReturnedMetric> {
     let rows = match query_range {
-        QueryRange::Between(start, end) => storage_engine.get_system_stats_between(start, end).await,
+        QueryRange::Between(start, end) => {
+            storage_engine.get_system_stats_between(start, end).await
+        }
         QueryRange::LastN(n) => storage_engine.get_system_stats_latest(n).await,
     };
 
     let items = match rows {
-        Ok(rows) => rows.into_iter().map(metrics_mapping::system_metrics).collect(),
+        Ok(rows) => rows
+            .into_iter()
+            .map(metrics_mapping::system_metrics)
+            .collect(),
         Err(e) => {
             log::error!("failed to build system response: {e}");
             return None;
@@ -174,14 +246,22 @@ async fn build_system_response(storage_engine: Arc<StorageEngine>, query_range: 
     ))
 }
 
-async fn build_speedtest_response(storage_engine: Arc<StorageEngine>, query_range: QueryRange) -> Option<ReturnedMetric> {
+async fn build_speedtest_response(
+    storage_engine: Arc<StorageEngine>,
+    query_range: QueryRange,
+) -> Option<ReturnedMetric> {
     let rows = match query_range {
-        QueryRange::Between(start, end) => storage_engine.get_speedtest_stats_between(start, end).await,
+        QueryRange::Between(start, end) => {
+            storage_engine.get_speedtest_stats_between(start, end).await
+        }
         QueryRange::LastN(n) => storage_engine.get_speedtest_stats_latest(n).await,
     };
 
     let items = match rows {
-        Ok(rows) => rows.into_iter().map(metrics_mapping::speedtest_metrics).collect(),
+        Ok(rows) => rows
+            .into_iter()
+            .map(metrics_mapping::speedtest_metrics)
+            .collect(),
         Err(e) => {
             log::error!("failed to build speedtest response: {e}");
             return None;
@@ -193,14 +273,22 @@ async fn build_speedtest_response(storage_engine: Arc<StorageEngine>, query_rang
     ))
 }
 
-async fn build_process_response(storage_engine: Arc<StorageEngine>, query_range: QueryRange) -> Option<ReturnedMetric> {
+async fn build_process_response(
+    storage_engine: Arc<StorageEngine>,
+    query_range: QueryRange,
+) -> Option<ReturnedMetric> {
     let rows = match query_range {
-        QueryRange::Between(start, end) => storage_engine.get_processes_stats_between(start, end).await,
+        QueryRange::Between(start, end) => {
+            storage_engine.get_processes_stats_between(start, end).await
+        }
         QueryRange::LastN(n) => storage_engine.get_processes_stats_latest(n).await,
     };
 
     let items = match rows {
-        Ok(rows) => rows.into_iter().map(metrics_mapping::processes_stats).collect(),
+        Ok(rows) => rows
+            .into_iter()
+            .map(metrics_mapping::processes_stats)
+            .collect(),
         Err(e) => {
             log::error!("failed to build process response: {e}");
             return None;
@@ -212,14 +300,22 @@ async fn build_process_response(storage_engine: Arc<StorageEngine>, query_range:
     ))
 }
 
-async fn build_network_response(storage_engine: Arc<StorageEngine>, query_range: QueryRange) -> Option<ReturnedMetric> {
+async fn build_network_response(
+    storage_engine: Arc<StorageEngine>,
+    query_range: QueryRange,
+) -> Option<ReturnedMetric> {
     let rows = match query_range {
-        QueryRange::Between(start, end) => storage_engine.get_network_stats_between(start, end).await,
+        QueryRange::Between(start, end) => {
+            storage_engine.get_network_stats_between(start, end).await
+        }
         QueryRange::LastN(n) => storage_engine.get_network_stats_latest(n).await,
     };
 
     let items = match rows {
-        Ok(rows) => rows.into_iter().map(metrics_mapping::network_metrics).collect(),
+        Ok(rows) => rows
+            .into_iter()
+            .map(metrics_mapping::network_metrics)
+            .collect(),
         Err(e) => {
             log::error!("failed to build network response: {e}");
             return None;
@@ -231,14 +327,22 @@ async fn build_network_response(storage_engine: Arc<StorageEngine>, query_range:
     ))
 }
 
-async fn build_memory_response(storage_engine: Arc<StorageEngine>, query_range: QueryRange) -> Option<ReturnedMetric> {
+async fn build_memory_response(
+    storage_engine: Arc<StorageEngine>,
+    query_range: QueryRange,
+) -> Option<ReturnedMetric> {
     let rows = match query_range {
-        QueryRange::Between(start, end) => storage_engine.get_memory_stats_between(start, end).await,
+        QueryRange::Between(start, end) => {
+            storage_engine.get_memory_stats_between(start, end).await
+        }
         QueryRange::LastN(n) => storage_engine.get_memory_stats_latest(n).await,
     };
 
     let items = match rows {
-        Ok(rows) => rows.into_iter().map(metrics_mapping::memory_metrics).collect(),
+        Ok(rows) => rows
+            .into_iter()
+            .map(metrics_mapping::memory_metrics)
+            .collect(),
         Err(e) => {
             log::error!("failed to build memory response: {e}");
             return None;
@@ -250,14 +354,22 @@ async fn build_memory_response(storage_engine: Arc<StorageEngine>, query_range: 
     ))
 }
 
-async fn build_partition_response(storage_engine: Arc<StorageEngine>, query_range: QueryRange) -> Option<ReturnedMetric> {
+async fn build_partition_response(
+    storage_engine: Arc<StorageEngine>,
+    query_range: QueryRange,
+) -> Option<ReturnedMetric> {
     let rows = match query_range {
-        QueryRange::Between(start, end) => storage_engine.get_partition_stats_between(start, end).await,
+        QueryRange::Between(start, end) => {
+            storage_engine.get_partition_stats_between(start, end).await
+        }
         QueryRange::LastN(n) => storage_engine.get_partition_stats_latest(n).await,
     };
 
     let items = match rows {
-        Ok(rows) => rows.into_iter().map(metrics_mapping::partition_entry).collect(),
+        Ok(rows) => rows
+            .into_iter()
+            .map(metrics_mapping::partition_entry)
+            .collect(),
         Err(e) => {
             log::error!("failed to build partition response: {e}");
             return None;
@@ -269,7 +381,10 @@ async fn build_partition_response(storage_engine: Arc<StorageEngine>, query_rang
     ))
 }
 
-async fn build_cpu_response(storage_engine: Arc<StorageEngine>, query_range: QueryRange) -> Option<ReturnedMetric> {
+async fn build_cpu_response(
+    storage_engine: Arc<StorageEngine>,
+    query_range: QueryRange,
+) -> Option<ReturnedMetric> {
     let rows = match query_range {
         QueryRange::Between(start, end) => storage_engine.get_cpu_stats_between(start, end).await,
         QueryRange::LastN(n) => storage_engine.get_cpu_stats_latest(n).await,

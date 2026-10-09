@@ -1,7 +1,7 @@
-use std::time::Duration;
 use criterion::{criterion_group, criterion_main, Criterion};
-use open_eye::collector::container_runtime::collector::{ContainerRuntime, ContainerRuntimeStats};
+use open_eye::collector::container_runtime::collector::ContainerRuntimeStats;
 use open_eye::collector::cpu::collector::CpuStats;
+use std::time::Duration;
 
 fn bench_cpu_collector(c: &mut Criterion) {
     let mut group = c.benchmark_group("cpu_collector");
@@ -10,7 +10,7 @@ fn bench_cpu_collector(c: &mut Criterion) {
         group.sample_size(size);
         group.warm_up_time(Duration::from_secs(1));
         group.bench_function(format!("{} runs", size), |b| {
-            b.iter(|| CpuStats::get_current_stats());
+            b.iter(CpuStats::get_current_stats);
         });
     }
 }
@@ -25,10 +25,14 @@ fn bench_container_runtime_collector(c: &mut Criterion) {
         group.warm_up_time(Duration::from_secs(1));
         group.bench_function(format!("{} runs", size), |b| {
             b.to_async(&rt)
-                .iter(|| ContainerRuntimeStats::get_current_stats());
+                .iter(ContainerRuntimeStats::get_current_stats);
         });
     }
 }
 
-criterion_group!(benches, bench_cpu_collector, bench_container_runtime_collector);
+criterion_group!(
+    benches,
+    bench_cpu_collector,
+    bench_container_runtime_collector
+);
 criterion_main!(benches);

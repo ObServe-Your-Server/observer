@@ -1,5 +1,3 @@
-
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub enum Reporter {
     System,

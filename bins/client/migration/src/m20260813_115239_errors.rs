@@ -1,7 +1,5 @@
 use sea_orm_migration::prelude::*;
-use sea_orm_migration::schema::{
-    big_unsigned, pk_auto, string_null, timestamp_with_time_zone,
-};
+use sea_orm_migration::schema::{big_unsigned, pk_auto, string_null, timestamp_with_time_zone};
 
 pub struct Migration;
 

@@ -214,7 +214,12 @@ mod macos {
 
 /// Build a PartitionInfo from a mount point using statvfs.
 /// `label` is used as the display name (device path or pool name).
-fn statvfs_info(mount_point: &str, label: &str, device: &str, fs_type: &str) -> Option<PartitionInfo> {
+fn statvfs_info(
+    mount_point: &str,
+    label: &str,
+    device: &str,
+    fs_type: &str,
+) -> Option<PartitionInfo> {
     let stat = statvfs(mount_point).ok()?;
 
     let block_size = stat.fragment_size() as u64; // f_frsize -> the real unit

@@ -163,9 +163,7 @@ fn process_stats(process: process_stats::Model) -> ProcessStats {
     }
 }
 
-pub fn processes_stats(
-    row: (processes_stats::Model, Vec<process_stats::Model>),
-) -> ProcessesStats {
+pub fn processes_stats(row: (processes_stats::Model, Vec<process_stats::Model>)) -> ProcessesStats {
     let (stats, processes) = row;
     let (top_cpu, top_memory): (Vec<_>, Vec<_>) = processes
         .into_iter()

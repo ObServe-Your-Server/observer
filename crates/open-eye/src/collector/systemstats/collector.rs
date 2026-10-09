@@ -35,7 +35,7 @@ impl SystemStats {
 
 #[cfg(test)]
 mod test {
-    use crate::{collector::systemstats::collector::SystemStats, logging::init_logging};
+    use crate::collector::systemstats::collector::SystemStats;
 
     #[test]
     fn get_current_system_stats_test() {

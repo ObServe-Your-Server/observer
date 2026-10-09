@@ -1,7 +1,6 @@
-use chrono::{DateTime, TimeZone, Utc};
-use crate::grpc::v1::metrics_request::Query;
 use crate::grpc::v1::MetricsRequest;
-
+use crate::grpc::v1::metrics_request::Query;
+use chrono::{DateTime, TimeZone, Utc};
 
 #[derive(Clone, Copy, Debug)]
 pub enum QueryRange {

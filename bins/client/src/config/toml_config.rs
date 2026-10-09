@@ -1,12 +1,12 @@
-use std::fs;
-use std::path::PathBuf;
-use serde::{Deserialize, Serialize};
-use getset::{Getters, MutGetters};
 use crate::config::config_parts::client_config::ClientConfig;
 use crate::config::config_parts::interval_config::IntervalConfig;
+use crate::config::config_parts::notification_config::NotificationConfig;
 use crate::config::config_parts::storage_config::StorageConfig;
 use anyhow::Result;
-use crate::config::config_parts::notification_config::NotificationConfig;
+use getset::{Getters, MutGetters};
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Deserialize, Serialize, Getters, MutGetters)]
 #[serde(rename_all = "snake_case")]
@@ -18,11 +18,11 @@ pub struct TomlConfig {
     #[getset(get = "pub")]
     notification_config: NotificationConfig,
     #[getset(get = "pub")]
-    storage_config: StorageConfig
+    storage_config: StorageConfig,
 }
 
 impl TomlConfig {
-    pub fn load_from_path(file_path: &PathBuf) -> Result<TomlConfig>{
+    pub fn load_from_path(file_path: &PathBuf) -> Result<TomlConfig> {
         let raw = fs::read_to_string(file_path)?;
         let toml_config: TomlConfig = toml::from_str::<TomlConfig>(&raw)?;
         Ok(toml_config)

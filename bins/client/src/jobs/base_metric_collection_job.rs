@@ -54,8 +54,7 @@ impl BaseMetricCollectionJob {
 impl JobTrait for BaseMetricCollectionJob {
     async fn run(&self) -> Result<()> {
         let base_metrics = BaseMetrics::collect().await;
-        let save_metrics_fut = self.storage_engine
-            .save_base_metrics(base_metrics.clone());
+        let save_metrics_fut = self.storage_engine.save_base_metrics(base_metrics.clone());
 
         let cpu_metrics = base_metrics.cpu;
         let cpu_notification_fut = cpu_metrics.map(|stats| {

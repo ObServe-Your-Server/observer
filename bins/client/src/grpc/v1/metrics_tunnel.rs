@@ -1,3 +1,4 @@
+use crate::grpc::v1::metrics_tunnel_client::MetricsTunnelClient;
 use crate::grpc::v1::response_builder::build_metrics_response;
 use crate::storage_engine::storage_engine::StorageEngine;
 use anyhow::{Result, anyhow};
@@ -6,9 +7,6 @@ use std::time::Duration;
 use tokio_stream::StreamExt;
 use tonic::transport::Channel;
 use tonic::{metadata::MetadataValue, transport::ClientTlsConfig};
-use crate::grpc::v1::metrics_tunnel_client::MetricsTunnelClient;
-
-
 
 pub struct MetricsTunnel {
     url: String,
@@ -18,7 +16,11 @@ pub struct MetricsTunnel {
 }
 
 impl MetricsTunnel {
-    pub fn new(url: impl Into<String>, api_key: impl Into<String>, storage_engine: Arc<StorageEngine>) -> Self {
+    pub fn new(
+        url: impl Into<String>,
+        api_key: impl Into<String>,
+        storage_engine: Arc<StorageEngine>,
+    ) -> Self {
         Self {
             url: url.into(),
             api_key: api_key.into(),
@@ -78,10 +80,13 @@ impl MetricsTunnel {
         };
 
         // the server authenticates every call, so the interceptor adds the key to all of them
-        let mut client = MetricsTunnelClient::with_interceptor(channel, move |mut request: tonic::Request<()>| {
-            request.metadata_mut().insert("x-api-key", api_key.clone());
-            Ok(request)
-        });
+        let mut client = MetricsTunnelClient::with_interceptor(
+            channel,
+            move |mut request: tonic::Request<()>| {
+                request.metadata_mut().insert("x-api-key", api_key.clone());
+                Ok(request)
+            },
+        );
 
         log::info!("Established connection to grpc server");
         // now establish the base tunnel connection
@@ -96,7 +101,8 @@ impl MetricsTunnel {
         while let Some(request) = request_stream.next().await {
             match request {
                 Ok(request) => {
-                    let response = build_metrics_response(self.storage_engine.clone(), request).await;
+                    let response =
+                        build_metrics_response(self.storage_engine.clone(), request).await;
                     match client.metrics_response(response).await {
                         Ok(_) => {
                             log::debug!("Sent metrics response through the tunnel");

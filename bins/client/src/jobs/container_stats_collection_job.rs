@@ -1,8 +1,8 @@
 use crate::jobs::job::JobTrait;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
-use std::sync::Arc;
 use open_eye::collector::container_runtime::collector::{ContainerRuntime, ContainerRuntimeStats};
+use std::sync::Arc;
 
 #[async_trait]
 pub trait ContainerStatsCollectionStorageEngine: Send + Sync {
@@ -20,16 +20,15 @@ impl ContainerStatsCollectionJob {
     pub fn new(
         storage_engine: Arc<dyn ContainerStatsCollectionStorageEngine>,
     ) -> ContainerStatsCollectionJob {
-        ContainerStatsCollectionJob {
-            storage_engine,
-        }
+        ContainerStatsCollectionJob { storage_engine }
     }
 }
 
 #[async_trait]
 impl JobTrait for ContainerStatsCollectionJob {
     async fn run(&self) -> anyhow::Result<()> {
-        ContainerRuntime::check_runtime_availability().ok_or_else(|| anyhow!("No container runtime available"))?;
+        ContainerRuntime::check_runtime_availability()
+            .ok_or_else(|| anyhow!("No container runtime available"))?;
 
         let res = ContainerRuntimeStats::get_current_stats()
             .await

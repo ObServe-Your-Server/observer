@@ -1,5 +1,5 @@
-use std::panic::Location;
 use getset::Getters;
+use std::panic::Location;
 
 #[derive(Debug, Clone, PartialEq, Getters)]
 pub struct CallSite {

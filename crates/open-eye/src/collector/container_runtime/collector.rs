@@ -20,10 +20,11 @@ pub struct ContainerRuntimeStats {
 
 impl ContainerRuntimeStats {
     pub async fn get_current_stats() -> Result<Option<ContainerRuntimeStats>> {
-        let container_runtimes = ContainerRuntime::check_runtime_availability().ok_or_else(|| {
-            log::info!("No continer runtime found.");
-            anyhow!("No container runtime found.")
-        })?;
+        let container_runtimes =
+            ContainerRuntime::check_runtime_availability().ok_or_else(|| {
+                log::info!("No continer runtime found.");
+                anyhow!("No container runtime found.")
+            })?;
 
         let mut all_container_stats: Vec<ContainerStats> = Vec::new();
         let _seen_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -58,7 +59,7 @@ impl ContainerRuntimeStats {
                                 containers_api,
                                 container_runtime,
                             )
-                                .await
+                            .await
                         }
                     })
                     .buffer_unordered(12)
@@ -177,7 +178,6 @@ impl ContainerRuntimeStats {
 
         (cpu_delta as f64 / system_delta as f64) * num_cpus as f64 * 100.0
     }
-
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -281,13 +281,10 @@ impl fmt::Display for ContainerRuntime {
     }
 }
 
-
-
-
 #[cfg(test)]
 mod tests {
-    use std::time::Instant;
     use super::*;
+    use std::time::Instant;
 
     #[ignore = "requires a running podman socket"] // fails unpredictably when no podman is installed
     #[cfg(target_os = "linux")]

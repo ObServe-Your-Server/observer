@@ -17,9 +17,7 @@ impl SpeedtestStatsCollectionJob {
     pub fn new(
         storage_engine: Arc<dyn SpeedtestStatsCollectionStorageEngine>,
     ) -> SpeedtestStatsCollectionJob {
-        SpeedtestStatsCollectionJob {
-            storage_engine,
-        }
+        SpeedtestStatsCollectionJob { storage_engine }
     }
 }
 

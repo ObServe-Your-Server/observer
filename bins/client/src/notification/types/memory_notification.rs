@@ -5,32 +5,41 @@ use crate::notification::reporting::notification_usage_type::NotificationUsageTy
 use crate::notification::reporting::reporter::Reporter;
 
 #[derive(Clone)]
-pub struct MemoryNotification{
+pub struct MemoryNotification {
     pub memory_usage_in_percent: u8,
     pub title: String,
     pub body: String,
 }
 
 impl Notification for MemoryNotification {
-
-    fn reporter(&self) -> &Reporter{
+    fn reporter(&self) -> &Reporter {
         &Reporter::Memory
     }
 
-    fn should_deliver_based_on_ruleset(&self, notification_config: &NotificationConfig) -> NotificationDeliveryMode {
+    fn should_deliver_based_on_ruleset(
+        &self,
+        notification_config: &NotificationConfig,
+    ) -> NotificationDeliveryMode {
         if !notification_config.enable_memory_notification {
             return NotificationDeliveryMode::DeactivatedFromConfig;
         }
         NotificationDeliveryMode::Decide
     }
 
-    fn notification_usage_type(&self, notification_config: &NotificationConfig) -> NotificationUsageType {
+    fn notification_usage_type(
+        &self,
+        notification_config: &NotificationConfig,
+    ) -> NotificationUsageType {
         match notification_config.memory_high_percentage {
             None => {
-                if self.memory_usage_in_percent >= 85 { return NotificationUsageType::HighUsage }
-            },
+                if self.memory_usage_in_percent >= 85 {
+                    return NotificationUsageType::HighUsage;
+                }
+            }
             Some(target_pct) => {
-                if self.memory_usage_in_percent >= target_pct { return NotificationUsageType::HighUsage }
+                if self.memory_usage_in_percent >= target_pct {
+                    return NotificationUsageType::HighUsage;
+                }
             }
         }
         NotificationUsageType::NormaleState

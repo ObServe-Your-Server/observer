@@ -185,7 +185,7 @@ mod tests {
             println!("cpu temp: {}°C", temp);
         }
 
-        println!("process count: {:?}", sys.processes().into_iter().count());
+        println!("process count: {:?}", sys.processes().iter().count());
 
         println!("boot time: {:?}", System::boot_time());
 
@@ -196,14 +196,14 @@ mod tests {
         let motherboard = Motherboard::new().unwrap();
         println!("{:?}", motherboard.vendor_name());
 
-        println!("");
+        println!();
 
         let disk_info = Disks::new_with_refreshed_list();
         for disk in disk_info.into_iter() {
             println!("{:?}", disk.name());
             println!("{:?}", disk.total_space());
             println!("{:?}", disk.available_space());
-            println!("")
+            println!()
         }
     }
 }

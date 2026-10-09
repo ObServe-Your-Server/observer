@@ -1,23 +1,21 @@
-use std::process::exit;
+use crate::config::app_config::AppConfig;
 use crate::grpc::v1::metrics_tunnel::MetricsTunnel;
 use crate::jobs::base_metric_collection_job::BaseMetricCollectionJob;
 use crate::jobs::container_stats_collection_job::ContainerStatsCollectionJob;
 use crate::jobs::data_cleanup_job::DataCleanupJob;
-use crate::storage_engine::storage_engine::StorageEngine;
-use chrono::Duration;
-use std::sync::Arc;
-use crate::config::app_config::AppConfig;
-use crate::jobs::speedtest_stats_collection_job::SpeedtestStatsCollectionJob;
 use crate::jobs::job::Job;
+use crate::jobs::speedtest_stats_collection_job::SpeedtestStatsCollectionJob;
 use crate::notification::notification_manager::NotificationManager;
 use crate::scheduling::scheduler::Scheduler;
+use crate::storage_engine::storage_engine::StorageEngine;
+use chrono::Duration;
+use std::process::exit;
+use std::sync::Arc;
 
 pub struct SchedulingMaster {}
 
-
 impl SchedulingMaster {
     pub async fn register_and_start_background_jobs(config: AppConfig) {
-
         // we can clone it around because the db connection is thread save and with the pool meant to be cloned
         let storage_engine = Arc::new(
             StorageEngine::new(&config.toml_config().storage_config().database_url)
@@ -28,8 +26,11 @@ impl SchedulingMaster {
         log::info!("Database connected with no errors.");
 
         //let notification_handler = NotificationHandler::new(config.server.push_notification_url.to_string().clone(), config.server.api_key.clone(), machine_name.clone());
-        let notification_manager = Arc::new(NotificationManager::new(config.toml_config().notification_config().clone(), config.toml_config().client_config().clone()));
-        
+        let notification_manager = Arc::new(NotificationManager::new(
+            config.toml_config().notification_config().clone(),
+            config.toml_config().client_config().clone(),
+        ));
+
         let base_metric_collection_job = Job::new(
             "Base Metrics",
             Box::new(BaseMetricCollectionJob::new(
@@ -37,21 +38,29 @@ impl SchedulingMaster {
                 notification_manager.clone(),
             )),
             Duration::seconds(config.toml_config().interval_config().base_metric_secs as i64),
-            15 // TODO implement over the config
+            15, // TODO implement over the config
         );
         let data_cleanup_job = Job::new(
             "Data Cleanup",
-            Box::new(DataCleanupJob::new(storage_engine.clone(), config.toml_config().storage_config().clone())),
-            Duration::seconds(config.toml_config().interval_config().data_cleanup_job_secs.unwrap_or(300) as i64), // TODO set default time more elegant
-            15
+            Box::new(DataCleanupJob::new(
+                storage_engine.clone(),
+                config.toml_config().storage_config().clone(),
+            )),
+            Duration::seconds(
+                config
+                    .toml_config()
+                    .interval_config()
+                    .data_cleanup_job_secs
+                    .unwrap_or(300) as i64,
+            ), // TODO set default time more elegant
+            15,
         );
         let speed_test_job = Job::new(
             "Speedtest",
             Box::new(SpeedtestStatsCollectionJob::new(storage_engine.clone())),
             Duration::seconds(config.toml_config().interval_config().speedtest_secs as i64), // TODO set default time more elegant
-            15
+            15,
         );
-
 
         let metrics_tunnel = MetricsTunnel::new(
             &config.toml_config().client_config().base_server_grpc_url,
@@ -60,15 +69,25 @@ impl SchedulingMaster {
         );
 
         // -------------- first add essential jobs --------------
-        let mut scheduler = Scheduler::new(vec![data_cleanup_job, base_metric_collection_job, speed_test_job]);
+        let mut scheduler = Scheduler::new(vec![
+            data_cleanup_job,
+            base_metric_collection_job,
+            speed_test_job,
+        ]);
 
         // -------------- addons like container stats --------------
         if config.toml_config().interval_config().enable_docker_socket {
             let container_stats_collection_job = Job::new(
                 "Container Stats",
                 Box::new(ContainerStatsCollectionJob::new(storage_engine.clone())),
-                Duration::seconds(config.toml_config().interval_config().data_cleanup_job_secs.unwrap_or(15) as i64),
-                15
+                Duration::seconds(
+                    config
+                        .toml_config()
+                        .interval_config()
+                        .data_cleanup_job_secs
+                        .unwrap_or(15) as i64,
+                ),
+                15,
             );
 
             scheduler.add_job(container_stats_collection_job);
@@ -105,7 +124,7 @@ impl SchedulingMaster {
 
         exit(1);
     }
-    
+
     pub async fn watch_for_termination() {
         use tokio::signal::unix::{SignalKind, signal};
 

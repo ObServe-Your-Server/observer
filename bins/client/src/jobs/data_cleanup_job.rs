@@ -1,10 +1,10 @@
+use crate::config::config_parts::storage_config::StorageConfig;
 use crate::jobs::job::JobTrait;
+use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
-use std::sync::Arc;
 use log::debug;
-use crate::config::config_parts::storage_config::StorageConfig;
-use anyhow::Result;
+use std::sync::Arc;
 
 #[async_trait]
 pub trait DataCleanupStorageEngine: Send + Sync {
@@ -34,8 +34,15 @@ impl JobTrait for DataCleanupJob {
         // TODO implement the thinout of data
         let cutoff_time = {
             Utc::now()
-                - (Duration::hours(self.storage_config.metrics_retention_hours_reduced_resolution.try_into()?)
-                + Duration::hours(self.storage_config.metrics_retention_hours_full_resolution.try_into()?))
+                - (Duration::hours(
+                    self.storage_config
+                        .metrics_retention_hours_reduced_resolution
+                        .try_into()?,
+                ) + Duration::hours(
+                    self.storage_config
+                        .metrics_retention_hours_full_resolution
+                        .try_into()?,
+                ))
         };
         debug!("Cutoff time for metrics: {}", cutoff_time);
         self.storage_engine.remove_all_older_than(cutoff_time).await
