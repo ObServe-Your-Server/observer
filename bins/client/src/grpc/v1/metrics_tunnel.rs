@@ -2,8 +2,10 @@ use crate::grpc::v1::metrics_tunnel_client::MetricsTunnelClient;
 use crate::grpc::v1::response_builder::build_metrics_response;
 use crate::storage_engine::storage_engine::StorageEngine;
 use anyhow::{Result, anyhow};
+use tokio::time::timeout;
 use std::sync::Arc;
 use std::time::Duration;
+use rand::RngExt;
 use tokio_stream::StreamExt;
 use tonic::transport::Channel;
 use tonic::{metadata::MetadataValue, transport::ClientTlsConfig};
@@ -29,38 +31,43 @@ impl MetricsTunnel {
         }
     }
 
-    /// Runs the tunnel until it is closed, reconnecting whenever the connection
-    /// drops. Every time a (re)connect is needed, retries happen for up to
-    /// `reconnect_budget` before giving up entirely and returning an error.
-    /// Once a connection is (re)established, the budget resets for the next drop.
-    ///
-    /// This covers both failures to (re)connect the socket (handled inside
-    /// `connect_and_serve`/`connect_with_retries`) and connections that are
-    /// established but immediately fail at the application level (e.g. a proxy
-    /// 403 surfacing as bad stream framing) — without a deadline here, that
-    /// second case would reconnect instantly in a tight loop.
     pub async fn run_blocking(&self) -> Result<()> {
         let mut deadline = tokio::time::Instant::now() + self.reconnect_budget;
 
         loop {
             let connected_at = tokio::time::Instant::now();
-            self.connect_and_serve().await?;
-            log::warn!("metrics tunnel connection lost, reconnecting");
-
-            // a connection that survived a while is a sign the server is healthy;
-            // give the next drop a fresh budget instead of accumulating downtime.
+            // check if the current time is over the deadline
             if connected_at >= deadline {
-                deadline = tokio::time::Instant::now() + self.reconnect_budget;
+                return Err(anyhow!("GRPC client went over the time budget for reconnections and failed."));
             }
 
-            if tokio::time::Instant::now() >= deadline {
-                return Err(anyhow!(format!(
-                    "Tunnel kept failing for over {}",
-                    self.reconnect_budget.as_secs()
-                )));
-            }
+            // timeout with 15min. Then reconnect -> we had issues where the socket doesnt recognise a close
+            // when connected long to one server
+            match timeout(Duration::from_mins(15), self.connect_and_serve()).await {
+                Ok(job_res) => {
+                    match job_res {
+                        Ok(_) => {
+                            // shouldnt happen. For now gets treated as an error
+                            log::error!("Metrics tunnel finished, which shouldn't happen");
+                        }
+                        Err(err) => {
+                            // job failed and the deadline doesnt increase
+                            log::error!("Metrics tunnel failed: {}", err);
+                            // wait a random time
+                            let secs = rand::rng().random_range(1..=30);
+                            tokio::time::sleep(Duration::from_secs(secs)).await;
+                        }
+                    }
+                },
+                Err(err) => {
+                    // job run for 1h so now reconnect. This is not an error
+                    log::debug!("Job run for 15min. Now timeouted which is not an error.");
 
-            tokio::time::sleep(Duration::from_secs(5)).await;
+                    // all went good for the 1h so now increase the deadline
+                    deadline = tokio::time::Instant::now() + self.reconnect_budget;
+                    continue;
+                },
+            }
         }
     }
 
@@ -115,9 +122,7 @@ impl MetricsTunnel {
                     }
                 }
                 Err(err) => {
-                    // the stream broke, leave the loop so run_blocking can reconnect
-                    log::warn!("Metrics tunnel stream error: {}", err);
-                    break;
+                    return Err(anyhow!("Metrics tunnel stream error, tunnel likely closed: {}", err))
                 }
             }
         }
