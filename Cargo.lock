@@ -2298,7 +2298,7 @@ version = "0.1.0"
 
 [[package]]
 name = "observer-client"
-version = "2.1.1-pre"
+version = "2.1.2-pre"
 dependencies = [
  "anyhow",
  "async-trait",
