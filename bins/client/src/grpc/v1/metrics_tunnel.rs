@@ -2,10 +2,10 @@ use crate::grpc::v1::metrics_tunnel_client::MetricsTunnelClient;
 use crate::grpc::v1::response_builder::build_metrics_response;
 use crate::storage_engine::storage_engine::StorageEngine;
 use anyhow::{Result, anyhow};
-use tokio::time::timeout;
+use rand::RngExt;
 use std::sync::Arc;
 use std::time::Duration;
-use rand::RngExt;
+use tokio::time::timeout;
 use tokio_stream::StreamExt;
 use tonic::transport::Channel;
 use tonic::{metadata::MetadataValue, transport::ClientTlsConfig};
@@ -38,7 +38,9 @@ impl MetricsTunnel {
             let connected_at = tokio::time::Instant::now();
             // check if the current time is over the deadline
             if connected_at >= deadline {
-                return Err(anyhow!("GRPC client went over the time budget for reconnections and failed."));
+                return Err(anyhow!(
+                    "GRPC client went over the time budget for reconnections and failed."
+                ));
             }
 
             // timeout with 15min. Then reconnect -> we had issues where the socket doesnt recognise a close
@@ -58,7 +60,7 @@ impl MetricsTunnel {
                             tokio::time::sleep(Duration::from_secs(secs)).await;
                         }
                     }
-                },
+                }
                 Err(err) => {
                     // job run for 1h so now reconnect. This is not an error
                     log::debug!("Job run for 15min. Now timeouted which is not an error.");
@@ -66,7 +68,7 @@ impl MetricsTunnel {
                     // all went good for the 1h so now increase the deadline
                     deadline = tokio::time::Instant::now() + self.reconnect_budget;
                     continue;
-                },
+                }
             }
         }
     }
@@ -122,7 +124,10 @@ impl MetricsTunnel {
                     }
                 }
                 Err(err) => {
-                    return Err(anyhow!("Metrics tunnel stream error, tunnel likely closed: {}", err))
+                    return Err(anyhow!(
+                        "Metrics tunnel stream error, tunnel likely closed: {}",
+                        err
+                    ));
                 }
             }
         }

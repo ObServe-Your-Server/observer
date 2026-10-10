@@ -6,4 +6,5 @@ pub struct StorageConfig {
     pub database_url: String,
     pub metrics_retention_hours_full_resolution: u64,
     pub metrics_retention_hours_reduced_resolution: u64,
+    pub keep_every_x_metrics: u16,
 }

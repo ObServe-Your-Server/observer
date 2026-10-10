@@ -13,13 +13,19 @@ use crate::jobs::speedtest_stats_collection_job::SpeedtestStatsCollectionStorage
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use migration::prelude::time::format_description::well_known::iso8601::TimePrecision;
 use migration::{Migrator, MigratorTrait};
 use open_eye::collector::container_runtime::collector::ContainerRuntimeStats;
+use open_eye::collector::cpu::collector::CpuStats;
 use open_eye::collector::speedtest::collector::SpeedtestResult;
+use sea_orm::ActiveModelTrait;
+use sea_orm::sea_query::{Expr, ExprTrait};
+use sea_orm::sqlx::sqlite::{SqliteJournalMode, SqliteSynchronous};
 use sea_orm::{
     ActiveValue::Set, ColumnTrait, ConnectOptions, Database, DatabaseConnection, EntityTrait,
     QueryFilter, QueryOrder, QuerySelect,
 };
+use std::io::SeekFrom;
 use std::sync::OnceLock;
 use std::time::Duration;
 
@@ -38,17 +44,21 @@ impl StorageEngine {
 
     pub async fn connect_to_db_and_migrate(self) -> Result<Self> {
         let mut opt = ConnectOptions::new(self.database_path.clone());
-        // SQLite serializes writes, so a large pool buys no throughput but costs
-        // ~2MB page cache + lookaside + statement cache per open connection.
         opt.max_connections(12)
             .min_connections(1)
             .connect_timeout(Duration::from_secs(8))
             .acquire_timeout(Duration::from_secs(8))
             .idle_timeout(Duration::from_secs(60))
             .max_lifetime(Duration::from_secs(1800))
-            .sqlx_logging(false) // disable SQLx logging
-            .sqlx_logging_level(log::LevelFilter::Info);
-        //.set_schema_search_path("my_schema"); // set default Postgres schema
+            .sqlx_logging(false)
+            .sqlx_logging_level(log::LevelFilter::Info)
+            .map_sqlx_sqlite_opts(|o| {
+                o.create_if_missing(true)
+                    .journal_mode(SqliteJournalMode::Wal)
+                    .synchronous(SqliteSynchronous::Full) // full wal so committed transactions survive interruptions. Normal is faster, but can lead to data loss
+                    .busy_timeout(Duration::from_secs(5))
+                    .foreign_keys(true) // enforce foreign key constraints
+            });
 
         let db_conn = Database::connect(opt).await?;
 
@@ -644,6 +654,150 @@ impl DataCleanupStorageEngine for StorageEngine {
 
         Ok(())
     }
+
+    async fn thin_out_cpu_stats(
+        &self,
+        thin_out_before: DateTime<Utc>,
+        keep_every_x: u16,
+    ) -> Result<u64> {
+        let db = self.db()?;
+        Ok(cpu_stats::Entity::delete_many()
+            .filter(cpu_stats::Column::CollectedAt.lt(thin_out_before))
+            .filter(
+                Expr::col(cpu_stats::Column::Id)
+                    .modulo(keep_every_x as i64)
+                    .ne(0),
+            )
+            .exec(db)
+            .await?
+            .rows_affected)
+    }
+
+    async fn thin_out_memory_stats(
+        &self,
+        thin_out_before: DateTime<Utc>,
+        keep_every_x: u16,
+    ) -> Result<u64> {
+        let db = self.db()?;
+        Ok(memory_stats::Entity::delete_many()
+            .filter(memory_stats::Column::CollectedAt.lt(thin_out_before))
+            .filter(
+                Expr::col(memory_stats::Column::Id)
+                    .modulo(keep_every_x as i64)
+                    .ne(0),
+            )
+            .exec(db)
+            .await?
+            .rows_affected)
+    }
+
+    async fn thin_out_container_runtime_stats(
+        &self,
+        thin_out_before: DateTime<Utc>,
+        keep_every_x: u16,
+    ) -> Result<u64> {
+        let db = self.db()?;
+        Ok(container_runtime_stats::Entity::delete_many()
+            .filter(container_runtime_stats::Column::CollectedAt.lt(thin_out_before))
+            .filter(
+                Expr::col(container_runtime_stats::Column::Id)
+                    .modulo(keep_every_x as i64)
+                    .ne(0),
+            )
+            .exec(db)
+            .await?
+            .rows_affected)
+    }
+
+    async fn thin_out_partition_entries(
+        &self,
+        thin_out_before: DateTime<Utc>,
+        keep_every_x: u16,
+    ) -> Result<u64> {
+        let db = self.db()?;
+        Ok(partition_entry::Entity::delete_many()
+            .filter(partition_entry::Column::CollectedAt.lt(thin_out_before))
+            .filter(
+                Expr::col(partition_entry::Column::Id)
+                    .modulo(keep_every_x as i64)
+                    .ne(0),
+            )
+            .exec(db)
+            .await?
+            .rows_affected)
+    }
+
+    async fn thin_out_network_stats(
+        &self,
+        thin_out_before: DateTime<Utc>,
+        keep_every_x: u16,
+    ) -> Result<u64> {
+        let db = self.db()?;
+        Ok(network_stats::Entity::delete_many()
+            .filter(network_stats::Column::CollectedAt.lt(thin_out_before))
+            .filter(
+                Expr::col(network_stats::Column::Id)
+                    .modulo(keep_every_x as i64)
+                    .ne(0),
+            )
+            .exec(db)
+            .await?
+            .rows_affected)
+    }
+
+    async fn thin_out_system_stats(
+        &self,
+        thin_out_before: DateTime<Utc>,
+        keep_every_x: u16,
+    ) -> Result<u64> {
+        let db = self.db()?;
+        Ok(system_stats::Entity::delete_many()
+            .filter(system_stats::Column::CollectedAt.lt(thin_out_before))
+            .filter(
+                Expr::col(system_stats::Column::Id)
+                    .modulo(keep_every_x as i64)
+                    .ne(0),
+            )
+            .exec(db)
+            .await?
+            .rows_affected)
+    }
+
+    async fn thin_out_processes_stats(
+        &self,
+        thin_out_before: DateTime<Utc>,
+        keep_every_x: u16,
+    ) -> Result<u64> {
+        let db = self.db()?;
+        Ok(processes_stats::Entity::delete_many()
+            .filter(processes_stats::Column::CollectedAt.lt(thin_out_before))
+            .filter(
+                Expr::col(processes_stats::Column::Id)
+                    .modulo(keep_every_x as i64)
+                    .ne(0),
+            )
+            .exec(db)
+            .await?
+            .rows_affected)
+    }
+
+    async fn thin_out_speedtest_stats(
+        &self,
+        thin_out_before: DateTime<Utc>,
+        keep_every_x: u16,
+    ) -> Result<u64> {
+        let db = self.db()?;
+        Ok(speedtest_stats::Entity::delete_many()
+            .filter(speedtest_stats::Column::CollectedAt.lt(thin_out_before))
+            .filter(
+                Expr::col(speedtest_stats::Column::Id)
+                    .modulo(keep_every_x as i64)
+                    .ne(0),
+            )
+            .exec(db)
+            .await?
+            .rows_affected)
+    }
 }
 
 #[cfg(test)]
@@ -742,6 +896,72 @@ mod tests {
         assert_eq!(sda1.available_blocks, 60);
         assert_eq!(sda1.block_size, 4096);
         assert_eq!(sda1.collected_at, t3);
+
+        engine.close().await.unwrap();
+    }
+
+    async fn insert_cpu_stats(engine: &StorageEngine, collected_at: DateTime<Utc>) -> i64 {
+        cpu_stats::ActiveModel {
+            cpu_name: Set("test-cpu".to_string()),
+            cpu_count: Set(4),
+            cpu_physical_count: Set(2),
+            cpu_usage_percent: Set(10.0),
+            cpu_temperature_celsius: Set(40.0),
+            collected_at: Set(collected_at.into()),
+            ..Default::default()
+        }
+        .insert(engine.db_for_tests().unwrap())
+        .await
+        .unwrap()
+        .id
+    }
+
+    async fn remaining_cpu_stats_ids(engine: &StorageEngine) -> Vec<i64> {
+        cpu_stats::Entity::find()
+            .order_by_asc(cpu_stats::Column::Id)
+            .all(engine.db_for_tests().unwrap())
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|e| e.id)
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn thin_out_cpu_stats_test() {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let engine = StorageEngine::new(format!("sqlite://{}?mode=rwc", db_path.display()))
+            .connect_to_db_and_migrate()
+            .await
+            .unwrap();
+
+        // 12 entries one minute apart, the ids are 1..=12 in a fresh db
+        let start = Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap();
+        let mut ids = Vec::new();
+        for minute in 1..=12 {
+            ids.push(insert_cpu_stats(&engine, start + chrono::Duration::minutes(minute)).await);
+        }
+        assert_eq!(ids, (1..=12).collect::<Vec<_>>());
+
+        // entries 1..=9 are older than the boundary, entry 10 is exactly on it and 11, 12 are newer
+        let thin_out_before = start + chrono::Duration::minutes(10);
+
+        // only the old entries whose id is not a multiple of 3 are removed
+        let deleted = engine.thin_out_cpu_stats(thin_out_before, 3).await.unwrap();
+        assert_eq!(deleted, 6);
+        assert_eq!(
+            remaining_cpu_stats_ids(&engine).await,
+            vec![3, 6, 9, 10, 11, 12]
+        );
+
+        // running it again must not delete the kept entries
+        let deleted = engine.thin_out_cpu_stats(thin_out_before, 3).await.unwrap();
+        assert_eq!(deleted, 0);
+        assert_eq!(
+            remaining_cpu_stats_ids(&engine).await,
+            vec![3, 6, 9, 10, 11, 12]
+        );
 
         engine.close().await.unwrap();
     }

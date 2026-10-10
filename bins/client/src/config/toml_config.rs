@@ -2,11 +2,12 @@ use crate::config::config_parts::client_config::ClientConfig;
 use crate::config::config_parts::interval_config::IntervalConfig;
 use crate::config::config_parts::notification_config::NotificationConfig;
 use crate::config::config_parts::storage_config::StorageConfig;
-use anyhow::Result;
+use anyhow::{Ok, Result, anyhow};
 use getset::{Getters, MutGetters};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use tonic::Request;
 
 #[derive(Debug, Clone, Deserialize, Serialize, Getters, MutGetters)]
 #[serde(rename_all = "snake_case")]
@@ -25,6 +26,20 @@ impl TomlConfig {
     pub fn load_from_path(file_path: &PathBuf) -> Result<TomlConfig> {
         let raw = fs::read_to_string(file_path)?;
         let toml_config: TomlConfig = toml::from_str::<TomlConfig>(&raw)?;
+        Self::validate_config(&toml_config)?;
         Ok(toml_config)
+    }
+
+    fn validate_config(toml_config: &TomlConfig) -> Result<()> {
+        // TODO
+
+        // storage config
+        let storage_config = &toml_config.storage_config;
+        if storage_config.keep_every_x_metrics <= 0 {
+            return Err(anyhow!(
+                "The keeping every Xth entry needs to be bigger than 0"
+            ));
+        }
+        Ok(())
     }
 }

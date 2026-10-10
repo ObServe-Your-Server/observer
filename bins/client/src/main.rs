@@ -16,7 +16,7 @@ async fn main() {
     let config_path = env::var("OBSERVER_CONFIG").unwrap_or_else(|_| "observer.toml".to_string());
 
     let mut config = AppConfig::load_from_path(PathBuf::from(config_path))
-        .expect("Failed to load config. Check if file exists and observer can read it.");
+        .expect("Failed to load config. Check if file exists and observer can read it or values are not valid");
     config.resolve_machine_name().await.unwrap();
     log::info!("Observer v{} starting", config.version());
 
