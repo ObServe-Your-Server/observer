@@ -101,8 +101,9 @@ STAGING_BASE_SERVER_HTTP_URL="https://watch-tower-dev.observe.vision"
 STAGING_PUSH_NOTIFICATION_URL="https://watch-tower-dev.observe.vision/notifications"
 
 DEFAULT_DB_PATH="$DATA_DIR/observer.db"
-DEFAULT_METRICS_RETENTION_HOURS_FULL_RESOLUTION="1"
-DEFAULT_METRICS_RETENTION_HOURS_REDUCED_RESOLUTION="24"
+DEFAULT_METRICS_RETENTION_HOURS_FULL_RESOLUTION="48"
+DEFAULT_METRICS_RETENTION_HOURS_REDUCED_RESOLUTION="96"
+DEFAULT_KEEP_EVERY_X_METRICS="5"
 DEFAULT_BASE_METRIC_SECS="5"
 DEFAULT_SPEEDTEST_SECS="300"
 DEFAULT_CONTAINER_METRICS_SECS="10"
@@ -261,6 +262,8 @@ echo "Using default push notification URL: $STAGING_PUSH_NOTIFICATION_URL" >&2
 echo "Using default metric interval:       ${DEFAULT_BASE_METRIC_SECS}s" >&2
 echo "Using default speedtest interval:    ${DEFAULT_SPEEDTEST_SECS}s" >&2
 echo "Using default container interval:    ${DEFAULT_CONTAINER_METRICS_SECS}s" >&2
+echo "Using full resolution retention:     ${DEFAULT_METRICS_RETENTION_HOURS_FULL_RESOLUTION}h" >&2
+echo "Reduced resolution keeps every:      ${DEFAULT_KEEP_EVERY_X_METRICS}th entry" >&2
 echo "Notify after (readings): CPU ${DEFAULT_CPU_NOTIFY_AFTER}, memory ${DEFAULT_MEMORY_NOTIFY_AFTER}, disk ${DEFAULT_DISK_NOTIFY_AFTER}" >&2
 echo "" >&2
 
@@ -358,8 +361,10 @@ container_socket_notify_on_container_down = true
 
 [storage_config]
 database_url                               = "$DATABASE_URL"
+# data gets saved full for x hours and then another x hours in reduced metrics
 metrics_retention_hours_full_resolution    = $DEFAULT_METRICS_RETENTION_HOURS_FULL_RESOLUTION
 metrics_retention_hours_reduced_resolution = $METRICS_RETENTION_HOURS_REDUCED_RESOLUTION
+keep_every_x_metrics                       = $DEFAULT_KEEP_EVERY_X_METRICS
 EOF
 chmod 600 "$CONFIG_PATH"
 
