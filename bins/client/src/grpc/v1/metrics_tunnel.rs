@@ -61,7 +61,7 @@ impl MetricsTunnel {
                         }
                     }
                 }
-                Err(err) => {
+                Err(_err) => {
                     // job run for 1h so now reconnect. This is not an error
                     log::debug!("Job run for 15min. Now timeouted which is not an error.");
 

@@ -1,10 +1,8 @@
-use crate::config::{self, config_parts::storage_config::StorageConfig};
+use crate::config::config_parts::storage_config::StorageConfig;
 use crate::jobs::job::JobTrait;
-use anyhow::{Ok, Result, anyhow};
+use anyhow::{Ok, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
-use log::debug;
-use std::arch::x86_64;
 use std::sync::Arc;
 
 #[async_trait]

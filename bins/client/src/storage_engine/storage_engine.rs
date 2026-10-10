@@ -13,10 +13,8 @@ use crate::jobs::speedtest_stats_collection_job::SpeedtestStatsCollectionStorage
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use migration::prelude::time::format_description::well_known::iso8601::TimePrecision;
 use migration::{Migrator, MigratorTrait};
 use open_eye::collector::container_runtime::collector::ContainerRuntimeStats;
-use open_eye::collector::cpu::collector::CpuStats;
 use open_eye::collector::speedtest::collector::SpeedtestResult;
 use sea_orm::ActiveModelTrait;
 use sea_orm::sea_query::{Expr, ExprTrait};
@@ -25,7 +23,6 @@ use sea_orm::{
     ActiveValue::Set, ColumnTrait, ConnectOptions, Database, DatabaseConnection, EntityTrait,
     QueryFilter, QueryOrder, QuerySelect,
 };
-use std::io::SeekFrom;
 use std::sync::OnceLock;
 use std::time::Duration;
 

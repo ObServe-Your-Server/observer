@@ -7,7 +7,6 @@ use getset::{Getters, MutGetters};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use tonic::Request;
 
 #[derive(Debug, Clone, Deserialize, Serialize, Getters, MutGetters)]
 #[serde(rename_all = "snake_case")]
