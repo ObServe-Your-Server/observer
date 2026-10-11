@@ -117,7 +117,7 @@ impl JobTrait for BaseMetricCollectionJob {
 pub struct BaseMetrics {
     pub cpu: Option<CpuStats>,
     pub memory: Option<MemoryStats>,
-    pub disks: Option<Vec<PartitionInfo>>,
+    pub partition: Option<Vec<PartitionInfo>>,
     pub network: Option<NetworkStats>,
     pub system: Option<SystemStats>,
 }
@@ -140,7 +140,7 @@ impl BaseMetrics {
             memory: memory
                 .map_err(|e| log::error!("memory collector panicked: {e}"))
                 .ok(),
-            disks: disks
+            partition: disks
                 .map_err(|e| log::error!("disk collector panicked: {e}"))
                 .ok(),
             network: network

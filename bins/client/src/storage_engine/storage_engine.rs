@@ -539,7 +539,7 @@ impl BaseMetricCollectionStorageEngine for StorageEngine {
             memory_stats::Entity::insert(model).exec(db).await?;
         }
 
-        if let Some(partitions) = base_metrics.disks
+        if let Some(partitions) = base_metrics.partition
             && let Some(first_partition) = partitions.first()
         {
             let entry_model = partition_entry::ActiveModel {
@@ -799,10 +799,181 @@ impl DataCleanupStorageEngine for StorageEngine {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+    use std::vec;
+
     use super::*;
     use chrono::TimeZone;
-    use open_eye::collector::partition::collector::PartitionInfo;
+    use open_eye::collector::{
+        cpu::collector::{Core, CpuStats},
+        memory::collector::MemoryStats,
+        network::collector::NetworkStats,
+        partition::collector::PartitionInfo,
+        systemstats::collector::SystemStats,
+    };
     use tempfile::TempDir;
+
+    async fn tmp_storage_engine_for_test() -> StorageEngine {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        StorageEngine::new(format!("sqlite://{}?mode=rwc", db_path.display()))
+            .connect_to_db_and_migrate()
+            .await
+            .unwrap()
+    }
+
+    fn get_base_metrics_for_test() -> BaseMetrics {
+        let get_cpu_stats_for_test = || CpuStats {
+            cpu_name: "Test Cpu".to_string(),
+            cpu_count: 12,
+            cpu_physical_count: 6,
+            cpu_usage_percent: 50.0,
+            cpu_temperature_celsius: 50.0,
+            core_information: vec![
+                Core {
+                    core_name: "Core 1".to_string(),
+                    core_usage_percent: 10.0,
+                    core_frequency_mhz: 3600,
+                },
+                Core {
+                    core_name: "Core 2".to_string(),
+                    core_usage_percent: 20.0,
+                    core_frequency_mhz: 3600,
+                },
+                Core {
+                    core_name: "Core 3".to_string(),
+                    core_usage_percent: 30.0,
+                    core_frequency_mhz: 3600,
+                },
+                Core {
+                    core_name: "Core 4".to_string(),
+                    core_usage_percent: 40.0,
+                    core_frequency_mhz: 3600,
+                },
+                Core {
+                    core_name: "Core 5".to_string(),
+                    core_usage_percent: 50.0,
+                    core_frequency_mhz: 3600,
+                },
+                Core {
+                    core_name: "Core 6".to_string(),
+                    core_usage_percent: 60.0,
+                    core_frequency_mhz: 3600,
+                },
+            ],
+            collected_at: Utc.with_ymd_and_hms(2025, 02, 12, 10, 0, 0).unwrap(),
+        };
+        let get_memory_stats_for_test = || MemoryStats {
+            total_memory_in_byte: 16_384,
+            available_memory_in_byte: 12_288,
+            used_memory_in_byte: 4096,
+            total_swap_in_byte: 0,
+            available_swap_in_byte: 0,
+            used_swap_in_byte: 0,
+            collected_at: Utc.with_ymd_and_hms(2025, 02, 12, 10, 0, 0).unwrap(),
+        };
+        let get_partition_stats_for_test = || {
+            vec![
+                PartitionInfo {
+                    name: "disk1".to_string(),
+                    device: "/dev/nvme01".to_string(),
+                    mount_point: "/".to_string(),
+                    fs_type: "ext4".to_string(),
+                    total_bytes: 100_000_000_000,
+                    used_bytes: 40_000_000_000,
+                    available_bytes: 60_000_000_000,
+                    used_blocks: 100_000_000,
+                    available_blocks: 90_000_000,
+                    block_size: 4096,
+                    collected_at: Utc.with_ymd_and_hms(2025, 02, 12, 10, 0, 0).unwrap(),
+                },
+                PartitionInfo {
+                    name: "disk2".to_string(),
+                    device: "/dev/nvme02".to_string(),
+                    mount_point: "/".to_string(),
+                    fs_type: "ext4".to_string(),
+                    total_bytes: 200_000_000_000,
+                    used_bytes: 80_000_000_000,
+                    available_bytes: 120_000_000_000,
+                    used_blocks: 100_000_000,
+                    available_blocks: 90_000_000,
+                    block_size: 4096,
+                    collected_at: Utc.with_ymd_and_hms(2025, 02, 12, 10, 0, 0).unwrap(),
+                },
+            ]
+        };
+        let get_network_stats_for_test = || NetworkStats {
+            local_ip: "10.10.0.10".to_string(),
+            total_bytes_transmitted: 40_000_000,
+            total_bytes_received: 20_000_000,
+            total_packets_transmitted: 120_000,
+            total_packets_received: 60_000,
+            collected_at: Utc.with_ymd_and_hms(2025, 02, 12, 10, 0, 0).unwrap(),
+        };
+        let get_system_stats_for_test = || SystemStats {
+            os_name: Some("Linux (Fedora Linux 43)".to_string()),
+            uptime_seconds: 10_000,
+            host_name: Some("observe".to_string()),
+            kernel_version: "Linux 7.2.8-100.fc43.x86_64".to_string(),
+            collected_at: Utc.with_ymd_and_hms(2025, 02, 12, 10, 0, 0).unwrap(),
+        };
+        BaseMetrics {
+            cpu: Some(get_cpu_stats_for_test()),
+            memory: Some(get_memory_stats_for_test()),
+            partition: Some(get_partition_stats_for_test()),
+            network: Some(get_network_stats_for_test()),
+            system: Some(get_system_stats_for_test()),
+        }
+    }
+
+    fn compare_cpu_db_model_to_cpu_collector_struct(
+        db_model: &(cpu_stats::Model, Vec<cpu_core_stats::Model>),
+        collector_model: &CpuStats,
+    ) {
+        let (cpu, cores) = db_model;
+        assert_eq!(cpu.cpu_name, collector_model.cpu_name);
+        assert_eq!(cpu.cpu_count, collector_model.cpu_count as i64);
+        assert_eq!(cpu.cpu_usage_percent, collector_model.cpu_usage_percent);
+        assert_eq!(
+            cpu.cpu_temperature_celsius,
+            collector_model.cpu_temperature_celsius
+        );
+
+        assert_eq!(cores.len(), collector_model.core_information.len());
+        let expected: HashMap<&str, &Core> = collector_model
+            .core_information
+            .iter()
+            .map(|core| (core.core_name.as_str(), core))
+            .collect();
+
+        for db_core in cores {
+            let core = expected
+                .get(db_core.core_name.as_str())
+                .unwrap_or_else(|| panic!("unexpected core {}", db_core.core_name));
+            assert_eq!(db_core.core_usage_percent, core.core_usage_percent);
+            assert_eq!(db_core.core_frequency_mhz, core.core_frequency_mhz as i64);
+        }
+    }
+
+    #[tokio::test]
+    async fn save_base_metrics_test() {
+        let storage_engine = tmp_storage_engine_for_test().await;
+        let base_metrics = get_base_metrics_for_test();
+        storage_engine
+            .save_base_metrics(base_metrics.clone())
+            .await
+            .unwrap();
+
+        let db = storage_engine.db().unwrap();
+        let cpu_stats = cpu_stats::Entity::find()
+            .order_by_asc(cpu_stats::Column::CollectedAt)
+            .find_with_related(cpu_core_stats::Entity)
+            .all(db)
+            .await
+            .unwrap();
+        assert_eq!(cpu_stats.len(), 1);
+        compare_cpu_db_model_to_cpu_collector_struct(&cpu_stats[0], &base_metrics.cpu.unwrap());
+    }
 
     fn partition(name: &str, collected_at: DateTime<Utc>) -> PartitionInfo {
         PartitionInfo {
@@ -824,7 +995,7 @@ mod tests {
         BaseMetrics {
             cpu: None,
             memory: None,
-            disks: Some(disks),
+            partition: Some(disks),
             network: None,
             system: None,
         }
