@@ -5,6 +5,7 @@ use chrono::Duration;
 use serde::{Deserialize, Serialize};
 use open_eye::collector::cpu::collector::CpuStats;
 use open_eye::collector::disk::collector::{DiskInfo, DiskStats};
+use open_eye::collector::gpu::collector::{GpuInfo, GpuStats};
 use open_eye::collector::memory::collector::MemoryStats;
 use open_eye::collector::network::collector::NetworkStats;
 use open_eye::collector::systemstats::collector::SystemStats;
@@ -48,16 +49,18 @@ pub struct BaseMetrics {
     pub disks: Option<Vec<DiskInfo>>,
     pub network: Option<NetworkStats>,
     pub system: Option<SystemStats>,
+    pub gpus: Option<Vec<GpuInfo>>,
 }
 
 impl BaseMetrics {
     pub async fn collect() -> BaseMetrics {
-        let (cpu, memory, disks, network, system) = tokio::join!(
+        let (cpu, memory, disks, network, system, gpus) = tokio::join!(
             tokio::task::spawn_blocking(CpuStats::get_current_stats),
             tokio::task::spawn_blocking(MemoryStats::get_current_stats),
             tokio::task::spawn_blocking(DiskStats::get_current_stats),
             tokio::task::spawn_blocking(NetworkStats::get_current_stats),
             tokio::task::spawn_blocking(SystemStats::get_current_stats),
+            tokio::task::spawn_blocking(GpuStats::get_current_stats),
         );
 
         BaseMetrics {
@@ -73,6 +76,9 @@ impl BaseMetrics {
                 .ok(),
             system: system
                 .map_err(|e| log::error!("system stats collector panicked: {e}"))
+                .ok(),
+            gpus: gpus
+                .map_err(|e| log::error!("gpu collector panicked: {e}"))
                 .ok(),
         }
     }
