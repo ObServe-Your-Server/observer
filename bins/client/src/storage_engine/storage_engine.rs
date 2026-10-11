@@ -801,8 +801,7 @@ impl DataCleanupStorageEngine for StorageEngine {
 mod tests {
     use std::collections::HashMap;
     use std::vec;
-
-    use super::*;
+use super::*;
     use chrono::TimeZone;
     use open_eye::collector::{
         cpu::collector::{Core, CpuStats},
@@ -820,6 +819,44 @@ mod tests {
             .connect_to_db_and_migrate()
             .await
             .unwrap()
+    }
+
+    #[tokio::test]
+    async fn get_cpu_stats_between() {
+        let storage_engine = tmp_storage_engine_for_test().await;
+        let db = storage_engine.db().unwrap();
+        let cpu_metrics = get_base_metrics_for_test().cpu.unwrap();
+        // insert into db
+        {
+            let model = cpu_stats::ActiveModel {
+                cpu_name: Set(cpu_metrics.cpu_name),
+                cpu_count: Set(cpu_metrics.cpu_count as i64),
+                cpu_physical_count: Set(cpu_metrics.cpu_physical_count as i64),
+                cpu_usage_percent: Set(cpu_metrics.cpu_usage_percent),
+                cpu_temperature_celsius: Set(cpu_metrics.cpu_temperature_celsius),
+                collected_at: Set(cpu_metrics.collected_at.into()),
+                ..Default::default() // leaves id NotSet so the db auto-generates it
+            };
+            //gets the id to reference it
+            let inserted = cpu_stats::Entity::insert(model).exec(db).await.unwrap();
+    
+            for core in cpu_metrics.core_information {
+                let core_model = cpu_core_stats::ActiveModel {
+                    cpu_stats_id: Set(inserted.last_insert_id),
+                    core_name: Set(core.core_name),
+                    core_usage_percent: Set(core.core_usage_percent),
+                    core_frequency_mhz: Set(core.core_frequency_mhz as i64),
+                    ..Default::default()
+                };
+                cpu_core_stats::Entity::insert(core_model).exec(db).await.unwrap();
+            }
+        }
+        let res = storage_engine.get_cpu_stats_between(cpu_metrics.collected_at, cpu_metrics.collected_at).await.unwrap();
+        assert_eq!(res.len(), 1);
+        let res = res.first().unwrap();
+        todo!()
+      
+
     }
 
     fn get_base_metrics_for_test() -> BaseMetrics {
@@ -1068,21 +1105,6 @@ mod tests {
         engine.close().await.unwrap();
     }
 
-    async fn insert_cpu_stats(engine: &StorageEngine, collected_at: DateTime<Utc>) -> i64 {
-        cpu_stats::ActiveModel {
-            cpu_name: Set("test-cpu".to_string()),
-            cpu_count: Set(4),
-            cpu_physical_count: Set(2),
-            cpu_usage_percent: Set(10.0),
-            cpu_temperature_celsius: Set(40.0),
-            collected_at: Set(collected_at.into()),
-            ..Default::default()
-        }
-        .insert(engine.db_for_tests().unwrap())
-        .await
-        .unwrap()
-        .id
-    }
 
     async fn remaining_cpu_stats_ids(engine: &StorageEngine) -> Vec<i64> {
         cpu_stats::Entity::find()
@@ -1133,4 +1155,20 @@ mod tests {
 
         engine.close().await.unwrap();
     }
+    async fn insert_cpu_stats(engine: &StorageEngine, collected_at: DateTime<Utc>) -> i64 {
+        cpu_stats::ActiveModel {
+            cpu_name: Set("test-cpu".to_string()),
+            cpu_count: Set(4),
+            cpu_physical_count: Set(2),
+            cpu_usage_percent: Set(10.0),
+            cpu_temperature_celsius: Set(40.0),
+            collected_at: Set(collected_at.into()),
+            ..Default::default()
+        }
+        .insert(engine.db_for_tests().unwrap())
+        .await
+        .unwrap()
+        .id
+    }
+
 }
