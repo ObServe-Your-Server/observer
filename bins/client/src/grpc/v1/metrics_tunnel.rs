@@ -97,7 +97,7 @@ impl MetricsTunnel {
             },
         );
 
-        log::info!("Established connection to grpc server");
+        log::debug!("Established connection to grpc server");
         // now establish the base tunnel connection
         let mut request_stream = match client.tunnel(tonic::Request::new(())).await {
             Ok(r) => r.into_inner(),
