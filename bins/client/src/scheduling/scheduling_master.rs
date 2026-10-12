@@ -84,7 +84,7 @@ impl SchedulingMaster {
                     config
                         .toml_config()
                         .interval_config()
-                        .data_cleanup_job_secs
+                        .container_metrics_secs
                         .unwrap_or(15) as i64,
                 ),
                 15,
