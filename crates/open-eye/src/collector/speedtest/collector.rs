@@ -10,22 +10,22 @@ use std::sync::{
 };
 use std::time::{Duration, Instant};
 
-const DOWNLOAD_URL: &str = "https://speed.cloudflare.com/__down?bytes=90000000";
+const DOWNLOAD_URL: &str = "https://speed.cloudflare.com/__down?bytes=5000000";
 const UPLOAD_URL: &str = "https://speed.cloudflare.com/__up";
-const PING_URL: &str = "https://speed.cloudflare.com/__ping";
+const PING_URL: &str = "https://speed.cloudflare.com/__down?bytes=0";
 
 const PING_ROUNDS: u32 = 5;
 
-// 8 parallel streams, each on its own OS thread via tokio::spawn on a multi-thread
+// 4 parallel streams, each on its own OS thread via tokio::spawn on a multi-thread
 // runtime. This saturates the link the same way a browser download does.
-const PARALLEL_STREAMS: usize = 8;
+const PARALLEL_STREAMS: usize = 4;
 const WARMUP_SECS: u64 = 4;
 const MEASURE_SECS: u64 = 8;
 
-const UPLOAD_CHUNK: usize = 10_000_000; // 10 MB per POST
+const UPLOAD_CHUNK: usize = 5_000_000; // 5 MB per POST
 
 // Allocated once for the whole process; `Bytes::clone` is zero-copy, so every
-// POST across all streams shares this one buffer instead of allocating 10 MB
+// POST across all streams shares this one buffer instead of allocating a fresh
 // each — repeated large allocations fragment the heap and ratchet RSS upward.
 static UPLOAD_PAYLOAD: LazyLock<Bytes> = LazyLock::new(|| Bytes::from(vec![0u8; UPLOAD_CHUNK]));
 
@@ -42,6 +42,7 @@ pub struct SpeedtestResult {
 pub enum SpeedtestError {
     Http(reqwest::Error),
     Stream(String),
+    NoData(String),
 }
 
 impl std::fmt::Display for SpeedtestError {
@@ -49,6 +50,7 @@ impl std::fmt::Display for SpeedtestError {
         match self {
             SpeedtestError::Http(e) => write!(f, "HTTP error: {}", e),
             SpeedtestError::Stream(s) => write!(f, "Stream error: {}", s),
+            SpeedtestError::NoData(s) => write!(f, "No usable measurement: {}", s),
         }
     }
 }
@@ -61,14 +63,32 @@ impl From<reqwest::Error> for SpeedtestError {
     }
 }
 
+/// A non-success status (notably 429) still yields `Ok` from reqwest and its
+/// tiny error body would otherwise be counted as measured payload
+fn is_rate_limited(status: reqwest::StatusCode) -> bool {
+    status == reqwest::StatusCode::TOO_MANY_REQUESTS
+}
+
 async fn measure_ping(client: &Client) -> Result<f64, SpeedtestError> {
     // Warmup: establish TLS + HTTP/2 connection.
-    client.get(PING_URL).send().await?;
+    let warmup = client.get(PING_URL).send().await?;
+    if !warmup.status().is_success() {
+        return Err(SpeedtestError::NoData(format!(
+            "ping endpoint returned {}",
+            warmup.status()
+        )));
+    }
 
     let mut total_ms = 0.0;
     for _ in 0..PING_ROUNDS {
         let start = Instant::now();
-        client.get(PING_URL).send().await?;
+        let resp = client.get(PING_URL).send().await?;
+        if !resp.status().is_success() {
+            return Err(SpeedtestError::NoData(format!(
+                "ping endpoint returned {}",
+                resp.status()
+            )));
+        }
         total_ms += start.elapsed().as_secs_f64() * 1000.0;
     }
     Ok(total_ms / PING_ROUNDS as f64)
@@ -76,16 +96,14 @@ async fn measure_ping(client: &Client) -> Result<f64, SpeedtestError> {
 
 /// Single download stream: pulls bytes until `stop` fires, adds to `counter`.
 /// Gets its own Client so it has an independent TCP connection + congestion window.
+/// Only counts bodies from a 2xx response
 async fn download_stream(
     stop: Arc<AtomicBool>,
     counter: Arc<AtomicU64>,
     measure_flag: Arc<AtomicBool>,
+    rate_limited: Arc<AtomicBool>,
 ) {
-    let client = match Client::builder()
-        .no_gzip()
-        .pool_max_idle_per_host(0)
-        .build()
-    {
+    let client = match Client::builder().no_gzip().build() {
         Ok(c) => c,
         Err(_) => return,
     };
@@ -101,6 +119,19 @@ async fn download_stream(
                 continue;
             }
         };
+        if !resp.status().is_success() {
+            //back off hard on 429: retrying immediately sustains
+            //rate limit and the 1-byte error body is not payload
+            let backoff = if is_rate_limited(resp.status()) {
+                rate_limited.store(true, Ordering::Relaxed);
+                Duration::from_secs(2)
+            } else {
+                Duration::from_millis(200)
+            };
+            debug!("download rejected with {}, backing off", resp.status());
+            tokio::time::sleep(backoff).await;
+            continue;
+        }
         let mut stream = resp.bytes_stream();
         loop {
             if stop.load(Ordering::Relaxed) {
@@ -127,12 +158,9 @@ async fn upload_stream(
     stop: Arc<AtomicBool>,
     counter: Arc<AtomicU64>,
     measure_flag: Arc<AtomicBool>,
+    rate_limited: Arc<AtomicBool>,
 ) {
-    let client = match Client::builder()
-        .no_gzip()
-        .pool_max_idle_per_host(0)
-        .build()
-    {
+    let client = match Client::builder().no_gzip().build() {
         Ok(c) => c,
         Err(_) => return,
     };
@@ -150,7 +178,19 @@ async fn upload_stream(
             .await
         {
             Ok(resp) => {
+                let status = resp.status();
                 let _ = resp.bytes().await;
+                if !status.is_success() {
+                    let backoff = if is_rate_limited(status) {
+                        rate_limited.store(true, Ordering::Relaxed);
+                        Duration::from_secs(2)
+                    } else {
+                        Duration::from_millis(200)
+                    };
+                    debug!("upload rejected with {status}, backing off");
+                    tokio::time::sleep(backoff).await;
+                    continue;
+                }
                 if measure_flag.load(Ordering::Acquire) {
                     counter.fetch_add(len, Ordering::Relaxed);
                 }
@@ -166,14 +206,15 @@ async fn upload_stream(
 
 /// Spawn `PARALLEL_STREAMS` tasks, let them run for `duration`, then stop and collect bytes.
 /// Uses `tokio::spawn` so each stream runs on its own OS thread (requires multi-thread runtime).
-async fn run_persistent<F, Fut>(make_fut: F) -> (u64, Duration)
+async fn run_persistent<F, Fut>(make_fut: F) -> (u64, Duration, bool)
 where
-    F: Fn(Arc<AtomicBool>, Arc<AtomicU64>, Arc<AtomicBool>) -> Fut,
+    F: Fn(Arc<AtomicBool>, Arc<AtomicU64>, Arc<AtomicBool>, Arc<AtomicBool>) -> Fut,
     Fut: std::future::Future<Output = ()> + Send + 'static,
 {
     let stop = Arc::new(AtomicBool::new(false));
     let counter = Arc::new(AtomicU64::new(0));
     let measure_flag = Arc::new(AtomicBool::new(false));
+    let rate_limited = Arc::new(AtomicBool::new(false));
 
     let handles: Vec<_> = (0..PARALLEL_STREAMS)
         .map(|_| {
@@ -181,6 +222,7 @@ where
                 Arc::clone(&stop),
                 Arc::clone(&counter),
                 Arc::clone(&measure_flag),
+                Arc::clone(&rate_limited),
             ))
         })
         .collect();
@@ -198,17 +240,46 @@ where
         let _ = h.await;
     }
 
-    (counter.load(Ordering::Relaxed), start.elapsed())
+    (
+        counter.load(Ordering::Relaxed),
+        start.elapsed(),
+        rate_limited.load(Ordering::Relaxed),
+    )
+}
+
+/// minimum bytes a window must collect to be a plausible sample. Below this the
+/// streams were effectively staled, and dividing by the window would report a
+/// near-zero rate as though it were a real measurement
+const MIN_SAMPLE_BYTES: u64 = 1_000_000;
+
+fn to_mbps(
+    label: &str,
+    bytes: u64,
+    elapsed: Duration,
+    rate_limited: bool,
+) -> Result<f64, SpeedtestError> {
+    if rate_limited && bytes < MIN_SAMPLE_BYTES {
+        return Err(SpeedtestError::NoData(format!(
+            "{label} rate-limited by server (collected {bytes} bytes)"
+        )));
+    }
+    if bytes < MIN_SAMPLE_BYTES {
+        return Err(SpeedtestError::NoData(format!(
+            "{label} collected only {bytes} bytes in {:.1}s",
+            elapsed.as_secs_f64()
+        )));
+    }
+    Ok(bytes as f64 * 8.0 / (elapsed.as_secs_f64() * 1_000_000.0))
 }
 
 async fn measure_download() -> Result<f64, SpeedtestError> {
-    let (bytes, elapsed) = run_persistent(download_stream).await;
-    Ok(bytes as f64 * 8.0 / (elapsed.as_secs_f64() * 1_000_000.0))
+    let (bytes, elapsed, rate_limited) = run_persistent(download_stream).await;
+    to_mbps("download", bytes, elapsed, rate_limited)
 }
 
 async fn measure_upload() -> Result<f64, SpeedtestError> {
-    let (bytes, elapsed) = run_persistent(upload_stream).await;
-    Ok(bytes as f64 * 8.0 / (elapsed.as_secs_f64() * 1_000_000.0))
+    let (bytes, elapsed, rate_limited) = run_persistent(upload_stream).await;
+    to_mbps("upload", bytes, elapsed, rate_limited)
 }
 
 pub async fn run() -> Result<SpeedtestResult, SpeedtestError> {
