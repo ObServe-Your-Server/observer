@@ -829,7 +829,7 @@ use super::*;
         // insert into db
         {
             let model = cpu_stats::ActiveModel {
-                cpu_name: Set(cpu_metrics.cpu_name),
+                cpu_name: Set(cpu_metrics.cpu_name.clone()),
                 cpu_count: Set(cpu_metrics.cpu_count as i64),
                 cpu_physical_count: Set(cpu_metrics.cpu_physical_count as i64),
                 cpu_usage_percent: Set(cpu_metrics.cpu_usage_percent),
@@ -839,24 +839,36 @@ use super::*;
             };
             //gets the id to reference it
             let inserted = cpu_stats::Entity::insert(model).exec(db).await.unwrap();
-    
-            for core in cpu_metrics.core_information {
+            for core in &cpu_metrics.core_information {
                 let core_model = cpu_core_stats::ActiveModel {
                     cpu_stats_id: Set(inserted.last_insert_id),
-                    core_name: Set(core.core_name),
+                    core_name: Set(core.core_name.clone()),
                     core_usage_percent: Set(core.core_usage_percent),
                     core_frequency_mhz: Set(core.core_frequency_mhz as i64),
                     ..Default::default()
                 };
-                cpu_core_stats::Entity::insert(core_model).exec(db).await.unwrap();
+                cpu_core_stats::Entity::insert(core_model)
+                    .exec(db)
+                    .await
+                    .unwrap();
             }
         }
-        let res = storage_engine.get_cpu_stats_between(cpu_metrics.collected_at, cpu_metrics.collected_at).await.unwrap();
+        let res = storage_engine
+            .get_cpu_stats_between(cpu_metrics.collected_at, cpu_metrics.collected_at)
+            .await
+            .unwrap();
         assert_eq!(res.len(), 1);
-        let res = res.first().unwrap();
-        todo!()
-      
+        let row = res.first().unwrap();
+        assert_eq!(row.0.collected_at, cpu_metrics.collected_at);
+        compare_cpu_db_model_to_cpu_collector_struct(row, &cpu_metrics);
 
+        //a window that ends before the sample was collected must not match it
+        let before = cpu_metrics.collected_at - chrono::Duration::hours(1);
+        let empty = storage_engine
+            .get_cpu_stats_between(before, before)
+            .await
+            .unwrap();
+        assert!(empty.is_empty());
     }
 
     fn get_base_metrics_for_test() -> BaseMetrics {
