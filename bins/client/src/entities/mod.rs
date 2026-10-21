@@ -8,6 +8,8 @@ pub mod cpu_core_stats;
 pub mod cpu_stats;
 pub mod disk_entry;
 pub mod disk_stats;
+pub mod gpu_entry;
+pub mod gpu_stats;
 pub mod memory_stats;
 pub mod network_stats;
 pub mod process_stats;

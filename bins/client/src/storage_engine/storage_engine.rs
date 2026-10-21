@@ -8,7 +8,7 @@ use open_eye::collector::container_runtime::collector::{ContainerRuntime, Contai
 use open_eye::collector::speedtest::collector::SpeedtestResult;
 use crate::entities::{
     container_runtime_stats, container_stats, cpu_core_stats, cpu_stats, disk_entry, disk_stats,
-    memory_stats, network_stats, process_stats, processes_stats, speedtest_stats, system_stats,
+    gpu_entry, gpu_stats, memory_stats, network_stats, process_stats, processes_stats, speedtest_stats, system_stats,
 };
 use crate::entities::cpu_stats::ActiveModel;
 use crate::jobs::base_metric_collection_job::BaseMetrics;
@@ -64,6 +64,7 @@ impl StorageEngine {
             disk_entry::Entity::delete_many().filter(disk_entry::Column::CollectedAt.lt(clean_older_than)).exec(db),
             network_stats::Entity::delete_many().filter(network_stats::Column::CollectedAt.lt(clean_older_than)).exec(db),
             system_stats::Entity::delete_many().filter(system_stats::Column::CollectedAt.lt(clean_older_than)).exec(db),
+            gpu_entry::Entity::delete_many().filter(gpu_entry::Column::CollectedAt.lt(clean_older_than)).exec(db),
         )?;
 
         Ok(())
@@ -163,6 +164,30 @@ impl StorageEngine {
             system_stats::Entity::insert(model).exec(db).await?;
         }
 
+        if let Some(gpus) = base_metrics.gpus {
+            if let Some(first_gpu) = gpus.first() {
+                let entry_model = gpu_entry::ActiveModel {
+                    collected_at: Set(first_gpu.collected_at.into()),
+                    ..Default::default()
+                };
+                let inserted_entry = gpu_entry::Entity::insert(entry_model).exec(db).await?;
+
+                for gpu in gpus {
+                    let model = gpu_stats::ActiveModel {
+                        gpu_entry_id: Set(inserted_entry.last_insert_id),
+                        name: Set(gpu.name),
+                        usage_percent: Set(gpu.usage_percent),
+                        memory_used_bytes: Set(gpu.memory_used_bytes.map(|v| v as i64)),
+                        memory_total_bytes: Set(gpu.memory_total_bytes.map(|v| v as i64)),
+                        temperature_celsius: Set(gpu.temperature_celsius),
+                        collected_at: Set(gpu.collected_at.into()),
+                        ..Default::default()
+                    };
+                    gpu_stats::Entity::insert(model).exec(db).await?;
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -252,6 +277,21 @@ impl StorageEngine {
             .filter(disk_entry::Column::CollectedAt.between(start, end))
             .order_by_asc(disk_entry::Column::CollectedAt)
             .find_with_related(disk_stats::Entity)
+            .all(db)
+            .await?;
+        Ok(rows)
+    }
+
+    pub async fn get_gpu_stats_between(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<(gpu_entry::Model, Vec<gpu_stats::Model>)>> {
+        let db = self.db()?;
+        let rows = gpu_entry::Entity::find()
+            .filter(gpu_entry::Column::CollectedAt.between(start, end))
+            .order_by_asc(gpu_entry::Column::CollectedAt)
+            .find_with_related(gpu_stats::Entity)
             .all(db)
             .await?;
         Ok(rows)
@@ -379,6 +419,30 @@ impl StorageEngine {
             .filter(disk_entry::Column::Id.is_in(latest_ids))
             .order_by_desc(disk_entry::Column::CollectedAt)
             .find_with_related(disk_stats::Entity)
+            .all(db)
+            .await?;
+        rows.reverse();
+        Ok(rows)
+    }
+
+    pub async fn get_gpu_stats_latest(
+        &self,
+        last_n: u64,
+    ) -> Result<Vec<(gpu_entry::Model, Vec<gpu_stats::Model>)>> {
+        let db = self.db()?;
+        let latest_ids: Vec<i64> = gpu_entry::Entity::find()
+            .order_by_desc(gpu_entry::Column::CollectedAt)
+            .limit(last_n)
+            .all(db)
+            .await?
+            .into_iter()
+            .map(|m| m.id)
+            .collect();
+
+        let mut rows = gpu_entry::Entity::find()
+            .filter(gpu_entry::Column::Id.is_in(latest_ids))
+            .order_by_desc(gpu_entry::Column::CollectedAt)
+            .find_with_related(gpu_stats::Entity)
             .all(db)
             .await?;
         rows.reverse();

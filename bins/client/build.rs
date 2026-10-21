@@ -20,6 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "proto/observer/v1/metrics/process.proto",
                 "proto/observer/v1/metrics/container_runtime.proto",
                 "proto/observer/v1/metrics/speedtest.proto",
+                "proto/observer/v1/metrics/gpu.proto",
             ],
             &["proto"],
         )
