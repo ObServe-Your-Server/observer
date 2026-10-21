@@ -17,11 +17,23 @@ fn default_route_ip() -> Option<IpAddr> {
     let socket = UdpSocket::bind("0.0.0.0:0").ok()?;
     socket.connect(ROUTE_PROBE_ADDR).ok()?;
     let addr = socket.local_addr().ok()?.ip();
-    (!addr.is_loopback() && !addr.is_unspecified()).then_some(addr)
+    is_private(&addr).then_some(addr)
+}
+
+fn is_private(addr: &IpAddr) -> bool {
+    match addr {
+        IpAddr::V4(v4) => {
+            v4.is_private() || (v4.octets()[0] == 100 && (64..128).contains(&v4.octets()[1]))
+        }
+        IpAddr::V6(v6) => {
+            let s = v6.segments();
+            (s[0] & 0xfe00) == 0xfc00 || (s[0] & 0xffc0) == 0xfe80
+        }
+    }
 }
 
 /// Fallback for when no default route exists (offline host, isolated netns)
-/// picks the lowest-sorted interface name
+/// prefers private IPv4, then private IPv6, breaking ties on interface name
 fn scan_interfaces_for_ip(networks: &Networks) -> Option<IpAddr> {
     let mut candidates: Vec<(&str, IpAddr)> = networks
         .iter()
@@ -31,13 +43,13 @@ fn scan_interfaces_for_ip(networks: &Networks) -> Option<IpAddr> {
                 .map(move |ip| (name.as_str(), ip.addr))
         })
         .filter(|(_, addr)| {
-            addr.is_ipv4()
-                && !addr.is_loopback()
+            !addr.is_loopback()
                 && !addr.is_unspecified()
                 && !matches!(addr, IpAddr::V4(v4) if v4.is_link_local())
+                && is_private(addr)
         })
         .collect();
-    candidates.sort_by_key(|(name, _)| *name);
+    candidates.sort_by_key(|(name, addr)| (!addr.is_ipv4(), *name));
     candidates.first().map(|(_, addr)| *addr)
 }
 
@@ -111,8 +123,9 @@ impl NetworkStats {
 #[cfg(test)]
 mod tests {
     use crate::collector::network::collector::{
-        default_route_ip, scan_interfaces_for_ip, NetworkStats, LOCAL_IP_UNKNOWN,
+        default_route_ip, is_private, scan_interfaces_for_ip, NetworkStats, LOCAL_IP_UNKNOWN,
     };
+    use std::net::IpAddr;
 
     #[test]
     fn local_ip_is_stable_across_collections() {
@@ -142,10 +155,31 @@ mod tests {
             !ip.starts_with("127.") && ip != "0.0.0.0",
             "resolved a loopback/unspecified address: {ip}"
         );
-        assert!(
-            ip.parse::<std::net::IpAddr>().is_ok(),
-            "not a parseable address: {ip}"
-        );
+        let parsed: IpAddr = ip.parse().expect("not a parseable address");
+        assert!(is_private(&parsed), "resolved a non-local address: {ip}");
+    }
+
+    #[test]
+    fn only_local_addresses_are_accepted() {
+        for local in [
+            "10.0.0.5",
+            "192.168.1.20",
+            "172.16.4.1",
+            "100.100.0.1",
+            "fd12:3456::1",
+            "fe80::1",
+        ] {
+            assert!(
+                is_private(&local.parse().unwrap()),
+                "{local} should be local"
+            );
+        }
+        for public in ["8.8.8.8", "203.0.113.1", "172.32.0.1", "2606:4700::1111"] {
+            assert!(
+                !is_private(&public.parse().unwrap()),
+                "{public} should not be local"
+            );
+        }
     }
 
     #[test]
