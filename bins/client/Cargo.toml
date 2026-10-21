@@ -1,6 +1,6 @@
 [package]
 name = "observer-client"
-version = "2.1.4-pre"
+version = "2.1.5-pre"
 edition = "2024"
 
 [lints.rust]
