@@ -4,5 +4,6 @@ mod metrics_server;
 pub mod metrics_tunnel;
 mod query_range;
 pub(crate) mod response_builder;
+mod statistics;
 
 include!(concat!(env!("OUT_DIR"), "/observer.v1.rs"));

@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package observer.v1;
+
+message TimeRange {
+  // Inclusive start of the queried time range, unix timestamp (seconds).
+  int64 start = 1;
+
+  // Inclusive end of the queried time range, unix timestamp (seconds).
+  int64 end = 2;
+}
+
+// Selects which data points a request returns. Embed in any request that needs it.
+message TimeQuery {
+  oneof query {
+    TimeRange range = 1;
+    int64 last_n = 2;
+  }
+}

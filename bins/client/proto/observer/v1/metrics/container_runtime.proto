@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package observer.v1.metrics;
 
+import "observer/v1/time_query.proto";
+
 import "google/protobuf/timestamp.proto";
 
 // request
@@ -15,6 +17,8 @@ message ContainerRuntimeRequest {
     GetFullMetrics full_metrics = 1;
     GetOneContainerMetrics one_container_metrics = 2;
   }
+
+  observer.v1.TimeQuery time_query = 3;
 }
 
 // response

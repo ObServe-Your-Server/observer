@@ -2,9 +2,13 @@ syntax = "proto3";
 
 package observer.v1.metrics;
 
+import "observer/v1/time_query.proto";
+
 import "google/protobuf/timestamp.proto";
 
-message CpuRequest {}
+message CpuRequest {
+  observer.v1.TimeQuery time_query = 1;
+}
 
 message CpuResponse {
   repeated CpuMetrics items = 1;

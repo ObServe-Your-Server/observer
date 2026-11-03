@@ -13,18 +13,25 @@ use crate::jobs::speedtest_stats_collection_job::SpeedtestStatsCollectionStorage
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use futures::TryStreamExt;
 use migration::{Migrator, MigratorTrait};
 use open_eye::collector::container_runtime::collector::ContainerRuntimeStats;
 use open_eye::collector::speedtest::collector::SpeedtestResult;
 use sea_orm::ActiveModelTrait;
+use sea_orm::prelude::DateTimeWithTimeZone;
 use sea_orm::sea_query::{Expr, ExprTrait};
 use sea_orm::sqlx::sqlite::{SqliteJournalMode, SqliteSynchronous};
 use sea_orm::{
     ActiveValue::Set, ColumnTrait, ConnectOptions, Database, DatabaseConnection, EntityTrait,
-    QueryFilter, QueryOrder, QuerySelect,
+    PaginatorTrait, QueryFilter, QueryOrder, QuerySelect,
 };
 use std::sync::OnceLock;
 use std::time::Duration;
+
+/// A cpu sample at or above this usage counts as load.
+const LOAD_SPIKE_PERCENT: f32 = 80.0;
+/// A cpu sample below this usage counts as idle.
+const IDLE_PERCENT: f32 = 20.0;
 
 pub struct StorageEngine {
     database_path: String,
@@ -415,6 +422,252 @@ impl StorageEngine {
         rows.reverse();
         Ok(rows)
     }
+
+    //--------------------------- recap ---------------------------//
+    pub async fn cpu_avg_percent_over_time(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Option<f64>> {
+        let db = self.db()?;
+        let avg = cpu_stats::Entity::find()
+            .select_only()
+            .column_as(Expr::col(cpu_stats::Column::CpuUsagePercent).avg(), "avg")
+            .filter(cpu_stats::Column::CollectedAt.between(start, end))
+            .into_tuple::<Option<f64>>()
+            .one(db)
+            .await?;
+        Ok(avg.flatten())
+    }
+
+    pub async fn cpu_load_spike_count_over_time(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Option<u64>> {
+        let db = self.db()?;
+        let mut stream = cpu_stats::Entity::find()
+            .select_only()
+            .column(cpu_stats::Column::CpuUsagePercent)
+            .filter(cpu_stats::Column::CollectedAt.between(start, end))
+            .order_by_asc(cpu_stats::Column::CollectedAt)
+            .into_tuple::<f32>()
+            .stream(db)
+            .await?;
+
+        let mut spikes = 0u64;
+        let mut samples = 0u64;
+        let mut in_spike = false;
+        while let Some(usage) = stream.try_next().await? {
+            samples += 1;
+            let high = usage >= LOAD_SPIKE_PERCENT;
+            if high && !in_spike {
+                spikes += 1;
+            }
+            in_spike = high;
+        }
+        Ok((samples > 0).then_some(spikes))
+    }
+
+    pub async fn cpu_idle_to_load_ratio_over_time(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Option<f64>> {
+        let db = self.db()?;
+        let usage = cpu_stats::Column::CpuUsagePercent;
+        let counts = cpu_stats::Entity::find()
+            .select_only()
+            .column_as(
+                Expr::case(Expr::col(usage).lt(IDLE_PERCENT), 1)
+                    .finally(0)
+                    .sum(),
+                "idle",
+            )
+            .column_as(
+                Expr::case(Expr::col(usage).gte(LOAD_SPIKE_PERCENT), 1)
+                    .finally(0)
+                    .sum(),
+                "load",
+            )
+            .filter(cpu_stats::Column::CollectedAt.between(start, end))
+            .into_tuple::<(Option<i64>, Option<i64>)>()
+            .one(db)
+            .await?;
+        Ok(counts.and_then(|(idle, load)| {
+            let (idle, load) = (idle?, load?);
+            (load > 0).then(|| idle as f64 / load as f64)
+        }))
+    }
+
+    pub async fn network_total_bytes_in_over_time(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Option<i64>> {
+        Ok(self
+            .network_traffic_over_time(start, end)
+            .await?
+            .map(|(bytes_in, _, _)| bytes_in))
+    }
+
+    pub async fn network_total_bytes_out_over_time(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Option<i64>> {
+        Ok(self
+            .network_traffic_over_time(start, end)
+            .await?
+            .map(|(_, bytes_out, _)| bytes_out))
+    }
+
+    pub async fn network_avg_downlink_bytes_per_sec_over_time(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Option<f64>> {
+        Ok(self
+            .network_traffic_over_time(start, end)
+            .await?
+            .and_then(|(bytes_in, _, secs)| (secs > 0).then(|| bytes_in as f64 / secs as f64)))
+    }
+
+    pub async fn network_avg_uplink_bytes_per_sec_over_time(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Option<f64>> {
+        Ok(self
+            .network_traffic_over_time(start, end)
+            .await?
+            .and_then(|(_, bytes_out, secs)| (secs > 0).then(|| bytes_out as f64 / secs as f64)))
+    }
+
+    async fn network_traffic_over_time(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Option<(i64, i64, i64)>> {
+        use network_stats::Column as C;
+        let db = self.db()?;
+        let rows = network_stats::Entity::find()
+            .select_only()
+            .column_as(Expr::col(C::TotalBytesReceived).max(), "rx_max")
+            .column_as(Expr::col(C::TotalBytesReceived).min(), "rx_min")
+            .column_as(Expr::col(C::TotalBytesTransmitted).max(), "tx_max")
+            .column_as(Expr::col(C::TotalBytesTransmitted).min(), "tx_min")
+            .column_as(Expr::col(C::CollectedAt).min(), "first_at")
+            .column_as(Expr::col(C::CollectedAt).max(), "last_at")
+            .filter(C::CollectedAt.between(start, end))
+            .group_by(C::LocalIp)
+            .into_tuple::<(
+                i64,
+                i64,
+                i64,
+                i64,
+                DateTimeWithTimeZone,
+                DateTimeWithTimeZone,
+            )>()
+            .all(db)
+            .await?;
+
+        if rows.is_empty() {
+            return Ok(None);
+        }
+        let (mut bytes_in, mut bytes_out, mut seconds) = (0i64, 0i64, 0i64);
+        for (rx_max, rx_min, tx_max, tx_min, first, last) in rows {
+            bytes_in += rx_max - rx_min;
+            bytes_out += tx_max - tx_min;
+            seconds = Ord::max(seconds, (last - first).num_seconds());
+        }
+        Ok(Some((bytes_in, bytes_out, seconds)))
+    }
+
+    pub async fn uptime_percent_over_time(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        gap_threshold_secs: i64,
+    ) -> Result<Option<f64>> {
+        let total_secs = (Ord::min(end, Utc::now()) - start).num_seconds();
+        if total_secs <= 0 {
+            return Ok(None);
+        }
+        let Some(gaps) = self.system_sample_gaps_over_time(start, end).await? else {
+            return Ok(None);
+        };
+        let up_secs: i64 = gaps
+            .into_iter()
+            .filter(|gap| *gap <= gap_threshold_secs)
+            .sum();
+        Ok(Some(
+            (up_secs as f64 / total_secs as f64 * 100.0).min(100.0),
+        ))
+    }
+
+    pub async fn disconnect_count_over_time(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        gap_threshold_secs: i64,
+    ) -> Result<Option<u64>> {
+        Ok(self
+            .system_sample_gaps_over_time(start, end)
+            .await?
+            .map(|gaps| gaps.into_iter().filter(|g| *g > gap_threshold_secs).count() as u64))
+    }
+
+    async fn system_sample_gaps_over_time(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Option<Vec<i64>>> {
+        let db = self.db()?;
+        let mut stream = system_stats::Entity::find()
+            .select_only()
+            .column(system_stats::Column::CollectedAt)
+            .filter(system_stats::Column::CollectedAt.between(start, end))
+            .order_by_asc(system_stats::Column::CollectedAt)
+            .into_tuple::<DateTimeWithTimeZone>()
+            .stream(db)
+            .await?;
+
+        let mut gaps = Vec::new();
+        let mut previous: Option<DateTimeWithTimeZone> = None;
+        let mut samples = 0u64;
+        while let Some(at) = stream.try_next().await? {
+            samples += 1;
+            if let Some(prev) = previous {
+                gaps.push((at - prev).num_seconds());
+            }
+            previous = Some(at);
+        }
+        Ok((samples > 0).then_some(gaps))
+    }
+
+    pub async fn tunnel_access_count_over_time(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<u64> {
+        Ok(tunnel_access_log::Entity::find()
+            .filter(tunnel_access_log::Column::SentAt.between(start, end))
+            .count(self.db()?)
+            .await?)
+    }
+
+    pub async fn error_count_over_time(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<u64> {
+        Ok(error::Entity::find()
+            .filter(error::Column::CollectedAt.between(start, end))
+            .count(self.db()?)
+            .await?)
+    }
+    //--------------------------- recap ---------------------------//
 }
 
 #[async_trait]
@@ -799,9 +1052,7 @@ impl DataCleanupStorageEngine for StorageEngine {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-    use std::vec;
-use super::*;
+    use super::*;
     use chrono::TimeZone;
     use open_eye::collector::{
         cpu::collector::{Core, CpuStats},
@@ -810,6 +1061,8 @@ use super::*;
         partition::collector::PartitionInfo,
         systemstats::collector::SystemStats,
     };
+    use std::collections::HashMap;
+    use std::vec;
     use tempfile::TempDir;
 
     async fn tmp_storage_engine_for_test() -> StorageEngine {
@@ -1117,7 +1370,6 @@ use super::*;
         engine.close().await.unwrap();
     }
 
-
     async fn remaining_cpu_stats_ids(engine: &StorageEngine) -> Vec<i64> {
         cpu_stats::Entity::find()
             .order_by_asc(cpu_stats::Column::Id)
@@ -1182,5 +1434,4 @@ use super::*;
         .unwrap()
         .id
     }
-
 }

@@ -3,7 +3,6 @@ syntax = "proto3";
 package observer.v1;
 
 import "google/protobuf/empty.proto";
-import "observer/v1/metrics_request.proto";
 import "observer/v1/metrics_response.proto";
 import "observer/v1/metrics/cpu.proto";
 import "observer/v1/metrics/container_runtime.proto";
@@ -15,6 +14,7 @@ import "observer/v1/metrics/process.proto";
 import "observer/v1/metrics/speedtest.proto";
 import "observer/v1/metrics/system.proto";
 import "observer/v1/metrics/tunnel_access_log.proto";
+import "observer/v1/time_query.proto";
 
 
 // use for website or other connections which

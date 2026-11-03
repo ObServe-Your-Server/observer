@@ -12,6 +12,7 @@ import "observer/v1/metrics/process.proto";
 import "observer/v1/metrics/speedtest.proto";
 import "observer/v1/metrics/system.proto";
 import "observer/v1/metrics/tunnel_access_log.proto";
+import "observer/v1/statistics/recap.proto";
 
 message MetricsResponse {
   string request_id = 1;
@@ -28,6 +29,9 @@ message MetricsResponse {
     observer.v1.metrics.ContainerRuntimeResponse container_runtime_response = 9;
     observer.v1.metrics.ErrorStatsResponse error_stats_response = 11;
     observer.v1.metrics.TunnelAccessLogResponse tunnel_access_log_response = 12;
+
+    observer.v1.statistics.RecapResponse recap_response = 13;
+
     FullResponse full_response = 10;
   }
 }

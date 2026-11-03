@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package observer.v1.statistics;
+
+import "observer/v1/time_query.proto";
+
+// Two time ranges to compare against each other.
+message RecapQuery {
+  observer.v1.TimeRange range_one = 1;
+  observer.v1.TimeRange range_two = 2;
+}
+
+message RecapRequest {
+  RecapQuery recap_query = 1;
+}
+
+message RecapStat {
+  optional double range_one = 1;
+  optional double range_two = 2;
+}
+
+message RecapAvailability {
+  RecapStat uptime_percent = 1;
+  RecapStat disconnects = 2;
+}
+
+message RecapCpuUsage {
+  RecapStat load_spikes = 1;
+  RecapStat avg_usage_percent = 2;
+  RecapStat idle_to_load_ratio = 3;
+}
+
+message RecapNetwork {
+  RecapStat total_in_gb = 1;
+  RecapStat total_out_gb = 2;
+  RecapStat avg_downlink_mb_s = 3;
+  RecapStat avg_uplink_mb_s = 4;
+}
+
+message RecapActivity {
+  RecapStat tunnel_access_count = 1;
+  RecapStat error_count = 2;
+}
+
+message RecapResponse {
+  RecapAvailability availability = 1;
+  RecapCpuUsage cpu_usage = 2;
+  RecapNetwork network = 3;
+  RecapActivity activity = 4;
+}

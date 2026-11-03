@@ -2,10 +2,14 @@ syntax = "proto3";
 
 package observer.v1.metrics;
 
+import "observer/v1/time_query.proto";
+
 import "google/protobuf/timestamp.proto";
 
 // request
-message SystemRequest {}
+message SystemRequest {
+  observer.v1.TimeQuery time_query = 1;
+}
 
 // response
 message SystemResponse {

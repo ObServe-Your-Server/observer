@@ -2,11 +2,15 @@ syntax = "proto3";
 
 package observer.v1.metrics;
 
+import "observer/v1/time_query.proto";
+
 import "google/protobuf/timestamp.proto";
 
 // request
 message ProcessRequest {
   int32 number_of_processes = 1;
+
+  observer.v1.TimeQuery time_query = 2;
 }
 
 // response
