@@ -1,7 +1,7 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, UdpSocket};
-use sysinfo::Networks;
+use sysinfo::{NetworkData, Networks};
 
 pub const LOCAL_IP_UNKNOWN: &str = "not-found";
 
@@ -13,11 +13,17 @@ const ROUTE_PROBE_ADDR: &str = "203.0.113.1:80";
 ///a connected udp socket makes the kernel apply its own routing decision, which
 ///is the same interface real traffic leaves by. This avoids guessing from
 ///interface names: en*/eth*
-fn default_route_ip() -> Option<IpAddr> {
+fn route_probe_addr() -> Option<IpAddr> {
     let socket = UdpSocket::bind("0.0.0.0:0").ok()?;
     socket.connect(ROUTE_PROBE_ADDR).ok()?;
-    let addr = socket.local_addr().ok()?.ip();
-    is_private(&addr).then_some(addr)
+    Some(socket.local_addr().ok()?.ip())
+}
+
+fn interface_owning(networks: &Networks, addr: IpAddr) -> Option<&NetworkData> {
+    networks
+        .iter()
+        .find(|(_, n)| n.ip_networks().iter().any(|ip| ip.addr == addr))
+        .map(|(_, n)| n)
 }
 
 fn is_private(addr: &IpAddr) -> bool {
@@ -76,36 +82,23 @@ impl NetworkStats {
     /// ```
     pub fn get_current_stats() -> NetworkStats {
         let networks = Networks::new_with_refreshed_list();
-        let is_physical = |name: &String| {
-            name.starts_with("eth") || name.starts_with("en") || name.starts_with("wl")
-        };
+        let route_addr = route_probe_addr();
+        let local_ip = route_addr
+            .filter(is_private)
+            .or_else(|| scan_interfaces_for_ip(&networks));
 
-        let total_bytes_transmitted = networks
-            .iter()
-            .filter(|(name, _)| is_physical(name))
-            .map(|(_, n)| n.total_transmitted())
-            .sum::<u64>();
+        //the unfiltered route address is used so hosts with a public ip on the uplink still report traffic
+        let interface = [route_addr, local_ip]
+            .into_iter()
+            .flatten()
+            .find_map(|addr| interface_owning(&networks, addr));
 
-        let total_bytes_received = networks
-            .iter()
-            .filter(|(name, _)| is_physical(name))
-            .map(|(_, n)| n.total_received())
-            .sum::<u64>();
+        let total_bytes_transmitted = interface.map_or(0, |n| n.total_transmitted());
+        let total_bytes_received = interface.map_or(0, |n| n.total_received());
+        let total_packets_transmitted = interface.map_or(0, |n| n.total_packets_transmitted());
+        let total_packets_received = interface.map_or(0, |n| n.total_packets_received());
 
-        let total_packets_transmitted = networks
-            .iter()
-            .filter(|(name, _)| is_physical(name))
-            .map(|(_, n)| n.total_packets_transmitted())
-            .sum::<u64>();
-
-        let total_packets_received = networks
-            .iter()
-            .filter(|(name, _)| is_physical(name))
-            .map(|(_, n)| n.total_packets_received())
-            .sum::<u64>();
-
-        let local_ip = default_route_ip()
-            .or_else(|| scan_interfaces_for_ip(&networks))
+        let local_ip = local_ip
             .map(|ip| ip.to_string())
             .unwrap_or_else(|| LOCAL_IP_UNKNOWN.to_string());
 
@@ -123,7 +116,8 @@ impl NetworkStats {
 #[cfg(test)]
 mod tests {
     use crate::collector::network::collector::{
-        default_route_ip, is_private, scan_interfaces_for_ip, NetworkStats, LOCAL_IP_UNKNOWN,
+        interface_owning, is_private, route_probe_addr, scan_interfaces_for_ip, NetworkStats,
+        LOCAL_IP_UNKNOWN,
     };
     use std::net::IpAddr;
 
@@ -144,7 +138,7 @@ mod tests {
     #[test]
     fn local_ip_is_not_loopback_or_placeholder() {
         // Skip rather than fail where the sandbox genuinely has no route.
-        if default_route_ip().is_none()
+        if route_probe_addr().filter(is_private).is_none()
             && scan_interfaces_for_ip(&sysinfo::Networks::new_with_refreshed_list()).is_none()
         {
             return;
@@ -157,6 +151,26 @@ mod tests {
         );
         let parsed: IpAddr = ip.parse().expect("not a parseable address");
         assert!(is_private(&parsed), "resolved a non-local address: {ip}");
+    }
+
+    #[test]
+    fn traffic_is_counted_on_route_interface() {
+        let networks = sysinfo::Networks::new_with_refreshed_list();
+        let Some(addr) = route_probe_addr() else {
+            return;
+        };
+        if interface_owning(&networks, addr).is_none() {
+            return;
+        }
+        let stats = NetworkStats::get_current_stats();
+        assert!(
+            stats.total_bytes_received > 0,
+            "no bytes received on route interface"
+        );
+        assert!(
+            stats.total_packets_received > 0,
+            "no packets received on route interface"
+        );
     }
 
     #[test]
