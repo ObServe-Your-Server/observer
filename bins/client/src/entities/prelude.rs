@@ -6,6 +6,8 @@ pub use super::cpu_core_stats::Entity as CpuCoreStats;
 pub use super::cpu_stats::Entity as CpuStats;
 pub use super::disk_entry::Entity as DiskEntry;
 pub use super::disk_stats::Entity as DiskStats;
+pub use super::gpu_entry::Entity as GpuEntry;
+pub use super::gpu_stats::Entity as GpuStats;
 pub use super::memory_stats::Entity as MemoryStats;
 pub use super::network_stats::Entity as NetworkStats;
 pub use super::process_stats::Entity as ProcessStats;

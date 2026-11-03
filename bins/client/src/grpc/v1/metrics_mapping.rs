@@ -2,10 +2,11 @@
 
 use crate::entities::{
     container_runtime_stats, container_stats, cpu_core_stats, cpu_stats, disk_entry, disk_stats,
-    memory_stats, network_stats, process_stats, processes_stats, speedtest_stats, system_stats,
+    gpu_entry, gpu_stats, memory_stats, network_stats, process_stats, processes_stats, speedtest_stats, system_stats,
 };
 use crate::grpc::v1::metrics::{
-    ContainerRuntimeStats, ContainerStats, CoreMetrics, CpuMetrics, DiskEntry, DiskMetrics,
+    ContainerRuntimeStats, ContainerStats, CoreMetrics, CpuMetrics, DiskEntry, DiskMetrics, GpuEntry,
+    GpuMetrics,
     MemoryMetrics, NetworkMetrics, ProcessStats, ProcessStatsKind, ProcessesStats,
     SpeedtestMetrics, SystemMetrics,
 };
@@ -67,6 +68,25 @@ pub fn disk_entry(row: (disk_entry::Model, Vec<disk_stats::Model>)) -> DiskEntry
     let (entry, disks) = row;
     DiskEntry {
         disks: disks.into_iter().map(disk_metrics).collect(),
+        collected_at: Some(to_timestamp(entry.collected_at)),
+    }
+}
+
+pub fn gpu_metrics(gpu: gpu_stats::Model) -> GpuMetrics {
+    GpuMetrics {
+        name: gpu.name,
+        usage_percent: gpu.usage_percent,
+        memory_used_bytes: gpu.memory_used_bytes.map(|v| v as u64),
+        memory_total_bytes: gpu.memory_total_bytes.map(|v| v as u64),
+        temperature_celsius: gpu.temperature_celsius,
+        collected_at: Some(to_timestamp(gpu.collected_at)),
+    }
+}
+
+pub fn gpu_entry(row: (gpu_entry::Model, Vec<gpu_stats::Model>)) -> GpuEntry {
+    let (entry, gpus) = row;
+    GpuEntry {
+        gpus: gpus.into_iter().map(gpu_metrics).collect(),
         collected_at: Some(to_timestamp(entry.collected_at)),
     }
 }

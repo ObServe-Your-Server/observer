@@ -3,7 +3,7 @@ use crate::grpc::v1::metrics_request::Query as MetricsRequestQuery;
 use crate::grpc::v1::metrics_response::Response as MetricsResponseKind;
 use crate::grpc::v1::metrics_tunnel_client::MetricsTunnelClient;
 use crate::grpc::v1::{
-    ContainerRuntimeStatsList, CpuMetricsList, DiskMetricsList, FullMetrics, MemoryMetricsList,
+    ContainerRuntimeStatsList, CpuMetricsList, DiskMetricsList, FullMetrics, GpuMetricsList, MemoryMetricsList,
     MetricsRequest, MetricsResponse, MetricsType, NetworkMetricsList, ProcessesStatsList,
     SpeedtestMetricsList, SystemMetricsList,
 };
@@ -92,6 +92,21 @@ async fn build_response(request: &MetricsRequest, storage_engine: &StorageEngine
                 }
             }
         }
+        MetricsType::Gpu => {
+            let rows = match &range {
+                QueryRange::Between(start, end) => storage_engine.get_gpu_stats_between(*start, *end).await,
+                QueryRange::LastN(n) => storage_engine.get_gpu_stats_latest(*n).await,
+            };
+            match rows {
+                Ok(rows) => Some(MetricsResponseKind::GpuMetrics(GpuMetricsList {
+                    items: rows.into_iter().map(metrics_mapping::gpu_entry).collect(),
+                })),
+                Err(e) => {
+                    log::error!("failed to query gpu stats: {e}");
+                    None
+                }
+            }
+        }
         MetricsType::Network => {
             let rows = match &range {
                 QueryRange::Between(start, end) => storage_engine.get_network_stats_between(*start, *end).await,
@@ -170,7 +185,7 @@ async fn build_response(request: &MetricsRequest, storage_engine: &StorageEngine
             }
         }
         MetricsType::Full => {
-            let (cpu, memory, disks, network, system, processes, containers, speedtest) = match &range {
+            let (cpu, memory, disks, network, system, processes, containers, speedtest, gpus) = match &range {
                 QueryRange::Between(start, end) => {
                     tokio::join!(
                         storage_engine.get_cpu_stats_between(*start, *end),
@@ -181,6 +196,7 @@ async fn build_response(request: &MetricsRequest, storage_engine: &StorageEngine
                         storage_engine.get_processes_stats_between(*start, *end),
                         storage_engine.get_container_runtime_stats_between(*start, *end),
                         storage_engine.get_speedtest_stats_between(*start, *end),
+                        storage_engine.get_gpu_stats_between(*start, *end),
                     )
                 }
                 QueryRange::LastN(n) => {
@@ -193,6 +209,7 @@ async fn build_response(request: &MetricsRequest, storage_engine: &StorageEngine
                         storage_engine.get_processes_stats_latest(*n),
                         storage_engine.get_container_runtime_stats_latest(*n),
                         storage_engine.get_speedtest_stats_latest(*n),
+                        storage_engine.get_gpu_stats_latest(*n),
                     )
                 }
             };
@@ -221,6 +238,9 @@ async fn build_response(request: &MetricsRequest, storage_engine: &StorageEngine
                 }),
                 speedtest_metrics: Some(SpeedtestMetricsList {
                     items: speedtest.unwrap_or_default().into_iter().map(metrics_mapping::speedtest_metrics).collect(),
+                }),
+                gpu_metrics: Some(GpuMetricsList {
+                    items: gpus.unwrap_or_default().into_iter().map(metrics_mapping::gpu_entry).collect(),
                 }),
             }))
         }

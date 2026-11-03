@@ -29,3 +29,12 @@ nix = { version = "0.31.3", features = ["fs", "user"] }
 reqwest = { version = "0.12", features = ["stream", "rustls-tls", "json", "http2"], default-features = false }
 chrono = { version = "0.4.45", features = ["serde"] }
 anyhow = "1.0.103"
+
+[target.'cfg(any(target_os = "linux", target_os = "windows"))'.dependencies]
+nvml-wrapper = "0.13"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = ["Win32_Graphics_Dxgi", "Win32_System_Performance", "Win32_Foundation"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+plist = "1"

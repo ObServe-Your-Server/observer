@@ -10,6 +10,7 @@ import "observer/v1/metrics/system.proto";
 import "observer/v1/metrics/process.proto";
 import "observer/v1/metrics/container_runtime.proto";
 import "observer/v1/metrics/speedtest.proto";
+import "observer/v1/metrics/gpu.proto";
 
 enum MetricsType {
   CPU = 0;
@@ -21,6 +22,7 @@ enum MetricsType {
   SYSTEM = 6;
   SPEEDTEST = 7;
   FULL = 8;
+  GPU = 9;
 }
 
 message TimeRange {
@@ -52,6 +54,7 @@ message MetricsResponse {
     ContainerRuntimeStatsList container_metrics = 8;
     SpeedtestMetricsList speedtest_metrics = 9;
     FullMetrics full_metrics = 10;
+    GpuMetricsList gpu_metrics = 11;
   }
 }
 
@@ -87,6 +90,10 @@ message SpeedtestMetricsList {
   repeated observer.v1.metrics.SpeedtestMetrics items = 1;
 }
 
+message GpuMetricsList {
+  repeated observer.v1.metrics.GpuEntry items = 1;
+}
+
 message FullMetrics {
   CpuMetricsList cpu_metrics = 1;
   MemoryMetricsList memory_metrics = 2;
@@ -96,6 +103,7 @@ message FullMetrics {
   ProcessesStatsList process_metrics = 6;
   ContainerRuntimeStatsList container_metrics = 7;
   SpeedtestMetricsList speedtest_metrics = 8;
+  GpuMetricsList gpu_metrics = 9;
 }
 
 service MetricsTunnel {
