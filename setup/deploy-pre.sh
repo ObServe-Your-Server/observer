@@ -19,10 +19,10 @@ fi
 #      ALWAYS set to the staging endpoints below. This prevents a staging
 #      machine from accidentally pointing at production.
 #
-#   3. Every install is a clean install. The existing config and the database
-#      (including its -wal/-shm files) are ALWAYS removed and a fresh config in
-#      the new format is written. Only the API key is loaded from the old
-#      config first, so it can be offered as the default.
+#   3. If observer is already installed you can update: the binary and service
+#      are replaced, the existing config and the database are kept (only the
+#      three URLs above are reset to staging). A reinstall (clean config and
+#      database) is available as a separate, explicit choice.
 # ─────────────────────────────────────────────────────────────────────────────
 
 REPO="ObServe-Your-Server/observer"
@@ -187,18 +187,20 @@ if [ -f "$CONFIG_PATH" ]; then
 
     echo "Observer is already installed." >&2
     echo "" >&2
+    echo "  u  Update (replaces the binary, keeps the current config and database) [default]" >&2
     echo "  r  Reinstall (removes the current config AND database, installs a fresh config)" >&2
     echo "  x  Uninstall" >&2
     echo "  n  Cancel" >&2
     echo "" >&2
     while true; do
-        printf "Choice [r/x/n]: " >&2
+        printf "Choice [U/r/x/n]: " >&2
         IFS= read -r REPLY </dev/tty
-        case "$REPLY" in
+        case "${REPLY:-u}" in
+            u|U) MODE="update"; break ;;
             r) break ;;
             x) MODE="uninstall"; break ;;
             n) echo "Cancelled." >&2; exit 0 ;;
-            *) echo "  Please enter r, x, or n." >&2 ;;
+            *) echo "  Please enter u, r, x, or n." >&2 ;;
         esac
     done
     echo "" >&2
@@ -216,6 +218,7 @@ if [ -f "$CONFIG_PATH" ]; then
     fi
 fi
 
+if [ "$MODE" != "update" ]; then
 echo "Press Enter to accept the default shown in brackets." >&2
 echo "" >&2
 
@@ -266,6 +269,7 @@ echo "Using full resolution retention:     ${DEFAULT_METRICS_RETENTION_HOURS_FUL
 echo "Reduced resolution keeps every:      ${DEFAULT_KEEP_EVERY_X_METRICS}th entry" >&2
 echo "Notify after (readings): CPU ${DEFAULT_CPU_NOTIFY_AFTER}, memory ${DEFAULT_MEMORY_NOTIFY_AFTER}, disk ${DEFAULT_DISK_NOTIFY_AFTER}" >&2
 echo "" >&2
+fi
 
 # Stop the service before replacing the binary (can't overwrite a running executable)
 if svc_is_active; then
@@ -273,12 +277,15 @@ if svc_is_active; then
     svc_stop
 fi
 
-# Always start clean: remove the old config and database
-echo "Removing old config and database..." >&2
-rm -f "$CONFIG_PATH"
-remove_db "$OLD_DB_PATH"
-remove_db "$DEFAULT_DB_PATH"
-remove_db "$DB_PATH"
+# Reinstall / fresh install: remove the old config and database.
+# Update: config and database stay untouched.
+if [ "$MODE" != "update" ]; then
+    echo "Removing old config and database..." >&2
+    rm -f "$CONFIG_PATH"
+    remove_db "$OLD_DB_PATH"
+    remove_db "$DEFAULT_DB_PATH"
+    remove_db "$DB_PATH"
+fi
 
 # Fetch the latest prerelease tag.
 # The GitHub releases API returns releases sorted by creation date newest first.
@@ -320,6 +327,12 @@ else
     echo "Warning: unknown init system — skipping service installation. Run observer manually." >&2
 fi
 
+if [ "$MODE" = "update" ]; then
+    echo "Keeping existing config and database, resetting URLs to staging..." >&2
+    sed -i "s|^base_server_grpc_url.*|base_server_grpc_url               = \"$STAGING_BASE_SERVER_GRPC_URL\"|" "$CONFIG_PATH"
+    sed -i "s|^base_server_http_url.*|base_server_http_url               = \"$STAGING_BASE_SERVER_HTTP_URL\"|" "$CONFIG_PATH"
+    sed -i "s|^push_notification_url.*|push_notification_url              = \"$STAGING_PUSH_NOTIFICATION_URL\"|" "$CONFIG_PATH"
+else
 echo "Writing config to $CONFIG_PATH..." >&2
 mkdir -p "$CONFIG_DIR"
 mkdir -p "$(dirname "$DB_PATH")"
@@ -367,6 +380,7 @@ metrics_retention_hours_reduced_resolution = $METRICS_RETENTION_HOURS_REDUCED_RE
 keep_every_x_metrics                       = $DEFAULT_KEEP_EVERY_X_METRICS
 EOF
 chmod 600 "$CONFIG_PATH"
+fi
 
 echo "Enabling and starting observer service..." >&2
 svc_enable_start
