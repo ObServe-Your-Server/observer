@@ -1,4 +1,5 @@
 use crate::jobs::job::JobTrait;
+use crate::logging::LogTarget;
 use anyhow::Result;
 use async_trait::async_trait;
 use open_eye::collector::speedtest::collector::SpeedtestResult;
@@ -24,7 +25,13 @@ impl SpeedtestStatsCollectionJob {
 #[async_trait]
 impl JobTrait for SpeedtestStatsCollectionJob {
     async fn run(&self) -> anyhow::Result<()> {
-        let res = open_eye::collector::speedtest::collector::run().await?;
+        let res = match open_eye::collector::speedtest::collector::run().await {
+            Ok(res) => res,
+            Err(e) => {
+                log::warn!(target: LogTarget::Speedtest.as_str(), "Speedtest skipped: {e}");
+                return Ok(());
+            }
+        };
         self.storage_engine.save_speedtest_stats(res).await?;
         Ok(())
     }
