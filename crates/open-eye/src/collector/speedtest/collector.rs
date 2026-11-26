@@ -24,6 +24,10 @@ const MEASURE_SECS: u64 = 8;
 
 const UPLOAD_CHUNK: usize = 5_000_000; // 5 MB per POST
 
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+const PING_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
+const STREAM_SHUTDOWN_GRACE: Duration = Duration::from_secs(2);
+
 // Allocated once for the whole process; `Bytes::clone` is zero-copy, so every
 // POST across all streams shares this one buffer instead of allocating a fresh
 // each — repeated large allocations fragment the heap and ratchet RSS upward.
@@ -103,7 +107,11 @@ async fn download_stream(
     measure_flag: Arc<AtomicBool>,
     rate_limited: Arc<AtomicBool>,
 ) {
-    let client = match Client::builder().no_gzip().build() {
+    let client = match Client::builder()
+        .no_gzip()
+        .connect_timeout(CONNECT_TIMEOUT)
+        .build()
+    {
         Ok(c) => c,
         Err(_) => return,
     };
@@ -160,7 +168,11 @@ async fn upload_stream(
     measure_flag: Arc<AtomicBool>,
     rate_limited: Arc<AtomicBool>,
 ) {
-    let client = match Client::builder().no_gzip().build() {
+    let client = match Client::builder()
+        .no_gzip()
+        .connect_timeout(CONNECT_TIMEOUT)
+        .build()
+    {
         Ok(c) => c,
         Err(_) => return,
     };
@@ -236,13 +248,21 @@ where
 
     stop.store(true, Ordering::Relaxed);
 
-    for h in handles {
-        let _ = h.await;
+    let elapsed = start.elapsed();
+
+    for mut h in handles {
+        if tokio::time::timeout(STREAM_SHUTDOWN_GRACE, &mut h)
+            .await
+            .is_err()
+        {
+            debug!("stream did not stop within grace period, aborting");
+            h.abort();
+        }
     }
 
     (
         counter.load(Ordering::Relaxed),
-        start.elapsed(),
+        elapsed,
         rate_limited.load(Ordering::Relaxed),
     )
 }
@@ -283,7 +303,10 @@ async fn measure_upload() -> Result<f64, SpeedtestError> {
 }
 
 pub async fn run() -> Result<SpeedtestResult, SpeedtestError> {
-    let client = Client::new();
+    let client = Client::builder()
+        .connect_timeout(CONNECT_TIMEOUT)
+        .timeout(PING_REQUEST_TIMEOUT)
+        .build()?;
 
     let ping_ms = measure_ping(&client).await?;
     debug!("Speedtest: ping {:.2} ms", ping_ms);
