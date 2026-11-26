@@ -21,8 +21,8 @@ fi
 #
 #   3. If observer is already installed you can update: the binary and service
 #      are replaced, the existing config and the database are kept (only the
-#      three URLs above are reset to staging). A reinstall (clean config and
-#      database) is available as a separate, explicit choice.
+#      three URLs above are reset to staging). A reinstall (clean config) is
+#      available as a separate, explicit choice. The database is never deleted.
 # ─────────────────────────────────────────────────────────────────────────────
 
 REPO="ObServe-Your-Server/observer"
@@ -96,13 +96,13 @@ svc_status() {
 # the config, regardless of what was there before (see note 2 above).
 # ─────────────────────────────────────────────────────────────────────────────
 
-STAGING_BASE_SERVER_GRPC_URL="https://grpc-watch-tower-dev.observe.vision:42042"
+STAGING_BASE_SERVER_GRPC_URL="https://grpc-watch-tower-dev.observe.vision"
 STAGING_BASE_SERVER_HTTP_URL="https://watch-tower-dev.observe.vision"
 STAGING_PUSH_NOTIFICATION_URL="https://watch-tower-dev.observe.vision/notifications"
 
 DEFAULT_DB_PATH="$DATA_DIR/observer.db"
 DEFAULT_METRICS_RETENTION_HOURS_FULL_RESOLUTION="48"
-DEFAULT_METRICS_RETENTION_HOURS_REDUCED_RESOLUTION="96"
+DEFAULT_METRICS_RETENTION_HOURS_REDUCED_RESOLUTION="960" # 40 days
 DEFAULT_KEEP_EVERY_X_METRICS="5"
 DEFAULT_BASE_METRIC_SECS="5"
 DEFAULT_SPEEDTEST_SECS="300"
@@ -111,7 +111,7 @@ DEFAULT_DATA_CLEANUP_JOB_SECS="3600"
 
 # notification_config: *_notify_after = consecutive readings in a new state
 # before a notification is sent
-DEFAULT_CPU_NOTIFY_AFTER="2"
+DEFAULT_CPU_NOTIFY_AFTER="3"
 DEFAULT_CPU_HIGH_PERCENTAGE="90"
 DEFAULT_MEMORY_NOTIFY_AFTER="30"
 DEFAULT_MEMORY_HIGH_PERCENTAGE="90"
@@ -164,31 +164,20 @@ ask_yes_no() {
     done
 }
 
-# Removes a sqlite database file together with its sidecar files.
-# Only absolute paths are touched.
-remove_db() {
-    case "$1" in
-        /*) rm -f "$1" "$1-wal" "$1-shm" "$1-journal" ;;
-    esac
-}
-
 echo "=== Observer Prerelease Installer ===" >&2
 echo "" >&2
 
 # Try to load the existing config first. Works for the old and the new config
-# format. Only the API key is reused, the database path is remembered so the
-# old database can be removed even if it lived at a custom location.
+# format. Only the API key is reused.
 MODE=""
 DEFAULT_API_KEY=""
-OLD_DB_PATH=""
 if [ -f "$CONFIG_PATH" ]; then
     DEFAULT_API_KEY=$(grep -m1 '^api_key' "$CONFIG_PATH" | sed 's/.*= *"\(.*\)".*/\1/')
-    OLD_DB_PATH=$(grep -m1 '^database_url' "$CONFIG_PATH" | sed 's|.*sqlite://\([^?"]*\).*|\1|')
 
     echo "Observer is already installed." >&2
     echo "" >&2
     echo "  u  Update (replaces the binary, keeps the current config and database) [default]" >&2
-    echo "  r  Reinstall (removes the current config AND database, installs a fresh config)" >&2
+    echo "  r  Reinstall (removes the current config, installs a fresh one, keeps the database)" >&2
     echo "  x  Uninstall" >&2
     echo "  n  Cancel" >&2
     echo "" >&2
@@ -277,14 +266,11 @@ if svc_is_active; then
     svc_stop
 fi
 
-# Reinstall / fresh install: remove the old config and database.
-# Update: config and database stay untouched.
+# Reinstall / fresh install: remove the old config. The database is never deleted.
+# Update: the config stays too.
 if [ "$MODE" != "update" ]; then
-    echo "Removing old config and database..." >&2
+    echo "Removing old config..." >&2
     rm -f "$CONFIG_PATH"
-    remove_db "$OLD_DB_PATH"
-    remove_db "$DEFAULT_DB_PATH"
-    remove_db "$DB_PATH"
 fi
 
 # Fetch the latest prerelease tag.

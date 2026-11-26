@@ -74,7 +74,7 @@ async fn run(job: Job) -> Result<()> {
                     timer.elapsed().as_secs_f32()
                 );
             }
-            Ok(Err(e)) => Err(anyhow!("Job failed with error: {}", e))?,
+            Ok(Err(e)) => Err(anyhow!("Job [{}]failed with error: {}", job.name() ,e))?,
             Err(_) => {
                 // timeout
                 Err(anyhow!("Job [{}] timeouted", job.name()))?
